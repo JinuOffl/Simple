@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Environment variables (contains secrets)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Capacitor (generated, can be regenerated with `npx cap add android`)
+android/.gradle/
+android/.idea/
+android/build/
+android/app/build/
+android/local.properties
+
+# TypeScript build info
+*.tsbuildinfo
