@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
-import { useAppStore } from "@/lib/zustandStore";
+import { downloadAppExport, useAppStore } from "@/lib/zustandStore";
 import type { SavedApp } from "@/lib/zustandStore";
 import { ManifestRenderer } from "@/renderer/ManifestRenderer";
-import type { Manifest } from "@/schema/manifest.schema";
+import type { Manifest } from "@/schema/manifest.v1";
+import type { ManifestV2 } from "@/schema/manifest.v2";
 
 export function AppRunnerScreen() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { apps, startEditing } = useAppStore();
+  const { apps, startEditing, wakeApp, exportApp } = useAppStore();
 
   const [app, setApp]         = useState<SavedApp | null>(null);
   const [appData, setAppData] = useState<Record<string, unknown>>({});
@@ -26,7 +27,8 @@ export function AppRunnerScreen() {
       if (!loadedApp) {
         const { data, error } = await supabase.from("apps").select("*").eq("id", id).single();
         if (error || !data) { setError("App not found"); setLoading(false); return; }
-        loadedApp = data as SavedApp;
+        const raw = data as SavedApp;
+        loadedApp = { ...raw, status: raw.status ?? "active" };
       }
 
       setApp(loadedApp);
@@ -55,6 +57,22 @@ export function AppRunnerScreen() {
 
   const handleEdit = () => {
     if (app) { startEditing(app); navigate("/build"); }
+  };
+
+  const handleWake = async () => {
+    if (!app) return;
+    await wakeApp(app.id);
+    const updatedFromStore = useAppStore.getState().apps.find((a) => a.id === app.id);
+    if (updatedFromStore) {
+      setApp(updatedFromStore);
+    } else {
+      setApp({ ...app, status: "active" });
+    }
+  };
+
+  const handleExport = () => {
+    if (!app) return;
+    downloadAppExport(app, exportApp);
   };
 
   if (loading) {
@@ -89,6 +107,8 @@ export function AppRunnerScreen() {
     );
   }
 
+  const appManifest: Manifest | ManifestV2 = app.manifest;
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-mesh">
 
@@ -118,13 +138,38 @@ export function AppRunnerScreen() {
 
       {/* App content */}
       <main className="flex-1 overflow-y-auto">
-        <ManifestRenderer
-          manifest={app.manifest as Manifest}
-          appData={appData}
-          appId={app.id}
-          onDataChange={handleDataChange}
-          isPreview={false}
-        />
+        {app.status === "sleeping" ? (
+          <div className="p-6 flex items-center justify-center min-h-[60vh]">
+            <div className="glass max-w-sm w-full p-6 flex flex-col items-center text-center gap-4">
+              <span className="text-4xl leading-none">{app.icon}</span>
+              <div>
+                <span className="nt-tag mb-2">sleeping</span>
+                <h2 className="text-white text-sm uppercase tracking-wider font-semibold">
+                  {app.name}
+                </h2>
+                <p className="text-n-text2 text-xs mt-1.5 leading-relaxed">
+                  This app is sleeping. Wake it up to use it again, or export its manifest as JSON.
+                </p>
+              </div>
+              <div className="w-full flex flex-col gap-2 pt-2">
+                <button type="button" onClick={handleWake} className="btn-primary">
+                  Wake App
+                </button>
+                <button type="button" onClick={handleExport} className="btn-ghost w-full">
+                  Export JSON
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <ManifestRenderer
+            manifest={appManifest}
+            appData={appData}
+            appId={app.id}
+            onDataChange={handleDataChange}
+            isPreview={false}
+          />
+        )}
       </main>
     </div>
   );

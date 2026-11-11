@@ -2,13 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── shadcn/ui CSS variables (Nothing OS dark palette by default) ─────────── */
+@layer base {
+  :root,
+  .dark {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 4%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 50%;
+    --accent: 0 0% 13%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 0 0% 83%;
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+}
+
 /* ─── CSS variables ─────────────────────────────────────────────────────────── */
 :root {
   --bg:           #0a0a0a;
   --surface:      #111111;
   --surface2:     #1a1a1a;
   --surface3:     #222222;
-  --border:       rgba(255, 255, 255, 0.08);
+  --n-border:     rgba(255, 255, 255, 0.08);
   --border-2:     rgba(255, 255, 255, 0.18);
   --text:         #ffffff;
   --text-2:       rgba(255, 255, 255, 0.5);
@@ -45,7 +76,7 @@ input, textarea, button {
 /* replaces glassmorphism "glass" class */
 .glass {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--n-border);
   border-radius: 4px;
 }
 
@@ -89,7 +120,7 @@ input, textarea, button {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   padding: 13px 24px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--n-border);
   border-radius: 4px;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
@@ -99,7 +130,7 @@ input, textarea, button {
 /* ─── App icon cards (Home grid) ────────────────────────────────────────────── */
 .app-icon-card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--n-border);
   border-radius: 4px;
   padding: 16px 8px 14px;
   display: flex;
@@ -130,7 +161,7 @@ input, textarea, button {
 
 .bubble-assistant {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--n-border);
   color: var(--text-2);
   padding: 10px 14px;
   border-radius: 4px;
@@ -214,7 +245,7 @@ input, textarea, button {
   display: inline-flex;
   align-items: center;
   padding: 3px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--n-border);
   border-radius: 2px;
   font-size: 9px;
   text-transform: uppercase;
@@ -235,6 +266,6 @@ input, textarea, button {
 .nt-hr {
   border: none;
   height: 1px;
-  background: var(--border);
+  background: var(--n-border);
   margin: 0;
 }

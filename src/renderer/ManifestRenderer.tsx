@@ -1,26 +1,24 @@
-import type { Manifest, ManifestComponent } from "@/schema/manifest.schema";
-import { Text } from "@/components/Text";
-import { Card } from "@/components/Card";
-import { Button } from "@/components/Button";
-import { Checklist } from "@/components/Checklist";
-import { ImageGallery } from "@/components/ImageGallery";
-import { ImageCapture } from "@/components/ImageCapture";
-import { MicRecorder } from "@/components/MicRecorder";
-import { McqQuiz } from "@/components/McqQuiz";
-import { ChatBubble } from "@/components/ChatBubble";
-import { ConversationLoop } from "@/components/ConversationLoop";
-import { Calculator } from "@/components/Calculator";
-import { Clock } from "@/components/Clock";
+import { useEffect, useMemo, useState } from "react";
+import type { Manifest } from "@/schema/manifest.v1";
+import type { ManifestV2, ManifestV2Action } from "@/schema/manifest.v2";
+import { migrateV1toV2, needsMigration } from "@/schema/migrator";
+import { getRegistryEntry, type RegistryRenderContext } from "@/registry";
 import { runAction } from "@/actions/actionRunner";
+import { useAppStore } from "@/lib/zustandStore";
 
 interface ManifestRendererProps {
-  manifest: Manifest;
+  manifest: Manifest | ManifestV2;
   appData?: Record<string, unknown>;
   appId?: string;
   onDataChange?: (key: string, value: unknown) => void;
   isPreview?: boolean; // In builder preview — some native actions are mocked
 }
 
+/**
+ * Registry-driven renderer for v1 and v2 app manifests.
+ * Normalizes v1 manifests via migrateV1toV2 and delegates all node rendering
+ * to COMPONENT_REGISTRY entries.
+ */
 export function ManifestRenderer({
   manifest,
   appData = {},
@@ -28,197 +26,133 @@ export function ManifestRenderer({
   onDataChange,
   isPreview = false,
 }: ManifestRendererProps) {
-  // Find action by id
-  const getAction = (id: string) => manifest.actions.find((a) => a.id === id);
+  const v2Manifest = useMemo<ManifestV2>(
+    () =>
+      needsMigration(manifest)
+        ? migrateV1toV2(manifest as Manifest)
+        : (manifest as ManifestV2),
+    [manifest]
+  );
 
-  const handleClick = async (component: ManifestComponent) => {
-    if (!component.on_click) return;
-    const action = getAction(component.on_click);
-    if (!action) return;
+  const defaultScreenId = v2Manifest.screens[0]?.id ?? "main";
+  const [activeScreenId, setActiveScreenId] = useState<string>(defaultScreenId);
 
-    await runAction({
-      action,
-      appData,
-      appId,
-      onDataChange,
-      isPreview,
-    });
-  };
+  const hasActiveScreen = v2Manifest.screens.some((s) => s.id === activeScreenId);
+  const resolvedScreenId = hasActiveScreen ? activeScreenId : defaultScreenId;
 
-  const renderComponent = (component: ManifestComponent) => {
-    // Merge manifest props with live appData bound values
-    const props = { ...(component.props ?? {}) };
-
-    // Inject bound app_data value into props
-    if (component.bind && appData[component.bind] !== undefined) {
-      props._boundValue = appData[component.bind];
+  useEffect(() => {
+    if (!hasActiveScreen) {
+      setActiveScreenId(defaultScreenId);
     }
+  }, [hasActiveScreen, defaultScreenId]);
 
-    switch (component.type) {
-      case "text":
-        return (
-          <Text
-            key={component.id}
-            content={
-              typeof props._boundValue === "string"
-                ? props._boundValue
-                : (props.content as string) ?? ""
-            }
-          />
-        );
+  const componentLoadingMap = useAppStore((s) => s.componentLoadingMap);
 
-      case "card":
-        return (
-          <Card
-            key={component.id}
-            title={(props.title as string) ?? ""}
-            body={
-              typeof props._boundValue === "string"
-                ? props._boundValue
-                : (props.body as string) ?? ""
-            }
-          />
-        );
+  const activeScreen =
+    v2Manifest.screens.find((s) => s.id === resolvedScreenId) ??
+    v2Manifest.screens[0];
 
-      case "button":
-        return (
-          <Button
-            key={component.id}
-            label={(props.label as string) ?? ""}
-            onClick={() => handleClick(component)}
-          />
-        );
+  const availableScreenIds = v2Manifest.screens.map((s) => s.id);
+  const permissions = v2Manifest.permissions ?? [];
+  const actions = v2Manifest.actions ?? [];
 
-      case "checklist":
-        return (
-          <Checklist
-            key={component.id}
-            items={Array.isArray(props.items) ? (props.items as string[]) : []}
-          />
-        );
-
-      case "image_gallery": {
-        const images = Array.isArray(props._boundValue)
-          ? (props._boundValue as string[])
-          : Array.isArray(props.images)
-          ? (props.images as string[])
-          : [];
-        return <ImageGallery key={component.id} images={images} />;
-      }
-
-      case "image_capture":
-        return (
-          <ImageCapture
-            key={component.id}
-            label={(props.label as string) ?? "Take Photo"}
-            save_to={props.save_to as string | undefined}
-            onCapture={(base64, key) => {
-              if (key) onDataChange?.(key, base64);
-              // If button is wired to an action, fire it too
-              if (component.on_click) {
-                const action = getAction(component.on_click);
-                if (action) {
-                  runAction({
-                    action,
-                    appData: { ...appData, [key ?? "image"]: base64 },
-                    appId,
-                    onDataChange,
-                    isPreview,
-                  });
-                }
-              }
-            }}
-          />
-        );
-
-      case "mic_recorder":
-        return (
-          <MicRecorder
-            key={component.id}
-            label={(props.label as string) ?? "Record"}
-            save_to={props.save_to as string | undefined}
-            onTranscript={(text, key) => {
-              if (key) onDataChange?.(key, text);
-            }}
-          />
-        );
-
-      case "mcq_quiz":
-        return (
-          <McqQuiz
-            key={component.id}
-            questions={
-              Array.isArray(props.questions)
-                ? (props.questions as Array<{
-                    question: string;
-                    options: string[];
-                    correct_index: number;
-                  }>)
-                : []
-            }
-          />
-        );
-
-      case "chat_bubble":
-        return (
-          <ChatBubble
-            key={component.id}
-            role={(props.role as "user" | "assistant") ?? "assistant"}
-            content={(props.content as string) ?? ""}
-          />
-        );
-
-      case "calculator":
-        // Fully self-contained — no props, no actions, no network
-        return <Calculator key={component.id} />;
-
-      case "clock":
-        return (
-          <Clock
-            key={component.id}
-            timezone={props.timezone as string | undefined}
-            format={(props.format as "12h" | "24h") ?? "12h"}
-            label={props.label as string | undefined}
-          />
-        );
-
-      case "conversation_loop":
-        return (
-          <ConversationLoop
-            key={component.id}
-            actionId={component.on_click ?? component.id}
-            persona_prompt={(props.persona_prompt as string) ?? "You are a helpful assistant."}
-            appId={appId}
-          />
-        );
-
-      default:
-        return (
-          <div key={component.id} className="glass rounded-xl p-3 text-white/40 text-xs">
-            Unknown component type: {(component as ManifestComponent).type}
-          </div>
-        );
-    }
-  };
+  const getAction = (id: string): ManifestV2Action | undefined =>
+    actions.find((a) => a.id === id);
 
   return (
     <div className="space-y-3 p-4 animate-fade-in">
-      {/* App header in preview */}
-      {manifest.name && (
+      {/* App header */}
+      {v2Manifest.name && (
         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/10">
-          <span className="text-3xl">{manifest.icon}</span>
+          <span className="text-3xl">{v2Manifest.icon}</span>
           <div>
-            <h2 className="text-white font-semibold text-base">{manifest.name}</h2>
-            {manifest.permissions.length > 0 && (
+            <h2 className="text-white font-semibold text-base">{v2Manifest.name}</h2>
+            {permissions.length > 0 && (
               <p className="text-white/40 text-xs mt-0.5">
-                Uses: {manifest.permissions.join(", ")}
+                Uses: {permissions.join(", ")}
               </p>
             )}
           </div>
         </div>
       )}
 
-      {manifest.components.map(renderComponent)}
+      {/* Multi-screen switcher */}
+      {v2Manifest.screens.length > 1 && (
+        <nav aria-label="App screens" className="flex flex-wrap gap-1.5 pb-2 border-b border-white/10">
+          {v2Manifest.screens.map((screen) => {
+            const isActive = screen.id === resolvedScreenId;
+            return (
+              <button
+                key={screen.id}
+                type="button"
+                onClick={() => setActiveScreenId(screen.id)}
+                aria-current={isActive ? "page" : undefined}
+                className={`px-3 py-1.5 text-[10px] uppercase tracking-wider rounded-sm border transition-colors ${
+                  isActive
+                    ? "bg-white text-n-bg border-white font-bold"
+                    : "bg-n-surface text-n-text2 border-n-border hover:border-n-border2 hover:text-white"
+                }`}
+              >
+                {screen.title}
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
+      {/* Registry-driven node list */}
+      {(activeScreen?.nodes ?? []).map((node) => {
+        const entry = getRegistryEntry(node.type);
+        if (!entry) {
+          return (
+            <div key={node.id} className="glass rounded-xl p-3 text-white/40 text-xs">
+              Unknown component type: {node.type}
+            </div>
+          );
+        }
+
+        const onClickActionId = node.on_click;
+        const onAction = onClickActionId
+          ? async (extraAppData?: Record<string, unknown>) => {
+              const action = getAction(onClickActionId);
+              if (!action) return;
+              await runAction({
+                action,
+                appData: extraAppData ? { ...appData, ...extraAppData } : appData,
+                appId,
+                onDataChange,
+                isPreview,
+                availableScreenIds,
+                onNavigateScreen: setActiveScreenId,
+              });
+            }
+          : undefined;
+
+        const ctx: RegistryRenderContext = {
+          nodeId: node.id,
+          bindValue: node.bind ? appData[node.bind] : undefined,
+          appData,
+          appId,
+          isPreview,
+          isLoading: Boolean(componentLoadingMap[node.id]),
+          onClickActionId: node.on_click,
+          onDataChange,
+          onAction,
+        };
+
+        const EntryComponent = entry.component;
+
+        return (
+          <EntryComponent
+            key={node.id}
+            {...((node.props ?? {}) as Record<string, unknown>)}
+            id={node.id}
+            bindValue={ctx.bindValue}
+            onAction={ctx.onAction ? () => ctx.onAction?.() : undefined}
+            ctx={ctx}
+          />
+        );
+      })}
     </div>
   );
 }

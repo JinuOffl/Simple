@@ -68,7 +68,7 @@ export function ConversationLoop({ persona_prompt, appId }: ConversationLoopProp
         content: data.result ?? "I couldn't generate a response. Please try again.",
       };
       setMessages((prev) => [...prev, assistantMsg]);
-    } catch (e) {
+    } catch {
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: "⚠️ Something went wrong. Please try again." },

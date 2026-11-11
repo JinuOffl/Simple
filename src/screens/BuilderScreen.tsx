@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppStore } from "@/lib/zustandStore";
-import { ManifestSchema } from "@/schema/manifest.schema";
+import { ManifestSchema, type Manifest } from "@/schema/manifest.v1";
+import { ManifestV2Schema, type ManifestV2 } from "@/schema/manifest.v2";
 import { ManifestRenderer } from "@/renderer/ManifestRenderer";
 
 interface ChatMessage { role: "user" | "assistant"; content: string; }
@@ -61,18 +62,33 @@ export function BuilderScreen() {
 
       if (error) throw new Error(error.message);
 
-      const parseResult = ManifestSchema.safeParse(data);
-      if (!parseResult.success) {
-        throw new Error(`Invalid manifest: ${parseResult.error.issues[0]?.message ?? "unknown"}`);
+      // Try v2 first; fall back to v1 while generate-manifest still returns v1 in Phase 1
+      const v2Parse = ManifestV2Schema.safeParse(data);
+      let parsedManifest: Manifest | ManifestV2;
+
+      if (v2Parse.success) {
+        parsedManifest = v2Parse.data;
+      } else {
+        const v1Parse = ManifestSchema.safeParse(data);
+        if (!v1Parse.success) {
+          const isV2Candidate =
+            typeof data === "object" &&
+            data !== null &&
+            "schema_version" in data &&
+            (data as Record<string, unknown>).schema_version === 2;
+          const issues = isV2Candidate ? v2Parse.error.issues : v1Parse.error.issues;
+          throw new Error(`Invalid manifest: ${issues[0]?.message ?? "unknown"}`);
+        }
+        parsedManifest = v1Parse.data;
       }
 
-      setManifest(parseResult.data);
+      setManifest(parsedManifest);
 
       const assistantMsg: ChatMessage = {
         role: "assistant",
         content: currentManifest
-          ? `Updated "${parseResult.data.name}". Check preview above.`
-          : `Built "${parseResult.data.name}". Save it or ask me to change something.`,
+          ? `Updated "${parsedManifest.name}". Check preview above.`
+          : `Built "${parsedManifest.name}". Save it or ask me to change something.`,
       };
       setChatHistory(prev => [...prev, assistantMsg]);
       addMessage("assistant", assistantMsg.content);

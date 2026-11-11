@@ -1,13 +1,16 @@
 import { supabase } from "@/lib/supabaseClient";
-import type { ManifestAction } from "@/schema/manifest.schema";
+import type { ManifestAction } from "@/schema/manifest.v1";
+import type { ManifestV2Action } from "@/schema/manifest.v2";
 import { useAppStore } from "@/lib/zustandStore";
 
-interface RunActionParams {
-  action: ManifestAction;
+export interface RunActionParams {
+  action: ManifestAction | ManifestV2Action;
   appData: Record<string, unknown>;
   appId?: string;
   onDataChange?: (key: string, value: unknown) => void;
   isPreview?: boolean;
+  availableScreenIds?: string[];
+  onNavigateScreen?: (screenId: string) => void;
 }
 
 /**
@@ -21,6 +24,8 @@ export async function runAction({
   appId,
   onDataChange,
   isPreview = false,
+  availableScreenIds,
+  onNavigateScreen,
 }: RunActionParams): Promise<void> {
   const store = useAppStore.getState();
 
@@ -124,8 +129,14 @@ export async function runAction({
 
     // ─── NAVIGATE ───────────────────────────────────────────────────────────────
     case "navigate": {
-      const target = action.prompt_template ?? "/";
-      window.dispatchEvent(new CustomEvent("simple:navigate", { detail: { target } }));
+      const target =
+        action.prompt_template ??
+        (typeof action.params?.target === "string" ? action.params.target : "/");
+      if (availableScreenIds?.includes(target) && onNavigateScreen) {
+        onNavigateScreen(target);
+      } else {
+        window.dispatchEvent(new CustomEvent("simple:navigate", { detail: { target } }));
+      }
       break;
     }
 
@@ -154,7 +165,18 @@ export async function runAction({
       // Handled entirely inside ConversationLoop.tsx
       break;
 
-    default:
-      console.warn("Unknown action kind:", (action as ManifestAction).kind);
+    // ─── V2 ACTIONS (enabled in Phase 1b / Phase 6) ────────────────────────────
+    case "mcp_call":
+    case "record_insert":
+    case "record_update":
+      console.warn(
+        `[Simple] Action "${action.id}" (${action.kind}) is not enabled in Phase 1 (enabled in Phase 1b / Phase 6).`
+      );
+      break;
+
+    default: {
+      const unknownKind = (action as { kind?: string }).kind;
+      console.warn("Unknown action kind:", unknownKind);
+    }
   }
 }

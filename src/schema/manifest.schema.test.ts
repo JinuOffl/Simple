@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ManifestSchema, ComponentSchema, ActionSchema } from "./manifest.schema";
+import { ManifestSchema, ComponentSchema, ActionSchema } from "./manifest.v1";
 
 // ─── ComponentSchema ────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAppStore } from "@/lib/zustandStore";
+import { downloadAppExport, useAppStore } from "@/lib/zustandStore";
 import type { SavedApp } from "@/lib/zustandStore";
 
 const EXAMPLE_PROMPTS = [
@@ -10,22 +10,94 @@ const EXAMPLE_PROMPTS = [
   { emoji: "🌍", label: "spanish quiz",        prompt: "Create a multiple choice quiz app for learning Spanish verbs with 5 questions" },
 ];
 
-function AppCard({ app, onOpen, onDelete }: { app: SavedApp; onOpen: () => void; onDelete: () => void }) {
+function AppCard({
+  app,
+  onOpen,
+  onSleep,
+  onWake,
+  onExport,
+}: {
+  app: SavedApp;
+  onOpen: () => void;
+  onSleep: () => void;
+  onWake: () => void;
+  onExport: () => void;
+}) {
+  const isSleeping = app.status === "sleeping";
+
   return (
-    <div className="app-icon-card group" onClick={onOpen}>
-      <span className="text-3xl leading-none">{app.icon}</span>
-      <p className="text-n-text2 text-[9px] uppercase tracking-wider text-center leading-tight line-clamp-2 w-full px-1">
-        {app.name}
-      </p>
-      {/* Delete on hover */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center
-                   text-n-text3 hover:text-white opacity-0 group-hover:opacity-100
-                   text-[10px] transition-all duration-150"
-      >
-        ✕
-      </button>
+    <div
+      className={`app-icon-card group justify-between !pt-2 !pb-2 ${isSleeping ? "opacity-50" : ""}`}
+      onClick={onOpen}
+    >
+      {/* Top action bar */}
+      <div className="w-full flex items-center justify-between gap-1 min-h-[18px]">
+        {isSleeping ? (
+          <span className="nt-tag text-[8px] px-1.5 py-0.5 leading-none">
+            sleeping
+          </span>
+        ) : (
+          <span />
+        )}
+
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onExport();
+            }}
+            title="Export JSON"
+            aria-label={`Export ${app.name}`}
+            className={`px-1 py-0.5 text-[9px] text-n-text3 hover:text-white transition-all duration-150 ${
+              isSleeping ? "opacity-100" : "opacity-60 sm:opacity-0 sm:group-hover:opacity-100"
+            }`}
+          >
+            ↓
+          </button>
+
+          {!isSleeping && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSleep();
+              }}
+              title="Put app to sleep"
+              aria-label={`Sleep ${app.name}`}
+              className="px-1 py-0.5 text-[9px] text-n-text3 hover:text-white
+                         opacity-60 sm:opacity-0 sm:group-hover:opacity-100
+                         transition-all duration-150"
+            >
+              ☾
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* App icon + title */}
+      <div className="flex flex-col items-center gap-1.5 my-auto w-full">
+        <span className="text-3xl leading-none">{app.icon}</span>
+        <p className="text-n-text2 text-[9px] uppercase tracking-wider text-center leading-tight line-clamp-2 w-full px-1">
+          {app.name}
+        </p>
+      </div>
+
+      {/* Wake button for sleeping apps */}
+      {isSleeping && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onWake();
+          }}
+          className="w-full py-1 text-[8px] uppercase tracking-wider text-white
+                     border border-n-border2 hover:bg-white hover:text-n-bg
+                     rounded-sm transition-colors"
+        >
+          Wake
+        </button>
+      )}
     </div>
   );
 }
@@ -42,7 +114,8 @@ function SkeletonCard() {
 
 export function HomeScreen() {
   const navigate = useNavigate();
-  const { apps, loadingApps, fetchApps, deleteApp, resetBuilder, session, signOut } = useAppStore();
+  const { apps, loadingApps, fetchApps, sleepApp, wakeApp, exportApp, resetBuilder, session, signOut } =
+    useAppStore();
 
   useEffect(() => { fetchApps(); }, [fetchApps]);
 
@@ -51,10 +124,19 @@ export function HomeScreen() {
     navigate("/build", { state: { prefillPrompt } });
   };
 
-  const handleOpen   = (app: SavedApp) => navigate(`/app/${app.id}`);
-  const handleDelete = async (app: SavedApp) => {
-    if (!confirm(`Delete "${app.name}"?`)) return;
-    await deleteApp(app.id);
+  const handleOpen = (app: SavedApp) => navigate(`/app/${app.id}`);
+
+  const handleSleep = async (app: SavedApp) => {
+    if (!confirm(`Put "${app.name}" to sleep? You can wake or export it anytime.`)) return;
+    await sleepApp(app.id);
+  };
+
+  const handleWake = async (app: SavedApp) => {
+    await wakeApp(app.id);
+  };
+
+  const handleExport = (app: SavedApp) => {
+    downloadAppExport(app, exportApp);
   };
 
   return (
@@ -139,7 +221,9 @@ export function HomeScreen() {
                 key={app.id}
                 app={app}
                 onOpen={() => handleOpen(app)}
-                onDelete={() => handleDelete(app)}
+                onSleep={() => handleSleep(app)}
+                onWake={() => handleWake(app)}
+                onExport={() => handleExport(app)}
               />
             ))}
           </div>
