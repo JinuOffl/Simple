@@ -157,13 +157,22 @@ export function HomeScreen() {
           </p>
         </div>
 
-        {/* Settings / sign out */}
-        <button
-          onClick={signOut}
-          className="nt-tag hover:border-n-border2 hover:text-n-text2 transition-colors cursor-pointer"
-        >
-          {session?.user.email?.split("@")[0] ?? "account"}
-        </button>
+        {/* MCP demo & account */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate("/mcp-demo")}
+            className="nt-tag hover:border-n-border2 hover:text-n-text2 transition-colors cursor-pointer"
+          >
+            mcp demo
+          </button>
+          <button
+            onClick={signOut}
+            className="nt-tag hover:border-n-border2 hover:text-n-text2 transition-colors cursor-pointer"
+          >
+            {session?.user.email?.split("@")[0] ?? "account"}
+          </button>
+        </div>
       </header>
 
       {/* Content */}

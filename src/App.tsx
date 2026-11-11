@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppStore } from "@/lib/zustandStore";
 import { AuthScreen } from "@/screens/AuthScreen";
+import { McpDemoScreen } from "@/screens/McpDemoScreen";
 import { HomeScreen } from "@/screens/HomeScreen";
 import { BuilderScreen } from "@/screens/BuilderScreen";
 import { AppRunnerScreen } from "@/screens/AppRunnerScreen";
@@ -59,6 +60,18 @@ export default function App() {
             <AuthGuard>
               <AppRunnerScreen />
             </AuthGuard>
+          }
+        />
+        <Route
+          path="/mcp-demo"
+          element={
+            import.meta.env.DEV ? (
+              <McpDemoScreen />
+            ) : (
+              <AuthGuard>
+                <McpDemoScreen />
+              </AuthGuard>
+            )
           }
         />
 

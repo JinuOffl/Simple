@@ -3,6 +3,8 @@ import type { ManifestAction } from "@/schema/manifest.v1";
 import type { ManifestV2Action } from "@/schema/manifest.v2";
 import { useAppStore } from "@/lib/zustandStore";
 
+import { executeMcpCallAction } from "./mcpAction";
+
 export interface RunActionParams {
   action: ManifestAction | ManifestV2Action;
   appData: Record<string, unknown>;
@@ -167,10 +169,13 @@ export async function runAction({
 
     // ─── V2 ACTIONS (enabled in Phase 1b / Phase 6) ────────────────────────────
     case "mcp_call":
+      await executeMcpCallAction({ action, appData, onDataChange, isPreview });
+      break;
+
     case "record_insert":
     case "record_update":
       console.warn(
-        `[Simple] Action "${action.id}" (${action.kind}) is not enabled in Phase 1 (enabled in Phase 1b / Phase 6).`
+        `[Simple] Action "${action.id}" (${action.kind}) is not enabled in Phase 1 (enabled in Phase 6).`
       );
       break;
 

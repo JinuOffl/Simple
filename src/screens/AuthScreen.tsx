@@ -118,6 +118,16 @@ export function AuthScreen() {
             </button>
           </div>
         )}
+        {import.meta.env.DEV && (
+          <div className="mt-6 text-center">
+            <a
+              href="#/mcp-demo"
+              className="text-n-text3 hover:text-white text-[10px] font-mono uppercase tracking-[0.18em] transition-colors"
+            >
+              open phase 1b mcp demo →
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

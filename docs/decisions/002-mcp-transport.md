@@ -1,32 +1,30 @@
-# 002 — MCP Transport and SDK Choice
+# ADR 002: MCP Transport & Client Library in Deno Edge Functions
 
-**Status:** STUB — to be verified in Phase 1b  
-**Date:** 2026-11-10
+- **Status:** DECIDED
+- **Date:** 2026-11-11
 
 ## Context
-The spec requires Supabase Edge Functions (Deno) to act as an MCP client using the official
-`@modelcontextprotocol/sdk`. Stdio transport is impossible in Edge Functions (no process spawning).
-Remote MCP servers only, over Streamable HTTP.
+
+Simple's Phase 1b architecture runs runtime MCP calls (`mcp_call` actions) inside a Supabase/Deno Edge Function (`run-mcp-action`) connecting to remote Streamable HTTP MCP servers with SSRF validation. We needed to verify whether `@modelcontextprotocol/sdk` v1 or `@modelcontextprotocol/client` v2 passes strict TypeScript checks and executes Streamable HTTP client calls cleanly under Deno `2.9.6`.
 
 ## Options
-1. **`@modelcontextprotocol/sdk` via `npm:@modelcontextprotocol/sdk`** — official, maintained.
-   Risk: Deno `npm:` compatibility and Streamable HTTP transport must be verified against the
-   current SDK version.
-2. **Hand-rolled HTTP client** — just `fetch` to MCP endpoints with manually constructed
-   JSON-RPC messages. Avoids SDK compatibility risk but duplicates maintained code.
+
+1. `npm:@modelcontextprotocol/sdk@1.32.2` (`client/index.js` + `client/streamableHttp.js`)
+2. `npm:@modelcontextprotocol/client@2.4.0` (`Client` + `StreamableHTTPClientTransport`)
+3. Hand-rolled JSON-RPC over `fetch` + manual SSE parsing
+
+## Verification Results (Deno 2.9.6 / TS 6.0.3)
+
+- Tested `npm:@modelcontextprotocol/sdk@1.32.2`: runtime Streamable HTTP calls succeeded, but `deno check` with `"strict": true` failed with `TS7006` (`Parameter 't' implicitly has an 'any' type` in `client.listTools().tools.map(...)`), and the full package pulls ~70 transitive packages including Node/Express server dependencies.
+- Tested `npm:@modelcontextprotocol/client@2.4.0` with `"nodeModulesDir": "none"` and `"strict": true`: passed `deno check` with 0 errors, installed ~14 focused packages, supported custom `fetch` injection on `StreamableHTTPClientTransport` (allowing our SSRF-validated `fetch` wrapper with `redirect: "manual"`), and interoperated cleanly at runtime over both SSE and JSON Streamable HTTP responses against `@modelcontextprotocol/sdk@1.32.2`'s `WebStandardStreamableHTTPServerTransport`.
 
 ## Decision
-*Pending Phase 1b verification.* Planned: official SDK via `npm:` specifier with Streamable HTTP
-transport. Phase 1b's binary gate is specifically this verification. If the SDK or transport does
-not work under Deno, stop, report, and fall back to option 2.
 
-## Questions to verify in Phase 1b
-- Does `import { Client } from "npm:@modelcontextprotocol/sdk/client/index.js"` resolve in Deno?
-- Is `StreamableHTTPClientTransport` available in the current SDK version?
-- Does the client handle server-sent events correctly in Deno's fetch implementation?
+- Use **`npm:@modelcontextprotocol/client@2.4.0`** (`Client` and `StreamableHTTPClientTransport`) inside `supabase/functions/run-mcp-action`, with custom SSRF-hardened `fetch` passed to `StreamableHTTPClientTransport`.
+- Add `supabase/functions/deno.json` with `"nodeModulesDir": "none"` and `"compilerOptions": { "strict": true }` so Deno Edge Functions do not clash with the React app's root `package.json` / `zod@4`.
+- Use `@modelcontextprotocol/sdk@1.32.2`'s `McpServer` + `WebStandardStreamableHTTPServerTransport` for local/test fake MCP servers, ensuring wire compatibility with v1 MCP servers.
 
 ## Consequences
-- If SDK works: adopt it. Future SDK upgrades are centralized.
-- If SDK fails: hand-roll option 2 and document why in this ADR.
-- stdio MCP servers are permanently out of scope for Edge Function deployment.
 
+- `run-mcp-action` stays strictly typed under Deno without Express/Node server bloat.
+- Every outbound HTTP request opened by `StreamableHTTPClientTransport` (initialization POST, tool POST, SSE GET, DELETE) goes through our SSRF guard before `fetch()` executes.

@@ -15,6 +15,9 @@ vi.mock("@/lib/supabaseClient", () => ({
 }));
 
 import { ManifestRenderer } from "./ManifestRenderer";
+import { mcpToggleManifest } from "@/demo/mcpToggleManifest";
+import { supabase } from "@/lib/supabaseClient";
+import { validateManifestV2 } from "@/schema/validator";
 
 beforeAll(() => {
   if (typeof Element.prototype.scrollTo !== "function") {
@@ -256,7 +259,7 @@ describe("ManifestRenderer", () => {
     });
   });
 
-  it("renders stub components (toggle, chart) cleanly without crashing", () => {
+  it("renders stub components (slider, chart) cleanly without crashing", () => {
     const stubV2: ManifestV2 = {
       schema_version: 2,
       app_id: "app-stubs",
@@ -270,7 +273,7 @@ describe("ManifestRenderer", () => {
           id: "main",
           title: "Main",
           nodes: [
-            { id: "st1", type: "toggle", props: { label: "Dark mode", default_value: false } },
+            { id: "st1", type: "slider", props: { label: "Brightness", min: 0, max: 100 } },
             {
               id: "st2",
               type: "chart",
@@ -288,7 +291,46 @@ describe("ManifestRenderer", () => {
 
     render(<ManifestRenderer manifest={stubV2} />);
 
-    expect(screen.getByText("(toggle — coming soon)")).toBeTruthy();
+    expect(screen.getByText("(slider — coming soon)")).toBeTruthy();
     expect(screen.getByText("(chart — coming soon)")).toBeTruthy();
+  });
+
+  it("renders real Toggle component and dispatches mcp_call action via run-mcp-action", async () => {
+    const invokeMock = vi.mocked(supabase.functions.invoke);
+    invokeMock.mockResolvedValue({
+      data: { result: "light.living_room is on" },
+      error: null,
+    });
+
+    const onDataChange = vi.fn<(key: string, value: unknown) => void>();
+    const validation = validateManifestV2(mcpToggleManifest);
+    expect(validation.kind).toBe("valid");
+
+    render(
+      <ManifestRenderer
+        manifest={mcpToggleManifest}
+        appData={{ light_state: false }}
+        onDataChange={onDataChange}
+      />
+    );
+
+    const switchBtn = screen.getByRole("switch", { name: "Living Room Light" });
+    expect(switchBtn.getAttribute("aria-checked")).toBe("false");
+
+    fireEvent.click(switchBtn);
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("run-mcp-action", {
+        body: {
+          action: mcpToggleManifest.actions[0],
+          app_data: { light_state: true, state: true },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(onDataChange).toHaveBeenCalledWith("light_state", true);
+      expect(onDataChange).toHaveBeenCalledWith("status_card", "light.living_room is on");
+    });
   });
 });

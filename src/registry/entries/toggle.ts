@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ToggleStub } from "../stubs";
+import { ToggleAdapter } from "../adapters";
 import type { RegistryEntry } from "../types";
 
 const propsSchema = z
@@ -15,7 +15,7 @@ type Props = z.infer<typeof propsSchema>;
 export const toggleEntry: RegistryEntry<Props, "toggle"> = {
   type: "toggle",
   propsSchema,
-  component: ToggleStub,
+  component: ToggleAdapter,
   llmDescription: `Use \`toggle\` to let the user switch a boolean setting on/off.
 Props:
 - label (string, optional): Description label next to the toggle.
@@ -26,5 +26,5 @@ Example: { type: "toggle", props: { label: "Enable notifications", save_to: "not
   examples: [
     { props: { label: "Dark mode", default_value: false, save_to: "dark_mode" } },
   ],
-  isStub: true,
+  isStub: false,
 };

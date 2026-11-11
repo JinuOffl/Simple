@@ -1,6 +1,7 @@
 import { Text } from "@/components/Text";
 import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
+import { Toggle } from "@/components/Toggle";
 import { Checklist } from "@/components/Checklist";
 import { Calculator } from "@/components/Calculator";
 import { Clock } from "@/components/Clock";
@@ -196,6 +197,49 @@ export function ConversationLoopAdapter({
       actionId={actionId ?? ctx?.onClickActionId ?? id}
       persona_prompt={persona_prompt ?? "You are a helpful assistant."}
       appId={appId ?? ctx?.appId}
+    />
+  );
+}
+
+export function ToggleAdapter({
+  id,
+  label,
+  default_value,
+  save_to,
+  bindValue,
+  onAction,
+  ctx,
+}: AdapterBaseProps & {
+  label?: string;
+  default_value?: boolean;
+  save_to?: string;
+}) {
+  const dataKey = save_to ?? id;
+  const resolvedChecked =
+    typeof ctx?.bindValue === "boolean"
+      ? ctx.bindValue
+      : typeof bindValue === "boolean"
+        ? bindValue
+        : save_to && typeof ctx?.appData[save_to] === "boolean"
+          ? (ctx.appData[save_to] as boolean)
+          : typeof ctx?.appData[id] === "boolean"
+            ? (ctx.appData[id] as boolean)
+            : Boolean(default_value);
+
+  return (
+    <Toggle
+      label={label ?? "Toggle"}
+      checked={resolvedChecked}
+      defaultValue={Boolean(default_value)}
+      loading={Boolean(ctx?.isLoading)}
+      onToggle={(next) => {
+        ctx?.onDataChange?.(dataKey, next);
+        if (ctx?.onAction) {
+          void ctx.onAction({ [dataKey]: next, state: next });
+        } else if (onAction) {
+          void onAction();
+        }
+      }}
     />
   );
 }

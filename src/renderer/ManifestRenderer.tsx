@@ -47,6 +47,7 @@ export function ManifestRenderer({
   }, [hasActiveScreen, defaultScreenId]);
 
   const componentLoadingMap = useAppStore((s) => s.componentLoadingMap);
+  const setComponentLoading = useAppStore((s) => s.setComponentLoading);
 
   const activeScreen =
     v2Manifest.screens.find((s) => s.id === resolvedScreenId) ??
@@ -116,21 +117,34 @@ export function ManifestRenderer({
           ? async (extraAppData?: Record<string, unknown>) => {
               const action = getAction(onClickActionId);
               if (!action) return;
-              await runAction({
-                action,
-                appData: extraAppData ? { ...appData, ...extraAppData } : appData,
-                appId,
-                onDataChange,
-                isPreview,
-                availableScreenIds,
-                onNavigateScreen: setActiveScreenId,
-              });
+              const isAsyncNetwork =
+                action.kind === "mcp_call" ||
+                action.kind === "llm_call" ||
+                action.kind === "api_fetch";
+              if (isAsyncNetwork) {
+                setComponentLoading(node.id, true);
+              }
+              try {
+                await runAction({
+                  action,
+                  appData: extraAppData ? { ...appData, ...extraAppData } : appData,
+                  appId,
+                  onDataChange,
+                  isPreview,
+                  availableScreenIds,
+                  onNavigateScreen: setActiveScreenId,
+                });
+              } finally {
+                if (isAsyncNetwork) {
+                  setComponentLoading(node.id, false);
+                }
+              }
             }
           : undefined;
 
         const ctx: RegistryRenderContext = {
           nodeId: node.id,
-          bindValue: node.bind ? appData[node.bind] : undefined,
+          bindValue: node.bind ? appData[node.bind] : appData[node.id],
           appData,
           appId,
           isPreview,
