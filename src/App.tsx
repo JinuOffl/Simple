@@ -7,6 +7,7 @@ import { McpDemoScreen } from "@/screens/McpDemoScreen";
 import { HomeScreen } from "@/screens/HomeScreen";
 import { BuilderScreen } from "@/screens/BuilderScreen";
 import { AppRunnerScreen } from "@/screens/AppRunnerScreen";
+import { PlanUsageScreen } from "@/screens/PlanUsageScreen";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { session } = useAppStore();
@@ -59,6 +60,14 @@ export default function App() {
           element={
             <AuthGuard>
               <AppRunnerScreen />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/plan"
+          element={
+            <AuthGuard>
+              <PlanUsageScreen />
             </AuthGuard>
           }
         />

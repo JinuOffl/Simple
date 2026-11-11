@@ -134,6 +134,34 @@ describe("useAppStore — sleepApp, wakeApp, exportApp", () => {
     expect(useAppStore.getState().apps.find((a) => a.id === "app-1")?.status).toBe("active");
   });
 
+  it("wakeApp blocks waking past active_app_limit without calling delete or Supabase update", async () => {
+    useAppStore.setState({
+      entitlement: {
+        user_id: "user-1",
+        plan: "free",
+        active_app_limit: 3,
+        monthly_credit_limit: 100,
+        credits_used: 0,
+        period_start: "2026-01-01T00:00:00.000Z",
+      },
+      apps: [
+        makeSavedApp({ id: "a1", status: "active" }),
+        makeSavedApp({ id: "a2", status: "active" }),
+        makeSavedApp({ id: "a3", status: "active" }),
+        makeSavedApp({ id: "a4", status: "sleeping" }),
+      ],
+    });
+
+    const res = await useAppStore.getState().wakeApp("a4");
+
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/3\/3/);
+    expect(useAppStore.getState().lastLimitError).toMatch(/3\/3/);
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockDelete).not.toHaveBeenCalled();
+    expect(useAppStore.getState().apps.find((a) => a.id === "a4")?.status).toBe("sleeping");
+  });
+
   it("exportApp produces valid v2 JSON for a v1 manifest (auto-migrated)", () => {
     const v1App = makeSavedApp({ id: "app-1", manifest: sampleV1Manifest, status: "active" });
     const json = exportApp(v1App);

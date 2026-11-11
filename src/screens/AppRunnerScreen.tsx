@@ -16,6 +16,7 @@ export function AppRunnerScreen() {
   const [appData, setAppData] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
+  const [wakeError, setWakeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -61,7 +62,12 @@ export function AppRunnerScreen() {
 
   const handleWake = async () => {
     if (!app) return;
-    await wakeApp(app.id);
+    setWakeError(null);
+    const res = await wakeApp(app.id);
+    if (!res.ok) {
+      setWakeError(res.error ?? "Unable to wake app.");
+      return;
+    }
     const updatedFromStore = useAppStore.getState().apps.find((a) => a.id === app.id);
     if (updatedFromStore) {
       setApp(updatedFromStore);
@@ -152,12 +158,26 @@ export function AppRunnerScreen() {
                 </p>
               </div>
               <div className="w-full flex flex-col gap-2 pt-2">
+                {wakeError && (
+                  <p className="text-[11px] text-white/90 bg-n-surface border border-white/25 rounded-sm px-3 py-2 text-left leading-relaxed">
+                    {wakeError}
+                  </p>
+                )}
                 <button type="button" onClick={handleWake} className="btn-primary">
                   Wake App
                 </button>
                 <button type="button" onClick={handleExport} className="btn-ghost w-full">
                   Export JSON
                 </button>
+                {wakeError && (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/plan")}
+                    className="btn-ghost w-full text-[10px]"
+                  >
+                    Manage Plan & Active Apps →
+                  </button>
+                )}
               </div>
             </div>
           </div>

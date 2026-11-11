@@ -114,10 +114,29 @@ function SkeletonCard() {
 
 export function HomeScreen() {
   const navigate = useNavigate();
-  const { apps, loadingApps, fetchApps, sleepApp, wakeApp, exportApp, resetBuilder, session, signOut } =
-    useAppStore();
+  const {
+    apps,
+    loadingApps,
+    entitlement,
+    lastLimitError,
+    clearLimitError,
+    fetchApps,
+    fetchEntitlementAndUsage,
+    sleepApp,
+    wakeApp,
+    exportApp,
+    resetBuilder,
+    session,
+    signOut,
+  } = useAppStore();
 
-  useEffect(() => { fetchApps(); }, [fetchApps]);
+  useEffect(() => {
+    void fetchApps();
+    void fetchEntitlementAndUsage();
+  }, [fetchApps, fetchEntitlementAndUsage]);
+
+  const activeCount = apps.filter((a) => (a.status ?? "active") === "active").length;
+  const activeLimit = entitlement?.active_app_limit ?? 3;
 
   const handleStartBuilder = (prefillPrompt?: string) => {
     resetBuilder();
@@ -157,8 +176,15 @@ export function HomeScreen() {
           </p>
         </div>
 
-        {/* MCP demo & account */}
+        {/* Plan, MCP demo & account */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate("/plan")}
+            className="nt-tag hover:border-n-border2 hover:text-n-text2 transition-colors cursor-pointer"
+          >
+            {activeCount}/{activeLimit} · {entitlement?.plan ?? "free"}
+          </button>
           <button
             type="button"
             onClick={() => navigate("/mcp-demo")}
@@ -177,6 +203,32 @@ export function HomeScreen() {
 
       {/* Content */}
       <main className="flex-1 px-5 pb-28 overflow-y-auto mt-5">
+        {lastLimitError && (
+          <div className="mb-4 bg-n-surface border border-white/30 rounded-sm px-4 py-3 flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-xs text-white leading-relaxed">{lastLimitError}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  clearLimitError();
+                  navigate("/plan");
+                }}
+                className="text-[10px] font-mono uppercase tracking-wider text-n-text2 hover:text-white underline"
+              >
+                manage plan & sleeping apps →
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={clearLimitError}
+              className="text-n-text3 hover:text-white text-xs shrink-0"
+              aria-label="Dismiss limit error"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {loadingApps ? (
           <div className="grid grid-cols-3 gap-2">
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}

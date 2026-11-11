@@ -3,6 +3,13 @@ import type { User, Session } from "@supabase/supabase-js";
 import type { Manifest } from "@/schema/manifest.v1";
 import type { ManifestV2 } from "@/schema/manifest.v2";
 import { migrateV1toV2, needsMigration } from "@/schema/migrator";
+import {
+  createDefaultEntitlement,
+  selectAppsToSleepOnLimit,
+  type EntitlementState,
+  type UsageLedgerEntry,
+} from "./credits";
+import { PLANS } from "@/config/plans";
 import { supabase } from "./supabaseClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -46,11 +53,18 @@ interface AppCacheSlice {
   apps: SavedApp[];
   loadingApps: boolean;
   componentLoadingMap: Record<string, boolean>;
+  entitlement: EntitlementState | null;
+  usageLedger: UsageLedgerEntry[];
+  loadingEntitlement: boolean;
+  entitlementSyncStatus: "synced" | "fallback";
+  lastLimitError: string | null;
 
   fetchApps: () => Promise<void>;
+  fetchEntitlementAndUsage: () => Promise<void>;
+  clearLimitError: () => void;
   saveApp: (manifest: Manifest | ManifestV2, existingId?: string) => Promise<SavedApp | null>;
   sleepApp: (id: string) => Promise<void>;
-  wakeApp: (id: string) => Promise<void>;
+  wakeApp: (id: string) => Promise<{ ok: boolean; error?: string }>;
   exportApp: (app: SavedApp) => string;
   setComponentLoading: (componentId: string, loading: boolean) => void;
 }
@@ -127,7 +141,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   signOut: async () => {
     await supabase.auth.signOut();
-    set({ session: null, user: null, apps: [] });
+    set({
+      session: null,
+      user: null,
+      apps: [],
+      entitlement: null,
+      usageLedger: [],
+      entitlementSyncStatus: "synced",
+      lastLimitError: null,
+    });
   },
 
   // ── Builder ───────────────────────────────────────────────────────────────
@@ -169,6 +191,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
   apps: [],
   loadingApps: false,
   componentLoadingMap: {},
+  entitlement: null,
+  usageLedger: [],
+  loadingEntitlement: false,
+  entitlementSyncStatus: "synced",
+  lastLimitError: null,
+
+  clearLimitError: () => set({ lastLimitError: null }),
 
   fetchApps: async () => {
     set({ loadingApps: true });
@@ -186,28 +215,99 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ loadingApps: false });
   },
 
-  saveApp: async (manifest, existingId) => {
+  fetchEntitlementAndUsage: async () => {
     const { user } = get();
+    if (!user) {
+      set({
+        entitlement: createDefaultEntitlement(),
+        usageLedger: [],
+        loadingEntitlement: false,
+        entitlementSyncStatus: "synced",
+      });
+      return;
+    }
+
+    set({ loadingEntitlement: true });
+    const entRes = await supabase
+      .from("entitlements")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (entRes.error) {
+      // Migration 002 not yet applied on remote DB -> use non-fatal Free defaults
+      console.warn("[Simple] Entitlements table unavailable, using free fallback:", entRes.error.message);
+      set({
+        entitlement: createDefaultEntitlement(user.id),
+        usageLedger: [],
+        loadingEntitlement: false,
+        entitlementSyncStatus: "fallback",
+      });
+      return;
+    }
+
+    const ledgerRes = await supabase
+      .from("usage_ledger")
+      .select("id, user_id, app_id, action_kind, credit_cost_class, credits_charged, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    set({
+      entitlement: (entRes.data as EntitlementState | null) ?? createDefaultEntitlement(user.id),
+      usageLedger: (ledgerRes.data as UsageLedgerEntry[] | null) ?? [],
+      loadingEntitlement: false,
+      entitlementSyncStatus: "synced",
+    });
+  },
+
+  saveApp: async (manifest, existingId) => {
+    const { user, entitlement } = get();
     if (!user) return null;
 
-    // Keep payload compatible with 001_initial_schema.sql until Phase 2 migration runs
-    const payload = {
+    const schemaVersion =
+      "schema_version" in manifest && manifest.schema_version === 2 ? 2 : 1;
+
+    const basePayload = {
       user_id: user.id,
       name: manifest.name,
       icon: manifest.icon,
       manifest: manifest as unknown as Record<string, unknown>,
     };
 
+    const v2Payload = {
+      ...basePayload,
+      schema_version: schemaVersion,
+    };
+
+    const isMissingColumnError = (err: { code?: string; message?: string } | null): boolean =>
+      Boolean(
+        err &&
+          (err.code === "42703" ||
+            err.code === "PGRST204" ||
+            err.message?.includes("schema_version"))
+      );
+
     let result: SavedApp | null = null;
 
     if (existingId) {
-      // Update existing app
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("apps")
-        .update({ ...payload, updated_at: new Date().toISOString() })
+        .update({ ...v2Payload, updated_at: new Date().toISOString() })
         .eq("id", existingId)
         .select()
         .single();
+
+      if (isMissingColumnError(error)) {
+        const retry = await supabase
+          .from("apps")
+          .update({ ...basePayload, updated_at: new Date().toISOString() })
+          .eq("id", existingId)
+          .select()
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) { console.error("saveApp update error:", error); return null; }
       result = normalizeSavedApp(data as SavedApp);
@@ -216,17 +316,35 @@ export const useAppStore = create<AppStore>((set, get) => ({
         apps: s.apps.map((a) => (a.id === existingId ? result! : a)),
       }));
     } else {
-      // Insert new app
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("apps")
-        .insert(payload)
+        .insert(v2Payload)
         .select()
         .single();
+
+      if (isMissingColumnError(error)) {
+        const retry = await supabase
+          .from("apps")
+          .insert(basePayload)
+          .select()
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) { console.error("saveApp insert error:", error); return null; }
       result = normalizeSavedApp(data as SavedApp);
 
-      set((s) => ({ apps: [result!, ...s.apps] }));
+      set((s) => {
+        const nextApps = [result!, ...s.apps];
+        const limit = entitlement?.active_app_limit ?? PLANS.free.activeAppLimit;
+        const toSleepIds = new Set(selectAppsToSleepOnLimit(nextApps, limit));
+        return {
+          apps: nextApps.map((a) =>
+            toSleepIds.has(a.id) ? { ...a, status: "sleeping" as const } : a
+          ),
+        };
+      });
     }
 
     return result;
@@ -244,24 +362,44 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
 
     set((s) => ({
+      lastLimitError: null,
       apps: s.apps.map((a) => (a.id === id ? { ...a, status: "sleeping" } : a)),
     }));
   },
 
   wakeApp: async (id) => {
+    const { apps, entitlement } = get();
+    const activeLimit = entitlement?.active_app_limit ?? PLANS.free.activeAppLimit;
+    const planLabel = entitlement?.plan ?? "free";
+    const otherActiveCount = apps.filter(
+      (a) => a.id !== id && (a.status ?? "active") === "active"
+    ).length;
+
+    if (otherActiveCount >= activeLimit) {
+      const msg = `Active app limit reached (${activeLimit}/${activeLimit} on ${planLabel} plan). Put another app to sleep or export it as JSON first.`;
+      set({ lastLimitError: msg });
+      return { ok: false, error: msg };
+    }
+
     const { error } = await supabase
       .from("apps")
       .update({ status: "active" })
       .eq("id", id);
 
     if (error) {
+      const msg = error.message.includes("ACTIVE_APP_LIMIT_REACHED")
+        ? `Active app limit reached (${activeLimit}/${activeLimit}). Put another app to sleep first.`
+        : error.message;
       console.error("wakeApp error:", error);
-      return;
+      set({ lastLimitError: msg });
+      return { ok: false, error: msg };
     }
 
     set((s) => ({
+      lastLimitError: null,
       apps: s.apps.map((a) => (a.id === id ? { ...a, status: "active" } : a)),
     }));
+    return { ok: true };
   },
 
   exportApp,
