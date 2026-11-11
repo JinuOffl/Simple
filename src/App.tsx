@@ -8,6 +8,7 @@ import { HomeScreen } from "@/screens/HomeScreen";
 import { BuilderScreen } from "@/screens/BuilderScreen";
 import { AppRunnerScreen } from "@/screens/AppRunnerScreen";
 import { PlanUsageScreen } from "@/screens/PlanUsageScreen";
+import { ConnectionsScreen } from "@/screens/ConnectionsScreen";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { session } = useAppStore();
@@ -68,6 +69,14 @@ export default function App() {
           element={
             <AuthGuard>
               <PlanUsageScreen />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/connections"
+          element={
+            <AuthGuard>
+              <ConnectionsScreen />
             </AuthGuard>
           }
         />

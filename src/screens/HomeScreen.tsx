@@ -187,6 +187,13 @@ export function HomeScreen() {
           </button>
           <button
             type="button"
+            onClick={() => navigate("/connections")}
+            className="nt-tag hover:border-n-border2 hover:text-n-text2 transition-colors cursor-pointer"
+          >
+            connections
+          </button>
+          <button
+            type="button"
             onClick={() => navigate("/mcp-demo")}
             className="nt-tag hover:border-n-border2 hover:text-n-text2 transition-colors cursor-pointer"
           >

@@ -1,24 +1,48 @@
 import type { ManifestV2Action } from "@/schema/manifest.v2";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppStore } from "@/lib/zustandStore";
+import { isHighRiskMcpTool } from "../../supabase/functions/_shared/mcpSecurity.ts";
+
+export { isHighRiskMcpTool };
 
 export interface ExecuteMcpCallParams {
   action: ManifestV2Action;
   appData: Record<string, unknown>;
+  appId?: string;
   onDataChange?: (key: string, value: unknown) => void;
   isPreview?: boolean;
+  confirmed?: boolean;
+  confirmHighRisk?: (toolName: string, connectorId: string) => Promise<boolean> | boolean;
 }
 
 interface McpActionResponsePayload {
   result?: string;
   error?: string;
+  requires_confirmation?: boolean;
   raw?: unknown;
+}
+
+async function defaultConfirmHighRisk(toolName: string, connectorId: string): Promise<boolean> {
+  if (typeof window !== "undefined" && typeof window.confirm === "function") {
+    return window.confirm(
+      `Confirm high-risk MCP action?\n\nConnector: ${connectorId}\nTool: ${toolName}\n\nTap OK to continue or Cancel to abort.`
+    );
+  }
+  return false;
 }
 
 async function invokeMcpEndpoint(
   action: ManifestV2Action,
-  appData: Record<string, unknown>
+  appData: Record<string, unknown>,
+  options: { appId?: string; confirmed?: boolean } = {}
 ): Promise<McpActionResponsePayload> {
+  const requestBody: Record<string, unknown> = {
+    action,
+    app_data: appData,
+    ...(options.appId ? { app_id: options.appId } : {}),
+    ...(options.confirmed ? { confirmed: true } : {}),
+  };
+
   const localUrl = import.meta.env.VITE_LOCAL_MCP_ACTION_URL;
   if (import.meta.env.DEV && typeof localUrl === "string" && localUrl.trim().length > 0) {
     const {
@@ -32,7 +56,7 @@ async function invokeMcpEndpoint(
         "Content-Type": "application/json",
         Authorization: `Bearer ${bearer}`,
       },
-      body: JSON.stringify({ action, app_data: appData }),
+      body: JSON.stringify(requestBody),
     });
 
     const payload = (await res.json().catch(() => ({}))) as McpActionResponsePayload;
@@ -45,10 +69,24 @@ async function invokeMcpEndpoint(
   const { data, error } = await supabase.functions.invoke<McpActionResponsePayload>(
     "run-mcp-action",
     {
-      body: { action, app_data: appData },
+      body: requestBody,
     }
   );
   if (error) {
+    const context = (error as { context?: { json?: () => Promise<McpActionResponsePayload> } })
+      .context;
+    if (context && typeof context.json === "function") {
+      try {
+        const parsed = await context.json();
+        if (parsed?.error) {
+          throw new Error(parsed.error);
+        }
+      } catch (inner) {
+        if (inner instanceof Error && inner.message && inner.message !== error.message) {
+          throw inner;
+        }
+      }
+    }
     throw new Error(error.message || "Failed to execute MCP action");
   }
   if (data?.error) {
@@ -60,8 +98,11 @@ async function invokeMcpEndpoint(
 export async function executeMcpCallAction({
   action,
   appData,
+  appId,
   onDataChange,
   isPreview,
+  confirmed,
+  confirmHighRisk = defaultConfirmHighRisk,
 }: ExecuteMcpCallParams): Promise<void> {
   const targetNodeId = action.render_result_into;
   const outputKey = action.output_key ?? targetNodeId;
@@ -81,13 +122,28 @@ export async function executeMcpCallAction({
     return;
   }
 
+  let isConfirmed = Boolean(confirmed);
+  if (isHighRiskMcpTool(action.tool_name) && !isConfirmed) {
+    const approved = await confirmHighRisk(action.tool_name, action.connector_id);
+    if (!approved) {
+      if (outputKey) {
+        onDataChange?.(outputKey, `Cancelled high-risk action "${action.tool_name}".`);
+      }
+      return;
+    }
+    isConfirmed = true;
+  }
+
   const setLoading = useAppStore.getState().setComponentLoading;
   if (targetNodeId) {
     setLoading(targetNodeId, true);
   }
 
   try {
-    const payload = await invokeMcpEndpoint(action, appData);
+    const payload = await invokeMcpEndpoint(action, appData, {
+      appId,
+      confirmed: isConfirmed,
+    });
     const resultText = payload.result ?? "Done.";
     if (outputKey) {
       onDataChange?.(outputKey, resultText);
@@ -104,4 +160,3 @@ export async function executeMcpCallAction({
     }
   }
 }
-

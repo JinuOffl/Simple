@@ -4,6 +4,7 @@ const env = {
   ...process.env,
   MCP_LOCAL_DEV_OPEN: "true",
   VITE_LOCAL_MCP_ACTION_URL: "/local-functions/run-mcp-action",
+  VITE_LOCAL_MANAGE_CONNECTION_URL: "/local-functions/manage-connection",
 };
 
 const isWin = process.platform === "win32";

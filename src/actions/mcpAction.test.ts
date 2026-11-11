@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAppStore } from "@/lib/zustandStore";
 import { mcpToggleManifest } from "@/demo/mcpToggleManifest";
 import { validateManifestV2 } from "@/schema/validator";
+import type { ManifestV2Action } from "@/schema/manifest.v2";
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -96,6 +97,75 @@ describe("mcpAction / mcp_call runtime wiring", () => {
     );
     expect(useAppStore.getState().componentLoadingMap["status_card"]).toBe(false);
     errorSpy.mockRestore();
+  });
+
+  it("aborts high-risk mcp_call without invoking edge function when user declines confirmation", async () => {
+    const invokeMock = vi.mocked(supabase.functions.invoke);
+    const onDataChange = vi.fn<(key: string, value: unknown) => void>();
+    const confirmHighRisk = vi.fn<() => Promise<boolean>>().mockResolvedValue(false);
+
+    const unlockAction: ManifestV2Action = {
+      id: "unlock_front_door",
+      kind: "mcp_call",
+      connector_id: "home_assistant",
+      tool_name: "lock.unlock",
+      render_result_into: "status_card",
+      output_key: "mcp_out",
+    };
+
+    await executeMcpCallAction({
+      action: unlockAction,
+      appData: {},
+      appId: "app-uuid-1234",
+      onDataChange,
+      confirmHighRisk,
+    });
+
+    expect(confirmHighRisk).toHaveBeenCalledWith("lock.unlock", "home_assistant");
+    expect(invokeMock).not.toHaveBeenCalled();
+    expect(onDataChange).toHaveBeenCalledWith(
+      "mcp_out",
+      'Cancelled high-risk action "lock.unlock".'
+    );
+  });
+
+  it("forwards app_id and confirmed: true for approved high-risk mcp_call", async () => {
+    const invokeMock = vi.mocked(supabase.functions.invoke);
+    invokeMock.mockResolvedValueOnce({
+      data: { result: "Front door unlocked" },
+      error: null,
+    });
+
+    const onDataChange = vi.fn<(key: string, value: unknown) => void>();
+    const confirmHighRisk = vi.fn<() => Promise<boolean>>().mockResolvedValue(true);
+
+    const unlockAction: ManifestV2Action = {
+      id: "unlock_front_door",
+      kind: "mcp_call",
+      connector_id: "home_assistant",
+      tool_name: "lock.unlock",
+      render_result_into: "status_card",
+      output_key: "mcp_out",
+    };
+
+    await executeMcpCallAction({
+      action: unlockAction,
+      appData: { entity_id: "lock.front_door" },
+      appId: "11111111-1111-4111-8111-111111111111",
+      onDataChange,
+      confirmHighRisk,
+    });
+
+    expect(confirmHighRisk).toHaveBeenCalledWith("lock.unlock", "home_assistant");
+    expect(invokeMock).toHaveBeenCalledWith("run-mcp-action", {
+      body: {
+        action: unlockAction,
+        app_data: { entity_id: "lock.front_door" },
+        app_id: "11111111-1111-4111-8111-111111111111",
+        confirmed: true,
+      },
+    });
+    expect(onDataChange).toHaveBeenCalledWith("mcp_out", "Front door unlocked");
   });
 });
 

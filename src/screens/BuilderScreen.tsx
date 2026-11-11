@@ -5,6 +5,8 @@ import { useAppStore } from "@/lib/zustandStore";
 import { ManifestSchema, type Manifest } from "@/schema/manifest.v1";
 import { ManifestV2Schema, type ManifestV2 } from "@/schema/manifest.v2";
 import { ManifestRenderer } from "@/renderer/ManifestRenderer";
+import { isHighRiskMcpTool } from "@/actions/mcpAction";
+import { getManifestConsentSummary } from "@/lib/manifestConsent";
 
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
@@ -24,6 +26,7 @@ export function BuilderScreen() {
   const [inputText, setInputText]     = useState(prefillPrompt);
   const [isSaving, setIsSaving]       = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const inputRef      = useRef<HTMLInputElement>(null);
 
@@ -149,8 +152,11 @@ export function BuilderScreen() {
     }
   };
 
-  const handleSave = async () => {
+  const consentSummary = currentManifest ? getManifestConsentSummary(currentManifest) : null;
+
+  const performSave = async () => {
     if (!currentManifest || isSaving) return;
+    setShowConsentModal(false);
     setIsSaving(true);
     const saved = await saveApp(currentManifest, editingAppId ?? undefined);
     if (saved) {
@@ -158,6 +164,15 @@ export function BuilderScreen() {
       setTimeout(() => navigate("/"), 700);
     }
     setIsSaving(false);
+  };
+
+  const handleSave = async () => {
+    if (!currentManifest || isSaving) return;
+    if (consentSummary?.requiresConsent) {
+      setShowConsentModal(true);
+      return;
+    }
+    await performSave();
   };
 
   return (
@@ -311,6 +326,136 @@ export function BuilderScreen() {
           </button>
         </div>
       </div>
+
+      {showConsentModal && consentSummary && currentManifest && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="save-consent-title"
+        >
+          <div className="w-full max-w-md bg-n-surface border border-n-border rounded-card p-5 space-y-4 shadow-xl">
+            <div className="space-y-1">
+              <h2
+                id="save-consent-title"
+                className="font-mono text-sm font-semibold tracking-wide text-n-text uppercase"
+              >
+                Review App Capabilities Before Saving
+              </h2>
+              <p className="text-xs text-n-muted leading-relaxed">
+                <span className="text-n-text font-medium">{currentManifest.name}</span> requests
+                access to the capabilities below. External connectors run strictly using your own
+                saved account tokens.
+              </p>
+            </div>
+
+            {consentSummary.permissions.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="font-mono text-[11px] uppercase tracking-wider text-n-muted">
+                  Device Permissions
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {consentSummary.permissions.map((perm) => (
+                    <span
+                      key={perm}
+                      className="px-2.5 py-0.5 rounded-pill border border-n-border bg-n-bg font-mono text-xs text-n-text"
+                    >
+                      {perm}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {consentSummary.connectors.length > 0 && (
+              <div className="space-y-2">
+                <div className="font-mono text-[11px] uppercase tracking-wider text-n-muted">
+                  MCP Connectors & Tools
+                </div>
+                <div className="space-y-2">
+                  {consentSummary.connectors.map((connector) => (
+                    <div
+                      key={connector.connectorId}
+                      className="rounded-lg border border-n-border bg-n-bg p-3 space-y-1.5"
+                    >
+                      <div className="font-mono text-xs font-semibold text-n-text">
+                        {connector.connectorId}
+                      </div>
+                      {connector.tools.length > 0 ? (
+                        <ul className="space-y-1">
+                          {connector.tools.map((tool) => {
+                            const highRisk = isHighRiskMcpTool(tool);
+                            return (
+                              <li
+                                key={tool}
+                                className="flex items-center justify-between gap-2 font-mono text-xs text-n-muted"
+                              >
+                                <span className="text-n-text">{tool}</span>
+                                {highRisk && (
+                                  <span className="px-2 py-0.5 rounded-pill border border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-300 uppercase">
+                                    High Risk · Extra Confirm
+                                  </span>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <div className="font-mono text-[11px] text-n-muted">
+                          No specific tools declared
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {consentSummary.apis.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="font-mono text-[11px] uppercase tracking-wider text-n-muted">
+                  External APIs
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {consentSummary.apis.map((apiName) => (
+                    <span
+                      key={apiName}
+                      className="px-2.5 py-0.5 rounded-pill border border-n-border bg-n-bg font-mono text-xs text-n-text"
+                    >
+                      {apiName}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {consentSummary.hasHighRiskTools && (
+              <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200 leading-relaxed">
+                This app includes high-risk external actions. Running those tools will require an
+                extra confirmation tap each time.
+              </p>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-n-border">
+              <button
+                type="button"
+                onClick={() => setShowConsentModal(false)}
+                className="px-3.5 py-2 rounded-pill border border-n-border text-xs font-mono text-n-muted hover:text-n-text transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={performSave}
+                disabled={isSaving}
+                className="px-4 py-2 rounded-pill bg-n-accent text-white text-xs font-mono font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                Approve & Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

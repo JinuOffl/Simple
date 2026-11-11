@@ -1,5 +1,18 @@
 import { Client, StreamableHTTPClientTransport } from "npm:@modelcontextprotocol/client@2.4.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { consumeCreditsRpc } from "../_shared/credits.ts";
+import {
+  buildStaticAuthHeaders,
+  resolveUserConnectionDb,
+  UUID_REGEX,
+  verifyUserAppMembership,
+  type AppMembershipResult,
+} from "../_shared/mcpDb.ts";
+import {
+  isHighRiskMcpTool,
+  sanitizeToolOutputText,
+  validateMcpToolArgs,
+} from "../_shared/mcpSecurity.ts";
 import {
   createSsrfSafeFetch,
   SsrfError,
@@ -7,9 +20,9 @@ import {
   type SsrfValidationOptions,
 } from "../_shared/ssrf.ts";
 
-const MAX_TOOL_OUTPUT_BYTES = 64 * 1024;
-
 export interface RunMcpRequestPayload {
+  app_id?: string;
+  confirmed?: boolean;
   action?: {
     id?: string;
     kind?: string;
@@ -23,12 +36,27 @@ export interface RunMcpRequestPayload {
 export interface ConnectorConfig {
   url: string;
   bearerToken?: string;
+  authHeaderName?: string;
+  allowedTools?: string[];
+  status?: "active" | "disabled" | "error";
 }
 
 export interface RunMcpDeps {
   getEnv?: (key: string) => string | undefined;
   verifyJwt?: (authHeader: string) => Promise<{ userId: string } | null>;
+  verifyAppAccess?: (args: { appId: string; userId: string }) => Promise<AppMembershipResult>;
+  resolveUserConnector?: (args: {
+    connectorId: string;
+    userId: string;
+  }) => Promise<ConnectorConfig | null>;
+  /** Phase 1b compatibility resolver (demo / single-connector override) */
   resolveConnector?: (connectorId: string) => ConnectorConfig | null;
+  chargeCredits?: (args: {
+    userId: string;
+    appId?: string;
+    connectorId: string;
+    toolName: string;
+  }) => Promise<{ allowed: boolean; remainingCredits?: number; monthlyCreditLimit?: number }>;
   ssrfOptions?: SsrfValidationOptions;
   baseFetch?: typeof fetch;
 }
@@ -90,19 +118,15 @@ function formatUntrustedToolOutput(
     joined = isError ? "MCP tool returned an error" : "OK";
   }
 
-  const encoder = new TextEncoder();
-  if (encoder.encode(joined).length > MAX_TOOL_OUTPUT_BYTES) {
-    joined = `${joined.slice(0, 8192)}... [truncated]`;
-  }
+  joined = sanitizeToolOutputText(joined);
 
-  // Try extracting a friendly summary if text contains JSON with summary/state
   let display = joined;
   try {
     const parsed = JSON.parse(joined) as Record<string, unknown>;
     if (typeof parsed.summary === "string") {
-      display = parsed.summary;
+      display = sanitizeToolOutputText(parsed.summary);
     } else if (typeof parsed.state === "string" && typeof parsed.entity_id === "string") {
-      display = `${parsed.entity_id} is ${parsed.state}`;
+      display = sanitizeToolOutputText(`${parsed.entity_id} is ${parsed.state}`);
     }
   } catch {
     // Plain text tool response — keep sanitized text as-is
@@ -111,29 +135,41 @@ function formatUntrustedToolOutput(
   return { result: display, rawContent: items };
 }
 
-function defaultResolveConnector(
+function defaultResolveEnvConnector(
   connectorId: string,
   getEnv: (k: string) => string | undefined
 ): ConnectorConfig | null {
   const mapRaw = getEnv("MCP_CONNECTOR_URLS");
   if (mapRaw) {
     try {
-      const parsed = JSON.parse(mapRaw) as Record<string, string | { url: string; token?: string }>;
+      const parsed = JSON.parse(mapRaw) as Record<
+        string,
+        string | { url: string; token?: string; allowed_tools?: string[] }
+      >;
       const entry = parsed[connectorId];
       if (typeof entry === "string") {
         return { url: entry };
       }
       if (entry && typeof entry.url === "string") {
-        return { url: entry.url, bearerToken: entry.token };
+        return {
+          url: entry.url,
+          bearerToken: entry.token,
+          ...(Array.isArray(entry.allowed_tools) ? { allowedTools: entry.allowed_tools } : {}),
+        };
       }
     } catch {
-      // Ignore malformed env map and fall back to explicit Phase 1b fake connector env
+      // Ignore malformed env map
     }
   }
 
   if (connectorId === "fake_home_assistant") {
     const url = getEnv("FAKE_MCP_SERVER_URL");
-    if (url) return { url };
+    if (url) {
+      return {
+        url,
+        allowedTools: ["light.toggle", "light.get_state"],
+      };
+    }
   }
 
   return null;
@@ -142,7 +178,8 @@ function defaultResolveConnector(
 async function defaultVerifyAuth(
   authHeader: string,
   getEnv: (k: string) => string | undefined,
-  allowLocalDevLoopback: boolean
+  allowLocalDevLoopback: boolean,
+  baseFetch: typeof fetch
 ): Promise<{ userId: string } | null> {
   const match = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
   if (!match) return null;
@@ -161,7 +198,7 @@ async function defaultVerifyAuth(
   }
 
   try {
-    const res = await fetch(`${supabaseUrl.replace(/\/+$/, "")}/auth/v1/user`, {
+    const res = await baseFetch(`${supabaseUrl.replace(/\/+$/, "")}/auth/v1/user`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -179,6 +216,51 @@ async function defaultVerifyAuth(
   }
 }
 
+function verifyManifestMcpContract(
+  manifestRaw: unknown,
+  actionId: string | undefined,
+  connectorId: string,
+  toolName: string
+): { ok: true } | { ok: false; error: string } {
+  if (!manifestRaw || typeof manifestRaw !== "object") {
+    return { ok: false, error: "Saved app has no valid manifest." };
+  }
+  const m = manifestRaw as {
+    connectors?: Array<{ connector_id?: string; tools?: string[] }>;
+    actions?: Array<{
+      id?: string;
+      kind?: string;
+      connector_id?: string;
+      tool_name?: string;
+    }>;
+  };
+
+  // 1. Check action exists in saved manifest
+  const matchingAction = (m.actions ?? []).find((a) => {
+    if (a.kind !== "mcp_call") return false;
+    if (actionId && a.id !== actionId) return false;
+    return a.connector_id === connectorId && a.tool_name === toolName;
+  });
+
+  if (!matchingAction) {
+    return {
+      ok: false,
+      error: `Action "${actionId ?? toolName}" (${connectorId}.${toolName}) is not declared in saved app manifest.`,
+    };
+  }
+
+  // 2. Check tool is declared in manifest.connectors[].tools
+  const connectorEntry = (m.connectors ?? []).find((c) => c.connector_id === connectorId);
+  if (!connectorEntry || !Array.isArray(connectorEntry.tools) || !connectorEntry.tools.includes(toolName)) {
+    return {
+      ok: false,
+      error: `Tool "${toolName}" is not declared in manifest.connectors["${connectorId}"].tools.`,
+    };
+  }
+
+  return { ok: true };
+}
+
 export async function handleRunMcpAction(req: Request, deps: RunMcpDeps = {}): Promise<Response> {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -189,12 +271,14 @@ export async function handleRunMcpAction(req: Request, deps: RunMcpDeps = {}): P
   }
 
   const getEnv = deps.getEnv ?? ((k: string) => Deno.env.get(k));
+  const baseFetch = deps.baseFetch ?? fetch;
   const allowLocalDevLoopback = getEnv("MCP_ALLOW_LOCAL_DEV_LOOPBACK") === "true";
 
+  // ── 1. Authenticated ─────────────────────────────────────────────────────────
   const authHeader = req.headers.get("authorization") ?? "";
   const user = deps.verifyJwt
     ? await deps.verifyJwt(authHeader)
-    : await defaultVerifyAuth(authHeader, getEnv, allowLocalDevLoopback);
+    : await defaultVerifyAuth(authHeader, getEnv, allowLocalDevLoopback, baseFetch);
 
   if (!user) {
     return jsonResponse({ error: "Unauthorized" }, 401);
@@ -218,14 +302,181 @@ export async function handleRunMcpAction(req: Request, deps: RunMcpDeps = {}): P
     return jsonResponse({ error: "action.connector_id and action.tool_name are required" }, 400);
   }
 
-  const connector = deps.resolveConnector
-    ? deps.resolveConnector(connectorId)
-    : defaultResolveConnector(connectorId, getEnv);
+  const appId = typeof body.app_id === "string" && body.app_id.trim() ? body.app_id.trim() : undefined;
+  const supabaseUrl = getEnv("SUPABASE_URL") ?? getEnv("VITE_SUPABASE_URL");
+  const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
 
-  if (!connector) {
-    return jsonResponse({ error: `Unknown or unconfigured connector: ${connectorId}` }, 404);
+  // ── 2 & 3. Member with role + Action & tool in saved manifest ───────────────
+  if (deps.verifyAppAccess && appId) {
+    const access = await deps.verifyAppAccess({ appId, userId: user.userId });
+    if (access.notFound) {
+      return jsonResponse({ error: "App not found" }, 404);
+    }
+    if (!access.allowed) {
+      return jsonResponse({ error: "Forbidden: caller is not a member of this app" }, 403);
+    }
+    if (access.manifest !== undefined) {
+      const manifestCheck = verifyManifestMcpContract(
+        access.manifest,
+        action.id,
+        connectorId,
+        toolName
+      );
+      if (!manifestCheck.ok) {
+        return jsonResponse({ error: manifestCheck.error }, 403);
+      }
+    }
+  } else if (appId && UUID_REGEX.test(appId) && supabaseUrl && serviceRoleKey) {
+    const access = await verifyUserAppMembership(
+      supabaseUrl,
+      serviceRoleKey,
+      appId,
+      user.userId,
+      baseFetch
+    );
+    if (access.notFound) {
+      return jsonResponse({ error: "App not found" }, 404);
+    }
+    if (!access.allowed) {
+      return jsonResponse({ error: "Forbidden: caller is not a member of this app" }, 403);
+    }
+    const manifestCheck = verifyManifestMcpContract(
+      access.manifest,
+      action.id,
+      connectorId,
+      toolName
+    );
+    if (!manifestCheck.ok) {
+      return jsonResponse({ error: manifestCheck.error }, 403);
+    }
   }
 
+  // ── 4. Invoking user's OWN connection + allowed_tools check ─────────────────
+  let connector: ConnectorConfig | null = null;
+  if (deps.resolveUserConnector) {
+    connector = await deps.resolveUserConnector({
+      connectorId,
+      userId: user.userId,
+    });
+  } else if (deps.resolveConnector) {
+    connector = deps.resolveConnector(connectorId);
+  } else if (supabaseUrl && serviceRoleKey && user.userId !== "local-dev-user") {
+    const dbConn = await resolveUserConnectionDb({
+      supabaseUrl,
+      serviceRoleKey,
+      userId: user.userId,
+      connectorId,
+      encryptionSecret: getEnv("CONNECTION_ENCRYPTION_KEY"),
+      allowEphemeralDevKey: allowLocalDevLoopback,
+      fetchFn: baseFetch,
+    });
+    if (dbConn) {
+      connector = {
+        url: dbConn.server_url,
+        bearerToken: dbConn.token,
+        authHeaderName: dbConn.auth_header_name,
+        allowedTools: dbConn.allowed_tools,
+        status: dbConn.status,
+      };
+    }
+  }
+
+  if (!connector && (!appId || !UUID_REGEX.test(appId))) {
+    connector = defaultResolveEnvConnector(connectorId, getEnv);
+  }
+
+  if (!connector) {
+    return jsonResponse(
+      {
+        error: `No active "${connectorId}" connection found for your account. Connect it on the Connections page first.`,
+      },
+      404
+    );
+  }
+
+  if (connector.status === "disabled" || connector.status === "error") {
+    return jsonResponse(
+      { error: `Connection "${connectorId}" is currently ${connector.status}.` },
+      403
+    );
+  }
+
+  if (Array.isArray(connector.allowedTools) && !connector.allowedTools.includes(toolName)) {
+    return jsonResponse(
+      {
+        error: `Tool "${toolName}" is not consented in allowed_tools for your "${connectorId}" connection.`,
+      },
+      403
+    );
+  }
+
+  // ── 5. Args validation + High-risk confirmation tap ─────────────────────────
+  const interpolated = interpolateParams(action.params, body.app_data ?? {});
+  const argsCheck = validateMcpToolArgs(interpolated);
+  if (!argsCheck.ok) {
+    return jsonResponse({ error: argsCheck.error }, 400);
+  }
+
+  if (isHighRiskMcpTool(toolName) && body.confirmed !== true) {
+    return jsonResponse(
+      {
+        error: `Extra confirmation required before invoking high-risk tool "${toolName}".`,
+        requires_confirmation: true,
+        tool_name: toolName,
+      },
+      409
+    );
+  }
+
+  // ── 6. Invoking user's credits (atomic RPC + ledger) ─────────────────────────
+  if (deps.chargeCredits) {
+    const creditOutcome = await deps.chargeCredits({
+      userId: user.userId,
+      appId,
+      connectorId,
+      toolName,
+    });
+    if (!creditOutcome.allowed) {
+      return jsonResponse(
+        {
+          error: "Insufficient monthly credits for MCP action.",
+          remaining_credits: creditOutcome.remainingCredits,
+          monthly_credit_limit: creditOutcome.monthlyCreditLimit,
+        },
+        402
+      );
+    }
+  } else if (supabaseUrl && serviceRoleKey && user.userId !== "local-dev-user") {
+    try {
+      const creditOutcome = await consumeCreditsRpc({
+        supabaseUrl,
+        serviceRoleKey,
+        userId: user.userId,
+        actionKind: "mcp_call",
+        costClass: "mcp_call",
+        appId: appId && UUID_REGEX.test(appId) ? appId : undefined,
+        metadata: { connector_id: connectorId, tool_name: toolName },
+        fetchFn: baseFetch,
+      });
+      if (!creditOutcome.allowed) {
+        return jsonResponse(
+          {
+            error: "Insufficient monthly credits for MCP action.",
+            remaining_credits: creditOutcome.remainingCredits,
+            monthly_credit_limit: creditOutcome.monthlyCreditLimit,
+          },
+          402
+        );
+      }
+    } catch (err) {
+      return jsonResponse(
+        { error: err instanceof Error ? err.message : "Failed to verify credit balance" },
+        500
+      );
+    }
+  }
+
+  // ── 7. SSRF-safe call ────────────────────────────────────────────────────────
   const ssrfOptions: SsrfValidationOptions = {
     ...deps.ssrfOptions,
     allowLocalDevLoopback,
@@ -245,10 +496,10 @@ export async function handleRunMcpAction(req: Request, deps: RunMcpDeps = {}): P
     baseFetch: deps.baseFetch,
   });
 
-  const headers: Record<string, string> = {};
-  if (connector.bearerToken) {
-    headers["Authorization"] = `Bearer ${connector.bearerToken}`;
-  }
+  const headers = buildStaticAuthHeaders(
+    connector.authHeaderName ?? "Authorization",
+    connector.bearerToken
+  );
 
   const client = new Client({
     name: "simple-run-mcp-action",
@@ -262,12 +513,12 @@ export async function handleRunMcpAction(req: Request, deps: RunMcpDeps = {}): P
 
   try {
     await client.connect(transport);
-    const toolArgs = interpolateParams(action.params, body.app_data ?? {});
     const toolResult = await client.callTool({
       name: toolName,
-      arguments: toolArgs,
+      arguments: argsCheck.args,
     });
 
+    // ── 8. Sanitize untrusted output ───────────────────────────────────────────
     const isError = Boolean((toolResult as { isError?: boolean }).isError);
     const formatted = formatUntrustedToolOutput(
       (toolResult as { content?: unknown }).content,
@@ -291,10 +542,9 @@ export async function handleRunMcpAction(req: Request, deps: RunMcpDeps = {}): P
       return jsonResponse({ error: err.message }, 403);
     }
     const message = err instanceof Error ? err.message : String(err);
-    return jsonResponse({ error: message }, 502);
+    return jsonResponse({ error: sanitizeToolOutputText(message) }, 502);
   } finally {
     await client.close().catch(() => {});
     await transport.close().catch(() => {});
   }
 }
-

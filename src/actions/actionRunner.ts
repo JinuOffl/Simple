@@ -113,7 +113,7 @@ export async function runAction({
         }
 
         const { data, error } = await supabase.functions.invoke("run-api-fetch", {
-          body: { api: action.api, params: resolvedParams },
+          body: { api: action.api, params: resolvedParams, ...(appId ? { app_id: appId } : {}) },
         });
 
         if (error) throw new Error(error.message);
@@ -167,9 +167,9 @@ export async function runAction({
       // Handled entirely inside ConversationLoop.tsx
       break;
 
-    // ─── V2 ACTIONS (enabled in Phase 1b / Phase 6) ────────────────────────────
+    // ─── V2 ACTIONS (enabled in Phase 1b / Phase 4 / Phase 6) ──────────────────
     case "mcp_call":
-      await executeMcpCallAction({ action, appData, onDataChange, isPreview });
+      await executeMcpCallAction({ action, appData, appId, onDataChange, isPreview });
       break;
 
     case "record_insert":
