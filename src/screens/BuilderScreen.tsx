@@ -52,7 +52,7 @@ export function BuilderScreen() {
     setGenerating(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("generate-manifest", {
+      const { data, error } = await supabase.functions.invoke("generate-app", {
         body: {
           user_prompt: userPrompt,
           existing_manifest: currentManifest ?? undefined,
@@ -60,22 +60,66 @@ export function BuilderScreen() {
         },
       });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        let detailedMessage = error.message;
+        const contextResponse = (error as { context?: { json?: () => Promise<unknown> } }).context;
+        if (contextResponse && typeof contextResponse.json === "function") {
+          try {
+            const payload = (await contextResponse.json()) as {
+              unsupported?: { message?: string; alternative?: string };
+              error?: string;
+            };
+            if (payload?.unsupported?.message) {
+              detailedMessage = payload.unsupported.alternative
+                ? `${payload.unsupported.message} ${payload.unsupported.alternative}`
+                : payload.unsupported.message;
+            } else if (payload?.error) {
+              detailedMessage = payload.error;
+            }
+          } catch {
+            // Keep original invoke error message when response body is non-JSON
+          }
+        }
+        throw new Error(detailedMessage);
+      }
 
-      // Try v2 first; fall back to v1 while generate-manifest still returns v1 in Phase 1
-      const v2Parse = ManifestV2Schema.safeParse(data);
+      const responseRecord =
+        typeof data === "object" && data !== null ? (data as Record<string, unknown>) : null;
+
+      if (responseRecord && responseRecord.ok === false) {
+        const unsupported = responseRecord.unsupported as
+          | { message?: string; alternative?: string }
+          | undefined;
+        if (unsupported?.message) {
+          const full = unsupported.alternative
+            ? `${unsupported.message} ${unsupported.alternative}`
+            : unsupported.message;
+          throw new Error(full);
+        }
+        throw new Error(
+          typeof responseRecord.error === "string"
+            ? responseRecord.error
+            : "Failed to generate app manifest."
+        );
+      }
+
+      const candidatePayload =
+        responseRecord && "manifest" in responseRecord ? responseRecord.manifest : data;
+
+      // Try v2 first; fall back to v1 if an older response shape arrives
+      const v2Parse = ManifestV2Schema.safeParse(candidatePayload);
       let parsedManifest: Manifest | ManifestV2;
 
       if (v2Parse.success) {
         parsedManifest = v2Parse.data;
       } else {
-        const v1Parse = ManifestSchema.safeParse(data);
+        const v1Parse = ManifestSchema.safeParse(candidatePayload);
         if (!v1Parse.success) {
           const isV2Candidate =
-            typeof data === "object" &&
-            data !== null &&
-            "schema_version" in data &&
-            (data as Record<string, unknown>).schema_version === 2;
+            typeof candidatePayload === "object" &&
+            candidatePayload !== null &&
+            "schema_version" in candidatePayload &&
+            (candidatePayload as Record<string, unknown>).schema_version === 2;
           const issues = isV2Candidate ? v2Parse.error.issues : v1Parse.error.issues;
           throw new Error(`Invalid manifest: ${issues[0]?.message ?? "unknown"}`);
         }

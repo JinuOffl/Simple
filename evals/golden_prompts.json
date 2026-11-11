@@ -1,0 +1,285 @@
+[
+  {
+    "id": "ui-01-calculator",
+    "category": "local_ui",
+    "prompt": "Build a simple pocket calculator for quick daily arithmetic",
+    "expect": { "ok": true, "templateMatched": true, "requiredComponents": ["calculator"] }
+  },
+  {
+    "id": "ui-02-habit-checklist",
+    "category": "local_ui",
+    "prompt": "Create a daily morning habit checklist to stay consistent",
+    "expect": { "ok": true, "templateMatched": true, "requiredComponents": ["checklist"] }
+  },
+  {
+    "id": "ui-03-tokyo-clock",
+    "category": "local_ui",
+    "prompt": "Show a live 24-hour world clock for Tokyo timezone",
+    "expect": { "ok": true, "templateMatched": true, "requiredComponents": ["clock"] }
+  },
+  {
+    "id": "ui-04-aptitude-quiz",
+    "category": "local_ui",
+    "prompt": "Build an aptitude multiple choice quiz with 3 math questions",
+    "expect": { "ok": true, "requiredComponents": ["mcq_quiz"] }
+  },
+  {
+    "id": "ui-05-packing-list",
+    "category": "local_ui",
+    "prompt": "Make a weekend travel packing checklist for essentials",
+    "expect": { "ok": true, "templateMatched": true, "requiredComponents": ["checklist"] }
+  },
+  {
+    "id": "ui-06-workout-routine",
+    "category": "local_ui",
+    "prompt": "Track my morning bodyweight workout checklist",
+    "expect": { "ok": true, "requiredComponents": ["checklist"] }
+  },
+  {
+    "id": "api-01-weather",
+    "category": "api_fetch",
+    "prompt": "Build a live weather forecast checker for London",
+    "expect": { "ok": true, "templateMatched": true, "requiredApis": ["weather"] }
+  },
+  {
+    "id": "api-02-currency",
+    "category": "api_fetch",
+    "prompt": "Create a currency exchange rate converter from USD to EUR",
+    "expect": { "ok": true, "templateMatched": true, "requiredApis": ["currency"] }
+  },
+  {
+    "id": "api-03-timezone",
+    "category": "api_fetch",
+    "prompt": "Check current timezone time in New York and display it cleanly",
+    "expect": { "ok": true, "requiredApis": ["timezone"] }
+  },
+  {
+    "id": "api-04-dictionary",
+    "category": "api_fetch",
+    "prompt": "English dictionary word meaning and phonetic helper",
+    "expect": { "ok": true, "requiredApis": ["dictionary"] }
+  },
+  {
+    "id": "api-05-country",
+    "category": "api_fetch",
+    "prompt": "Explore capital, population, and languages of a country",
+    "expect": { "ok": true, "requiredApis": ["country"] }
+  },
+  {
+    "id": "api-06-trivia",
+    "category": "api_fetch",
+    "prompt": "Daily interesting number trivia fun fact button",
+    "expect": { "ok": true, "requiredApis": ["trivia"] }
+  },
+  {
+    "id": "dev-01-receipt-camera",
+    "category": "device_and_llm",
+    "prompt": "Let me take a photo of receipts with camera and view gallery",
+    "expect": {
+      "ok": true,
+      "requiredComponents": ["image_capture", "image_gallery"],
+      "requiredPermissions": ["camera"]
+    }
+  },
+  {
+    "id": "dev-02-voice-memo",
+    "category": "device_and_llm",
+    "prompt": "Record a quick voice note using my microphone",
+    "expect": {
+      "ok": true,
+      "requiredComponents": ["mic_recorder"],
+      "requiredPermissions": ["microphone"]
+    }
+  },
+  {
+    "id": "dev-03-feynman-tutor",
+    "category": "device_and_llm",
+    "prompt": "Feynman study tutor that tests if I truly understand operating systems",
+    "expect": {
+      "ok": true,
+      "templateMatched": true,
+      "requiredComponents": ["conversation_loop"],
+      "requiredPermissions": ["microphone"]
+    }
+  },
+  {
+    "id": "dev-04-mock-interviewer",
+    "category": "device_and_llm",
+    "prompt": "Placement prep mock interview coach for software engineering roles",
+    "expect": {
+      "ok": true,
+      "requiredComponents": ["conversation_loop"],
+      "requiredPermissions": ["microphone"]
+    }
+  },
+  {
+    "id": "dev-05-summarizer",
+    "category": "device_and_llm",
+    "prompt": "AI study buddy button that generates flashcards summary",
+    "expect": { "ok": true, "requiredComponents": ["button", "card"] }
+  },
+  {
+    "id": "dev-06-meal-planner",
+    "category": "device_and_llm",
+    "prompt": "Generate quick dinner recipe checklist with an AI chef button",
+    "expect": { "ok": true, "requiredComponents": ["button", "card", "checklist"] }
+  },
+  {
+    "id": "mcp-01-ha-light",
+    "category": "mcp",
+    "prompt": "Control my living room light via Home Assistant MCP toggle",
+    "expect": {
+      "ok": true,
+      "templateMatched": true,
+      "requiredComponents": ["toggle"],
+      "requiredConnectors": ["home_assistant"]
+    }
+  },
+  {
+    "id": "mcp-02-ha-status",
+    "category": "mcp",
+    "prompt": "Smart home bedroom lamp toggle and status checker using Home Assistant",
+    "expect": {
+      "ok": true,
+      "requiredComponents": ["toggle", "card"],
+      "requiredConnectors": ["home_assistant"]
+    }
+  },
+  {
+    "id": "mcp-03-calendar",
+    "category": "mcp",
+    "prompt": "Show upcoming meetings from my Google Calendar MCP connector",
+    "expect": {
+      "ok": true,
+      "requiredConnectors": ["calendar"]
+    }
+  },
+  {
+    "id": "mcp-04-notion",
+    "category": "mcp",
+    "prompt": "Quick button to append lecture notes to Notion",
+    "expect": {
+      "ok": true,
+      "requiredConnectors": ["notion"]
+    }
+  },
+  {
+    "id": "biz-01-tutor-session",
+    "category": "pro_and_multiplayer",
+    "prompt": "Solo tutoring session checklist and homework reminder card",
+    "expect": { "ok": true, "requiredComponents": ["checklist", "card"] }
+  },
+  {
+    "id": "biz-02-clinic-intake",
+    "category": "pro_and_multiplayer",
+    "prompt": "Dental clinic morning sterilization checklist for solo practitioner",
+    "expect": { "ok": true, "requiredComponents": ["checklist", "card"] }
+  },
+  {
+    "id": "grp-01-couples-grocery",
+    "category": "pro_and_multiplayer",
+    "prompt": "Shared grocery checklist for couples",
+    "expect": { "ok": true, "multiplayer": true, "requiredComponents": ["checklist"] }
+  },
+  {
+    "id": "grp-02-study-challenge",
+    "category": "pro_and_multiplayer",
+    "prompt": "Multiplayer placement aptitude quiz challenge for friends",
+    "expect": { "ok": true, "multiplayer": true, "requiredComponents": ["mcq_quiz"] }
+  },
+  {
+    "id": "edit-01-add-button",
+    "category": "edit_patch",
+    "prompt": "Add a clear status button under the existing card without changing existing nodes",
+    "editBase": "weather",
+    "expect": {
+      "ok": true,
+      "patchApplied": true,
+      "preserveNodeIds": ["weather_card", "refresh_weather_btn"]
+    }
+  },
+  {
+    "id": "edit-02-rename-app",
+    "category": "edit_patch",
+    "prompt": "Rename the app title to Tokyo Forecast and update the card title",
+    "editBase": "weather",
+    "expect": {
+      "ok": true,
+      "patchApplied": true,
+      "preserveNodeIds": ["weather_card", "refresh_weather_btn"]
+    }
+  },
+  {
+    "id": "edit-03-add-checklist",
+    "category": "edit_patch",
+    "prompt": "Add an umbrella and jacket packing checklist below the weather buttons",
+    "editBase": "weather",
+    "expect": {
+      "ok": true,
+      "patchApplied": true,
+      "preserveNodeIds": ["weather_card", "refresh_weather_btn"]
+    }
+  },
+  {
+    "id": "edit-04-calc-header",
+    "category": "edit_patch",
+    "prompt": "Update the intro text to say Quick Split Calculator",
+    "editBase": "calculator",
+    "expect": {
+      "ok": true,
+      "patchApplied": true,
+      "preserveNodeIds": ["calc_intro", "calc_widget"]
+    }
+  },
+  {
+    "id": "rep-01-missing-perm",
+    "category": "repair",
+    "prompt": "[REPAIR_SIM:MISSING_MIC_PERMISSION] Build a mock interview conversation loop coach",
+    "expect": {
+      "ok": true,
+      "minRepairs": 1,
+      "requiredPermissions": ["microphone"]
+    }
+  },
+  {
+    "id": "rep-02-dangling-ref",
+    "category": "repair",
+    "prompt": "[REPAIR_SIM:DANGLING_ON_CLICK] Build a weather app with refresh button",
+    "expect": {
+      "ok": true,
+      "minRepairs": 1,
+      "requiredApis": ["weather"]
+    }
+  },
+  {
+    "id": "rep-03-edit-root-reject",
+    "category": "repair",
+    "prompt": "[REPAIR_SIM:ROOT_PATCH] Add an info text node at the end",
+    "editBase": "weather",
+    "expect": {
+      "ok": true,
+      "patchApplied": true,
+      "minRepairs": 1,
+      "preserveNodeIds": ["weather_card", "refresh_weather_btn"]
+    }
+  },
+  {
+    "id": "honest-01-e2ee-whatsapp",
+    "category": "honesty",
+    "prompt": "Build a private WhatsApp replacement with end-to-end encrypted chat",
+    "expect": { "ok": false, "unsupported": true }
+  },
+  {
+    "id": "honest-02-ios-bash",
+    "category": "honesty",
+    "prompt": "Compile an iOS App Store SwiftUI app that can run bash scripts on iPhone",
+    "expect": { "ok": false, "unsupported": true }
+  },
+  {
+    "id": "honest-03-upi-payments",
+    "category": "honesty",
+    "prompt": "Transfer real money and send UPI payments automatically from my bank account",
+    "expect": { "ok": false, "unsupported": true }
+  }
+]
+

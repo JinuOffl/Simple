@@ -1,27 +1,41 @@
 # 001 — LLM Provider Abstraction
 
-**Status:** STUB — to be finalized in Phase 3  
-**Date:** 2026-11-10
+**Status:** DECIDED  
+**Date:** 2026-11-11
 
 ## Context
-v1 hardcodes Groq (`llama-3.3-70b-versatile`) in every Edge Function with no fallback. A single
-provider outage or pricing change breaks the entire product. The spec requires a `LLMProvider`
-interface with primary + fallback, model ids in config, not code.
+v1 hardcoded Groq (`llama-3.3-70b-versatile`) in every Edge Function with no fallback. A single
+provider outage or pricing change breaks the entire product. The spec requires an `LLMProvider`
+interface with primary + fallback and model/provider configuration in config/env rather than code.
 
 ## Options
-1. **Vercel AI SDK `ai` package (server-side)** — unified interface over OpenAI-compatible APIs,
-   structured output, tool calling. Must verify Deno compatibility via `npm:` specifier.
-2. **Hand-rolled adapter** — simple `fetch` wrapper, full control, more maintenance.
-3. **LangChain.js** — broad provider support but heavy; overkill for our structured-output use case.
+1. **Vercel AI SDK `ai@5.0.287` + `@ai-sdk/openai-compatible@1.0.60` (server-side Deno)** — unified
+   interface (`generateText` / `generateObject`) across Groq and any OpenAI-compatible fallback
+   without requiring Node host APIs unsupported in restricted Deno sandboxes.
+2. **Vercel AI SDK `ai@7.x` + `@ai-sdk/groq@4.x`** — pulls `@ai-sdk/gateway` -> `@vercel/oidc`,
+   which reads `os.hostname()` at module load (`--allow-sys` required in Deno), failing in strict
+   Deno sandboxes.
+3. **Hand-rolled `fetch` adapter** — simpler dependency surface, but loses Vercel AI SDK unified
+   streaming, token accounting, and provider ecosystem compatibility.
 
 ## Decision
-*Pending Phase 3 implementation.* Planned: Vercel AI SDK `ai` package via `npm:ai` in Deno.
-Must verify: (a) Deno `npm:` specifier resolves correctly, (b) `generateObject` / structured output
-works in Deno Edge, (c) the discriminated-union registry schema doesn't exceed provider limits —
-if so, send simplified schema and let Zod validate.
+Adopted **Option 1 (`npm:ai@5.0.287` + `npm:@ai-sdk/openai-compatible@1.0.60`)**:
+- Verified in Deno `2.9.6` (`supabase/functions/deno.json` strict mode): both `deno check` and
+  `deno run --allow-env` succeed without `--allow-sys` (unlike `ai@7.0.166`).
+- Defined a pure `LLMProvider` interface (`generateStructured`, `completeJson`) in
+  `supabase/functions/_shared/orchestrator/types.ts`, implemented in Deno via
+  `supabase/functions/_shared/llmProvider.ts` with automatic primary-to-fallback failover on
+  transient errors, HTTP 429s, 5xx responses, or missing primary credentials.
+- To avoid provider JSON Schema union-depth limits across 23 discriminated component schemas,
+  generation requests pass a simplified schema / JSON instruction to the LLM provider and run
+  full deterministic Zod `ManifestV2Schema` validation in `VALIDATE` (with up to 2 bounded repair
+  attempts).
 
 ## Consequences
-- Model ids (`GENERATION_MODEL`, `RUNTIME_LLM_MODEL`, `CRITIQUE_MODEL`) live in Supabase env secrets.
-- Primary provider = configurable (default: Groq). Fallback = configurable (default: OpenAI-compat).
-- If `ai` package fails Deno verification, fall back to option 2 (hand-rolled, provider-agnostic).
+- Primary defaults to Groq (`https://api.groq.com/openai/v1`) and fallback defaults to
+  OpenAI-compatible (`https://api.openai.com/v1`), defined centrally in `LLM_CONFIG`
+  (`src/config/llm.ts` / `supabase/functions/_shared/orchestrator/llmConfig.ts`).
+- Runtime env overrides (`GENERATION_MODEL`, `CRITIQUE_MODEL`, `RUNTIME_LLM_MODEL`,
+  `LLM_PRIMARY_*`, `LLM_FALLBACK_*`, `GROQ_API_KEY`, `OPENAI_API_KEY`) live in server-side secrets.
+- Orchestrator code and runtime actions never hardcode model IDs or provider URLs.
 

@@ -10,7 +10,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "evals": "deno run --config supabase/functions/deno.json --allow-read --allow-env --allow-net evals/run_evals.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

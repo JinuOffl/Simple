@@ -1,33 +1,19 @@
-// src/config/llm.ts
-// Edit this file to change LLM providers and models.
+import { DEFAULT_LLM_CONFIG } from "../../supabase/functions/_shared/orchestrator/llmConfig.ts";
 
-export const LLM_CONFIG = {
-  // Primary provider — used for manifest generation and orchestration
-  primary: {
-    provider: "groq" as const,
-    baseUrl: "https://api.groq.com/openai/v1",
-    // Model used by the generation orchestrator (high capability)
-    generationModel: "llama-3.3-70b-versatile",
-    // Model used for the CRITIQUE step (cheap, fast)
-    critiqueModel: "llama-3.1-8b-instant",
-    // Model used for runtime llm_call actions in running apps
-    runtimeModel: "llama-3.1-8b-instant",
-    // Max tokens for generation
-    generationMaxTokens: 4096,
-    // Max tokens for runtime calls
-    runtimeMaxTokens: 1024,
-    // Temperature for generation (low = more deterministic)
-    generationTemperature: 0.3,
-    // Temperature for runtime calls (higher = more creative)
-    runtimeTemperature: 0.7,
-  },
-  // Repair loop config
-  repair: {
-    // Max repair attempts across VALIDATE+CRITIQUE steps
-    maxAttempts: 2,
-    // Temperature for repair calls (lower = more conservative)
-    temperature: 0.1,
-  },
-} as const;
+/**
+ * Global LLM configuration for Simple v2.
+ * Re-exported from the single shared source of truth used by both Edge Functions and UI/evals.
+ * Note: Secret API keys MUST live in server-side env vars — never put secrets here.
+ */
+export const LLM_CONFIG = DEFAULT_LLM_CONFIG;
 
+export type LLMProviderName = typeof LLM_CONFIG.primary.provider | typeof LLM_CONFIG.fallback.provider;
 export type LLMProvider = typeof LLM_CONFIG.primary.provider;
+export type {
+  LlmConfig,
+  ProviderEndpointConfig,
+  RepairConfig,
+  ResolvedLlmRuntimeConfig,
+  ResolvedProviderEndpoint,
+} from "../../supabase/functions/_shared/orchestrator/llmConfig.ts";
+export { resolveLlmRuntimeConfig } from "../../supabase/functions/_shared/orchestrator/llmConfig.ts";
