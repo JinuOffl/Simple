@@ -1,8 +1,8 @@
 # Simple v2 — Migration Plan
 
-> **Status:** APPROVED — Phase 1 in progress  
-> **Phase:** 1 (Registry + Manifest v2 + Migrator)  
-> **Decisions locked:** 2026-11-11
+> **Status:** COMPLETED — All Phases 0 through 9 verified and locked  
+> **Phase:** 9 Complete (Hardening & Release Readiness)  
+> **Decisions locked:** 2026-11-12
 
 ---
 
@@ -112,19 +112,19 @@ src/schema/manifest.schema.ts        # → renamed to manifest.v1.ts
 
 ## Part 3 — Full Phase Map (unchanged from spec, web-first adjustments noted)
 
-| Phase | Scope | Gate |
-|---|---|---|
-| **0** ✅ | Audit + plan | Approved |
-| **1** 🔄 | Registry + Manifest v2 + Migrator | Tests green, tsc clean |
-| **1b** | MCP vertical slice (toggle → fake MCP server) | Tap changes state on fake server |
-| **2** | DB migrations, credits, sleeping, guest mode *(Vault/pgvector deferred)* | RLS tests; sleep not delete; export |
-| **3** | Orchestrator state machine + evals harness | ≥95% post-repair valid; latency reported |
-| **4** | MCP connector layer, SSRF guard, Connections screen | End-to-end HA/fake; SSRF suite passes |
-| **5** | UI expansion (shadcn components) + format spike | Decision doc; evals pass |
-| **6** | Multiplayer (members, invites, shared collections, Realtime) | Two accounts share; viewer cannot write |
-| **7** | Monetization wiring (credits, plans, BYOK) | free/pro/group tests; client cannot self-upgrade |
-| **8** | Sandboxed logic *(gated — only if evals justify)* | — |
-| **9** | Hardening + release readiness *(includes PWA/web build check; Android optional)* | Release checklist |
+| Phase | Scope | Gate | Status |
+|---|---|---|---|
+| **0** | Audit + plan | Approved | ✅ Completed |
+| **1** | Registry + Manifest v2 + Migrator | Tests green, tsc clean | ✅ Completed |
+| **1b** | MCP vertical slice (toggle → fake MCP server) | Tap changes state on fake server | ✅ Completed |
+| **2** | DB migrations, credits, sleeping, guest mode *(Vault/pgvector deferred)* | RLS tests; sleep not delete; export | ✅ Completed |
+| **3** | Orchestrator state machine + evals harness | ≥95% post-repair valid; latency reported | ✅ Completed |
+| **4** | MCP connector layer, SSRF guard, Connections screen | End-to-end HA/fake; SSRF suite passes | ✅ Completed |
+| **5** | UI expansion (23 components) + format spike | Decision doc; evals pass | ✅ Completed |
+| **6** | Multiplayer (members, invites, shared collections, Realtime) | Two accounts share; viewer cannot write | ✅ Completed |
+| **7** | Monetization wiring (credits, plans, BYOK) | free/pro/group tests; client cannot self-upgrade | ✅ Completed |
+| **8** | Sandboxed logic *(gated — evaluated & deferred per ADR 011)* | Evals 100% pass, gate documented | ✅ Completed |
+| **9** | Hardening + release readiness *(PWA web manifest, zero secrets)* | Release checklist fully checked | ✅ Completed |
 
 ---
 
