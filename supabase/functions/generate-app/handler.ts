@@ -4,6 +4,7 @@ import { createEnvBackedLlmProvider } from "../_shared/llmProvider.ts";
 import { validateManifestDeno } from "../_shared/manifestValidator.ts";
 import { resolveLlmRuntimeConfig } from "../_shared/orchestrator/llmConfig.ts";
 import { runGenerateOrchestrator } from "../_shared/orchestrator/stateMachine.ts";
+import { fetchUserByokKey } from "../_shared/byokHelper.ts";
 import type {
   ConversationTurn,
   GenerationResult,
@@ -164,8 +165,21 @@ export async function handleGenerateApp(
 
   const supabaseUrl = getEnv("SUPABASE_URL") ?? getEnv("VITE_SUPABASE_URL");
   const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const encryptionSecret =
+    getEnv("CONNECTION_ENCRYPTION_KEY") ??
+    getEnv("BYOK_ENCRYPTION_KEY") ??
+    getEnv("APP_ENCRYPTION_KEY");
 
-  if (enforceSupabaseCredits && supabaseUrl && serviceRoleKey) {
+  // Check if caller has configured their own BYOK key (bypasses credit limits)
+  const byok = await fetchUserByokKey({
+    supabaseUrl,
+    serviceRoleKey,
+    userId,
+    encryptionSecret,
+    fetchFn: baseFetch,
+  });
+
+  if (enforceSupabaseCredits && supabaseUrl && serviceRoleKey && !byok.hasByok) {
     try {
       const creditCheck = await consumeCreditsRpc({
         supabaseUrl,
@@ -197,7 +211,11 @@ export async function handleGenerateApp(
     }
   }
 
-  const runtimeConfig = resolveLlmRuntimeConfig(getEnv);
+  const runtimeConfig = resolveLlmRuntimeConfig(
+    getEnv,
+    undefined,
+    byok.hasByok ? { apiKey: byok.apiKey, provider: byok.provider } : undefined
+  );
   const llmProvider =
     deps.llmProvider ?? createEnvBackedLlmProvider(getEnv, deps.baseFetch);
 

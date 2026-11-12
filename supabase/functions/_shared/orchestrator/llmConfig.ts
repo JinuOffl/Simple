@@ -74,7 +74,8 @@ export const DEFAULT_LLM_CONFIG = {
  */
 export function resolveLlmRuntimeConfig(
   getEnv: (key: string) => string | undefined,
-  baseConfig: LlmConfig = DEFAULT_LLM_CONFIG
+  baseConfig: LlmConfig = DEFAULT_LLM_CONFIG,
+  userOverrides?: { apiKey?: string; provider?: string }
 ): ResolvedLlmRuntimeConfig {
   const nonEmpty = (key: string): string | undefined => {
     const raw = getEnv(key);
@@ -89,9 +90,19 @@ export function resolveLlmRuntimeConfig(
       ? parsedRepairAttempts
       : baseConfig.repair.maxAttempts;
 
+  const primaryApiKey =
+    userOverrides?.apiKey ??
+    nonEmpty("LLM_PRIMARY_API_KEY") ??
+    nonEmpty("GROQ_API_KEY");
+
+  const primaryProvider =
+    userOverrides?.provider ??
+    nonEmpty("LLM_PRIMARY_PROVIDER") ??
+    baseConfig.primary.provider;
+
   return {
     primary: {
-      provider: nonEmpty("LLM_PRIMARY_PROVIDER") ?? baseConfig.primary.provider,
+      provider: primaryProvider,
       baseUrl: nonEmpty("LLM_PRIMARY_BASE_URL") ?? baseConfig.primary.baseUrl,
       generationModel: nonEmpty("GENERATION_MODEL") ?? baseConfig.primary.generationModel,
       critiqueModel: nonEmpty("CRITIQUE_MODEL") ?? baseConfig.primary.critiqueModel,
@@ -100,7 +111,7 @@ export function resolveLlmRuntimeConfig(
       runtimeMaxTokens: baseConfig.primary.runtimeMaxTokens,
       generationTemperature: baseConfig.primary.generationTemperature,
       runtimeTemperature: baseConfig.primary.runtimeTemperature,
-      apiKey: nonEmpty("LLM_PRIMARY_API_KEY") ?? nonEmpty("GROQ_API_KEY"),
+      apiKey: primaryApiKey,
     },
     fallback: {
       provider: nonEmpty("LLM_FALLBACK_PROVIDER") ?? baseConfig.fallback.provider,

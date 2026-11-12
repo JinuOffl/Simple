@@ -1,8 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CREDIT_COSTS_BY_CLASS, PLANS, type CreditCostClass } from "@/config/plans";
 import { createDefaultEntitlement, getPlanConfig, getRemainingCredits } from "@/lib/credits";
 import { downloadAppExport, useAppStore } from "@/lib/zustandStore";
+import {
+  getByokStatus,
+  saveByokKey,
+  deleteByokKey,
+  type ByokStatus,
+} from "@/lib/entitlementProvider";
 
 const COST_LABELS: Record<CreditCostClass, string> = {
   generation: "Generate / Edit App",
@@ -32,6 +38,42 @@ export function PlanUsageScreen() {
     void fetchApps();
     void fetchEntitlementAndUsage();
   }, [fetchApps, fetchEntitlementAndUsage]);
+
+  const [byokStatus, setByokStatus] = useState<ByokStatus | null>(null);
+  const [byokInput, setByokInput] = useState("");
+  const [savingByok, setSavingByok] = useState(false);
+  const [byokError, setByokError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getByokStatus().then(setByokStatus);
+  }, []);
+
+  const handleSaveByok = async () => {
+    const key = byokInput.trim();
+    if (!key) return;
+    setSavingByok(true);
+    setByokError(null);
+    const res = await saveByokKey(key, "groq");
+    if (res.success) {
+      setByokStatus({ has_byok: true, preview: res.preview, provider: "groq" });
+      setByokInput("");
+    } else {
+      setByokError(res.error ?? "Failed to save key");
+    }
+    setSavingByok(false);
+  };
+
+  const handleDeleteByok = async () => {
+    setSavingByok(true);
+    setByokError(null);
+    const res = await deleteByokKey();
+    if (res.success) {
+      setByokStatus({ has_byok: false });
+    } else {
+      setByokError(res.error ?? "Failed to remove key");
+    }
+    setSavingByok(false);
+  };
 
   const currentEntitlement = entitlement ?? createDefaultEntitlement();
   const planConfig = getPlanConfig(currentEntitlement.plan);
@@ -256,6 +298,71 @@ export function PlanUsageScreen() {
               );
             })}
           </div>
+        </section>
+
+        {/* Bring Your Own Key (BYOK) */}
+        <section className="glass p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-n-text3 text-[9px] uppercase tracking-[0.18em]">
+              bring your own key (byok)
+            </p>
+            <span className="nt-tag text-[9px] uppercase tracking-wider">
+              {byokStatus?.has_byok ? "active" : "optional"}
+            </span>
+          </div>
+
+          <p className="text-n-text2 text-xs leading-relaxed">
+            Provide your own Groq API key to bypass monthly credit limits for app generation
+            and runtime LLM actions. Keys are AES-GCM-256 encrypted server-side and never
+            exposed in client bundles.
+          </p>
+
+          {byokError && (
+            <p className="text-xs text-red-400 bg-red-950/20 border border-red-900/40 rounded-sm p-2 font-mono">
+              {byokError}
+            </p>
+          )}
+
+          {byokStatus?.has_byok ? (
+            <div className="bg-n-surface border border-n-border rounded-sm p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-mono text-white">
+                    {byokStatus.preview ?? "Active Key"}
+                  </span>
+                  <p className="text-[10px] text-n-text3 font-mono">
+                    Provider: {byokStatus.provider ?? "groq"} · Unlimited generations
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={savingByok}
+                  onClick={handleDeleteByok}
+                  className="px-2.5 py-1 text-[10px] font-mono uppercase text-n-text3 hover:text-red-400 border border-n-border hover:border-red-900/50 rounded-sm transition-colors"
+                >
+                  {savingByok ? "Removing…" : "Remove Key"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <input
+                type="password"
+                placeholder="gsk_••••••••••••••••"
+                value={byokInput}
+                onChange={(e) => setByokInput(e.target.value)}
+                className="w-full bg-n-surface border border-n-border text-white text-xs p-2.5 rounded-sm font-mono outline-none focus:border-white/50"
+              />
+              <button
+                type="button"
+                disabled={savingByok || !byokInput.trim()}
+                onClick={handleSaveByok}
+                className="btn-primary w-full text-xs"
+              >
+                {savingByok ? "Encrypting & Saving…" : "Save Groq Key"}
+              </button>
+            </div>
+          )}
         </section>
 
         {/* Usage Ledger */}

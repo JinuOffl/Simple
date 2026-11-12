@@ -1,11 +1,12 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { consumeCreditsRpc } from "../_shared/credits.ts";
-import { createEnvBackedLlmProvider } from "../_shared/llmProvider.ts";
+import { VercelAiFallbackProvider } from "../_shared/llmProvider.ts";
 import {
   DEFAULT_LLM_CONFIG,
   resolveLlmRuntimeConfig,
 } from "../_shared/orchestrator/llmConfig.ts";
 import { UUID_REGEX } from "../_shared/mcpDb.ts";
+import { fetchUserByokKey } from "../_shared/byokHelper.ts";
 
 // Runtime LLM action executor — separate from manifest generation.
 // Uses shared LLMProvider abstraction (primary + fallback configured in llmConfig/env).
@@ -81,8 +82,28 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const runtimeConfig = resolveLlmRuntimeConfig(getEnv, DEFAULT_LLM_CONFIG);
-    const provider = createEnvBackedLlmProvider(getEnv);
+    const supabaseUrl = getEnv("SUPABASE_URL") ?? getEnv("VITE_SUPABASE_URL");
+    const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+    const encryptionSecret =
+      getEnv("CONNECTION_ENCRYPTION_KEY") ??
+      getEnv("BYOK_ENCRYPTION_KEY") ??
+      getEnv("APP_ENCRYPTION_KEY");
+
+    // Check if caller has configured their own BYOK key (bypasses credit limits)
+    const byok = await fetchUserByokKey({
+      supabaseUrl,
+      serviceRoleKey,
+      userId: user.userId,
+      encryptionSecret,
+      fetchFn: baseFetch,
+    });
+
+    const runtimeConfig = resolveLlmRuntimeConfig(
+      getEnv,
+      DEFAULT_LLM_CONFIG,
+      byok.hasByok ? { apiKey: byok.apiKey, provider: byok.provider } : undefined
+    );
+    const provider = new VercelAiFallbackProvider({ runtimeConfig, baseFetch });
 
     const body = await req.json();
     const { action, app_data = {}, conversation_history = [], app_id: appId } = body;
@@ -91,10 +112,8 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "action is required" }, 400);
     }
 
-    // ── Credit metering (skipped for local-dev-user) ────────────────────────
-    const supabaseUrl = getEnv("SUPABASE_URL") ?? getEnv("VITE_SUPABASE_URL");
-    const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
-    if (supabaseUrl && serviceRoleKey && user.userId !== "local-dev-user") {
+    // ── Credit metering (skipped for BYOK or local-dev-user) ─────────────────
+    if (supabaseUrl && serviceRoleKey && user.userId !== "local-dev-user" && !byok.hasByok) {
       const creditOutcome = await consumeCreditsRpc({
         supabaseUrl,
         serviceRoleKey,
