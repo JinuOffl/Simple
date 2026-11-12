@@ -261,6 +261,18 @@ export async function runAction({
       break;
     }
 
+    // ─── RESERVED GATED ACTION (Phase 8 — ADR 011) ──────────────────────────────
+    case "sandbox_fn": {
+      console.warn("sandbox_fn action encountered: sandboxed WASM logic is deferred per ADR 011.");
+      if (action.render_result_into) {
+        onDataChange?.(
+          action.render_result_into,
+          "Sandboxed custom code execution is deferred in this release."
+        );
+      }
+      break;
+    }
+
     default: {
       const unknownKind = (action as { kind?: string }).kind;
       console.warn("Unknown action kind:", unknownKind);

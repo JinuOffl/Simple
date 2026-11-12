@@ -24,7 +24,7 @@ const CollectionSchema = z.object({
   fields: z.array(CollectionFieldSchema),
 });
 
-// ── Action kinds (v2 adds mcp_call, record_insert, record_update) ──────────────
+// ── Action kinds (v2 adds mcp_call, record_insert, record_update, sandbox_fn) ──
 const ActionKindSchema = z.enum([
   "llm_call",
   "local_compute",
@@ -35,6 +35,7 @@ const ActionKindSchema = z.enum([
   "record_insert",
   "record_update",
   "conversation_loop",
+  "sandbox_fn",
 ]);
 
 // ── Credit cost class — used by edge functions to meter usage ──────────────────
