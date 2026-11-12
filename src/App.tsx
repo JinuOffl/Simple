@@ -9,6 +9,7 @@ import { BuilderScreen } from "@/screens/BuilderScreen";
 import { AppRunnerScreen } from "@/screens/AppRunnerScreen";
 import { PlanUsageScreen } from "@/screens/PlanUsageScreen";
 import { ConnectionsScreen } from "@/screens/ConnectionsScreen";
+import { InviteJoinScreen } from "@/screens/InviteJoinScreen";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { session } = useAppStore();
@@ -77,6 +78,22 @@ export default function App() {
           element={
             <AuthGuard>
               <ConnectionsScreen />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/join/:code"
+          element={
+            <AuthGuard>
+              <InviteJoinScreen />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/invite/:code"
+          element={
+            <AuthGuard>
+              <InviteJoinScreen />
             </AuthGuard>
           }
         />

@@ -6,17 +6,20 @@ import type { SavedApp } from "@/lib/zustandStore";
 import { ManifestRenderer } from "@/renderer/ManifestRenderer";
 import type { Manifest } from "@/schema/manifest.v1";
 import type { ManifestV2 } from "@/schema/manifest.v2";
+import { ShareModal } from "@/components/ShareModal";
 
 export function AppRunnerScreen() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { apps, startEditing, wakeApp, exportApp } = useAppStore();
+  const { apps, user, startEditing, wakeApp, exportApp } = useAppStore();
 
   const [app, setApp]         = useState<SavedApp | null>(null);
   const [appData, setAppData] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const [wakeError, setWakeError] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<"owner" | "editor" | "viewer">("owner");
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -34,6 +37,22 @@ export function AppRunnerScreen() {
 
       setApp(loadedApp);
 
+      if (loadedApp && user) {
+        if (loadedApp.user_id === user.id) {
+          setUserRole("owner");
+        } else {
+          const { data: memData } = await supabase
+            .from("app_members")
+            .select("role")
+            .eq("app_id", id)
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (memData?.role) {
+            setUserRole(memData.role as "owner" | "editor" | "viewer");
+          }
+        }
+      }
+
       const { data: dataRows } = await supabase.from("app_data").select("key, value").eq("app_id", id);
       if (dataRows) {
         const merged: Record<string, unknown> = {};
@@ -44,9 +63,29 @@ export function AppRunnerScreen() {
       setLoading(false);
     };
     load();
-  }, [id, apps]);
+
+    // Subscribe to live Realtime updates on app_data
+    const channel = supabase
+      .channel(`app-data-sync-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "app_data", filter: `app_id=eq.${id}` },
+        (payload) => {
+          if (payload.new && typeof payload.new === "object" && "key" in payload.new) {
+            const row = payload.new as { key: string; value: unknown };
+            setAppData((prev) => ({ ...prev, [row.key]: row.value }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [id, apps, user]);
 
   const handleDataChange = async (key: string, value: unknown) => {
+    if (userRole === "viewer") return;
     setAppData(prev => ({ ...prev, [key]: value }));
     if (id) {
       await supabase.from("app_data").upsert(
@@ -57,6 +96,7 @@ export function AppRunnerScreen() {
   };
 
   const handleEdit = () => {
+    if (userRole === "viewer") return;
     if (app) { startEditing(app); navigate("/build"); }
   };
 
@@ -130,16 +170,36 @@ export function AppRunnerScreen() {
         <div className="flex-1 flex items-center gap-2.5">
           <span className="text-xl leading-none">{app.icon}</span>
           <p className="text-white text-xs uppercase tracking-wider">{app.name}</p>
+          {userRole !== "owner" && (
+            <span className="nt-tag text-[9px] uppercase tracking-wider px-1.5 py-0.5">
+              {userRole}
+            </span>
+          )}
         </div>
 
-        <button
-          onClick={handleEdit}
-          className="text-n-text3 hover:text-white text-[10px] uppercase tracking-widest
-                     border border-n-border hover:border-n-border2 px-3 py-1.5 rounded-sm
-                     transition-colors"
-        >
-          edit
-        </button>
+        {userRole === "owner" && (
+          <button
+            type="button"
+            onClick={() => setShowShareModal(true)}
+            className="text-n-text3 hover:text-white text-[10px] uppercase tracking-widest
+                       border border-n-border hover:border-n-border2 px-3 py-1.5 rounded-sm
+                       transition-colors"
+          >
+            share
+          </button>
+        )}
+
+        {userRole !== "viewer" && (
+          <button
+            type="button"
+            onClick={handleEdit}
+            className="text-n-text3 hover:text-white text-[10px] uppercase tracking-widest
+                       border border-n-border hover:border-n-border2 px-3 py-1.5 rounded-sm
+                       transition-colors"
+          >
+            edit
+          </button>
+        )}
       </header>
 
       {/* App content */}
@@ -191,6 +251,15 @@ export function AppRunnerScreen() {
           />
         )}
       </main>
+
+      {showShareModal && (
+        <ShareModal
+          appId={app.id}
+          appName={app.name}
+          isOwner={userRole === "owner"}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
     </div>
   );
 }

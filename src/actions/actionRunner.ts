@@ -172,12 +172,94 @@ export async function runAction({
       await executeMcpCallAction({ action, appData, appId, onDataChange, isPreview });
       break;
 
-    case "record_insert":
-    case "record_update":
-      console.warn(
-        `[Simple] Action "${action.id}" (${action.kind}) is not enabled in Phase 1 (enabled in Phase 6).`
+    case "record_insert": {
+      if (!appId || isPreview || !action.collection) break;
+      const { user } = useAppStore.getState();
+      if (!user) break;
+
+      const recordData: Record<string, unknown> = {};
+      if (action.input_from && action.input_from.length > 0) {
+        for (const key of action.input_from) {
+          if (appData[key] !== undefined) {
+            recordData[key] = appData[key];
+          }
+        }
+      } else if (action.params && typeof action.params === "object") {
+        Object.assign(recordData, action.params);
+      }
+
+      const isShared = Boolean(
+        (action as ManifestV2Action).params?.is_shared ?? true
       );
+
+      const { data, error } = await supabase
+        .from("collection_records")
+        .insert({
+          app_id: appId,
+          collection_name: action.collection,
+          owner_id: user.id,
+          is_shared: isShared,
+          data: recordData,
+        })
+        .select("id")
+        .single();
+
+      if (error) {
+        console.error("record_insert failed:", error);
+      } else {
+        if (action.render_result_into) {
+          onDataChange?.(action.render_result_into, `Saved to ${action.collection}`);
+        }
+        window.dispatchEvent(
+          new CustomEvent("simple:collection_records_changed", {
+            detail: { app_id: appId, collection: action.collection, record_id: data?.id },
+          })
+        );
+      }
       break;
+    }
+
+    case "record_update": {
+      if (!appId || isPreview || !action.collection) break;
+      const { user } = useAppStore.getState();
+      if (!user) break;
+
+      const recordId =
+        (appData[`${action.collection}_id`] as string | undefined) ??
+        (appData.id as string | undefined) ??
+        (action.params?.id as string | undefined);
+
+      if (!recordId) {
+        console.warn("record_update missing recordId");
+        break;
+      }
+
+      const updateData: Record<string, unknown> = {};
+      if (action.input_from && action.input_from.length > 0) {
+        for (const key of action.input_from) {
+          if (appData[key] !== undefined) {
+            updateData[key] = appData[key];
+          }
+        }
+      }
+
+      const { error } = await supabase
+        .from("collection_records")
+        .update({ data: updateData, updated_at: new Date().toISOString() })
+        .eq("id", recordId)
+        .eq("app_id", appId);
+
+      if (error) {
+        console.error("record_update failed:", error);
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("simple:collection_records_changed", {
+            detail: { app_id: appId, collection: action.collection, record_id: recordId },
+          })
+        );
+      }
+      break;
+    }
 
     default: {
       const unknownKind = (action as { kind?: string }).kind;

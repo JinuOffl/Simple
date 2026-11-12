@@ -63,6 +63,9 @@ const ActionSchema = z.object({
   connector_id: z.string().optional(),
   tool_name: z.string().optional(),
 
+  // ── record_insert / record_update ─────────────────────────────────
+  collection: z.string().optional(),
+
   // ── shared ────────────────────────────────────────────────────────
   params: z.record(z.string(), z.unknown()).optional(),
   input_from: z.array(z.string()).optional(),
