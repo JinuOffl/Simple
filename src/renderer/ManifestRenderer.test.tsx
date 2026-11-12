@@ -259,11 +259,11 @@ describe("ManifestRenderer", () => {
     });
   });
 
-  it("renders stub components (slider, chart) cleanly without crashing", () => {
+  it("renders expanded components (slider, chart) cleanly without crashing", () => {
     const stubV2: ManifestV2 = {
       schema_version: 2,
-      app_id: "app-stubs",
-      name: "Stub Preview",
+      app_id: "app-expanded",
+      name: "Expanded Preview",
       icon: "🧩",
       permissions: [],
       connectors: [],
@@ -281,6 +281,7 @@ describe("ManifestRenderer", () => {
                 chart_type: "bar",
                 labels: ["Mon", "Tue"],
                 datasets: [{ label: "Steps", data: [5000, 7000] }],
+                title: "Weekly Activity",
               },
             },
           ],
@@ -291,8 +292,10 @@ describe("ManifestRenderer", () => {
 
     render(<ManifestRenderer manifest={stubV2} />);
 
-    expect(screen.getByText("(slider — coming soon)")).toBeTruthy();
-    expect(screen.getByText("(chart — coming soon)")).toBeTruthy();
+    expect(screen.getByText("Brightness")).toBeTruthy();
+    expect(screen.getByText("Weekly Activity")).toBeTruthy();
+    expect(screen.getByText("Mon")).toBeTruthy();
+    expect(screen.getByText("Tue")).toBeTruthy();
   });
 
   it("renders real Toggle component and dispatches mcp_call action via run-mcp-action", async () => {

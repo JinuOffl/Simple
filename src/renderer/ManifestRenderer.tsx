@@ -152,6 +152,7 @@ export function ManifestRenderer({
           onClickActionId: node.on_click,
           onDataChange,
           onAction,
+          onNavigateScreen: setActiveScreenId,
         };
 
         const EntryComponent = entry.component;

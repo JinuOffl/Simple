@@ -843,3 +843,4 @@ Deno.test("run-api-fetch requires auth (401), checks credits (402), and sanitize
   assertStringIncludes(okData.result, "21°C");
   assertStringIncludes(okData.result, "Tokyo, Japan");
 });
+

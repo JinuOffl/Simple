@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ListStub } from "../stubs";
+import { ListAdapter } from "../adapters";
 import type { RegistryEntry } from "../types";
 
 const propsSchema = z
@@ -14,7 +14,7 @@ type Props = z.infer<typeof propsSchema>;
 export const listEntry: RegistryEntry<Props, "list"> = {
   type: "list",
   propsSchema,
-  component: ListStub,
+  component: ListAdapter,
   llmDescription: `Use \`list\` to display a styled bullet or numbered list.
 Props:
 - items (string[], optional): Array of list items.
@@ -22,5 +22,5 @@ Props:
 Example: { type: "list", props: { items: ["Apple", "Banana", "Cherry"], ordered: false } }`,
   requiredPermissions: [],
   examples: [{ props: { items: ["First", "Second", "Third"], ordered: true } }],
-  isStub: true,
+  isStub: false,
 };

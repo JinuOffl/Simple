@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TimerStub } from "../stubs";
+import { TimerAdapter } from "../adapters";
 import type { RegistryEntry } from "../types";
 
 const propsSchema = z
@@ -15,7 +15,7 @@ type Props = z.infer<typeof propsSchema>;
 export const timerEntry: RegistryEntry<Props, "timer"> = {
   type: "timer",
   propsSchema,
-  component: TimerStub,
+  component: TimerAdapter,
   llmDescription: `Use \`timer\` to display a countdown timer with start/pause/reset controls.
 Props:
 - duration_seconds (number, optional): Countdown duration in seconds.
@@ -26,5 +26,5 @@ Example: { type: "timer", props: { duration_seconds: 60, label: "Round 1" } }`,
   examples: [
     { props: { duration_seconds: 300, label: "Work Session", auto_start: false } },
   ],
-  isStub: true,
+  isStub: false,
 };

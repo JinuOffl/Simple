@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ChatThreadStub } from "../stubs";
+import { ChatThreadAdapter } from "../adapters";
 import type { RegistryEntry } from "../types";
 
 const propsSchema = z
@@ -15,7 +15,7 @@ type Props = z.infer<typeof propsSchema>;
 export const chatThreadEntry: RegistryEntry<Props, "chat_thread"> = {
   type: "chat_thread",
   propsSchema,
-  component: ChatThreadStub,
+  component: ChatThreadAdapter,
   llmDescription: `Use \`chat_thread\` for a persistent multi-turn AI chat with message history stored in the database.
 Unlike \`conversation_loop\` which is stateless per session, chat_thread persists history.
 Props:
@@ -33,5 +33,5 @@ Example: { type: "chat_thread", props: { persona_prompt: "You are a study buddy.
       },
     },
   ],
-  isStub: true,
+  isStub: false,
 };

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SliderStub } from "../stubs";
+import { SliderAdapter } from "../adapters";
 import type { RegistryEntry } from "../types";
 
 const propsSchema = z
@@ -18,7 +18,7 @@ type Props = z.infer<typeof propsSchema>;
 export const sliderEntry: RegistryEntry<Props, "slider"> = {
   type: "slider",
   propsSchema,
-  component: SliderStub,
+  component: SliderAdapter,
   llmDescription: `Use \`slider\` to let the user pick a numeric value within a range.
 Props:
 - label (string, optional): Label shown above the slider.
@@ -32,5 +32,5 @@ Example: { type: "slider", props: { label: "Volume", min: 0, max: 100, default_v
   examples: [
     { props: { label: "Brightness", min: 0, max: 100, step: 5, default_value: 70, save_to: "brightness" } },
   ],
-  isStub: true,
+  isStub: false,
 };

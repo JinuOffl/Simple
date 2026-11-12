@@ -22,3 +22,4 @@ Use Option 3 (`supabase/migrations/003_connection_secrets.sql` + `supabase/funct
 - Clients (`anon` and `authenticated`) can never query or mutate `connection_secrets` via PostgREST or RPC.
 - Edge Functions (`manage-connection`, `run-mcp-action`) must have `CONNECTION_ENCRYPTION_KEY` configured in non-dev environments (`allowEphemeralDevKey: false` in production handlers).
 - All connector secret writes and deletions go through `manage-connection` so cascade cleanup (`ON DELETE CASCADE` on `connection_id`) also works seamlessly.
+

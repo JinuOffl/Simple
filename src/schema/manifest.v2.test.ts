@@ -58,8 +58,8 @@ describe("Registry completeness", () => {
     const nonStubEntries = COMPONENT_REGISTRY.filter((entry) => !entry.isStub);
     const stubEntries = COMPONENT_REGISTRY.filter((entry) => Boolean(entry.isStub));
 
-    expect(nonStubEntries.length).toBe(13);
-    expect(stubEntries.length).toBe(10);
+    expect(nonStubEntries.length).toBe(23);
+    expect(stubEntries.length).toBe(0);
 
     for (const entry of nonStubEntries) {
       expect(prompt).toContain(entry.type);

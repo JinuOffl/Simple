@@ -111,3 +111,4 @@ export async function saveConnection(input: UpsertConnectionInput): Promise<Mask
 export async function deleteConnection(id: string): Promise<void> {
   await invokeManageConnection<{ ok: boolean }>({ op: "delete", id });
 }
+

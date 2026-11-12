@@ -11,6 +11,16 @@ import { MicRecorder } from "@/components/MicRecorder";
 import { McqQuiz } from "@/components/McqQuiz";
 import { ChatBubble } from "@/components/ChatBubble";
 import { ConversationLoop } from "@/components/ConversationLoop";
+import { Markdown } from "@/components/Markdown";
+import { Stat } from "@/components/Stat";
+import { Slider } from "@/components/Slider";
+import { Timer } from "@/components/Timer";
+import { Tabs } from "@/components/Tabs";
+import { List } from "@/components/List";
+import { Table } from "@/components/Table";
+import { Form, type FormFieldSpec } from "@/components/Form";
+import { Chart } from "@/components/Chart";
+import { ChatThread } from "@/components/ChatThread";
 import type { RegistryRenderContext } from "./types";
 
 interface AdapterBaseProps {
@@ -240,6 +250,243 @@ export function ToggleAdapter({
           void onAction();
         }
       }}
+    />
+  );
+}
+
+export function MarkdownAdapter({
+  content,
+  bindValue,
+  ctx,
+}: AdapterBaseProps & { content?: string }) {
+  const resolved =
+    typeof ctx?.bindValue === "string"
+      ? ctx.bindValue
+      : typeof bindValue === "string"
+        ? bindValue
+        : content ?? "";
+  return <Markdown content={resolved} />;
+}
+
+export function StatAdapter({
+  label,
+  value,
+  unit,
+  description,
+  bindValue,
+  ctx,
+}: AdapterBaseProps & {
+  label?: string;
+  value?: string | number;
+  unit?: string;
+  description?: string;
+}) {
+  const resolvedValue =
+    ctx?.bindValue !== undefined
+      ? (ctx.bindValue as string | number)
+      : bindValue !== undefined
+        ? (bindValue as string | number)
+        : value;
+  return (
+    <Stat
+      label={label}
+      value={resolvedValue}
+      unit={unit}
+      description={description}
+    />
+  );
+}
+
+export function SliderAdapter({
+  id,
+  label,
+  min,
+  max,
+  step,
+  default_value,
+  save_to,
+  bindValue,
+  onAction,
+  ctx,
+}: AdapterBaseProps & {
+  label?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  default_value?: number;
+  save_to?: string;
+}) {
+  const dataKey = save_to ?? id;
+  const resolvedVal =
+    typeof ctx?.bindValue === "number"
+      ? ctx.bindValue
+      : typeof bindValue === "number"
+        ? bindValue
+        : save_to && typeof ctx?.appData[save_to] === "number"
+          ? (ctx.appData[save_to] as number)
+          : typeof ctx?.appData[id] === "number"
+            ? (ctx.appData[id] as number)
+            : default_value;
+
+  return (
+    <Slider
+      label={label}
+      min={min}
+      max={max}
+      step={step}
+      value={resolvedVal}
+      defaultValue={default_value}
+      disabled={Boolean(ctx?.isLoading)}
+      onChange={(next) => {
+        ctx?.onDataChange?.(dataKey, next);
+        if (ctx?.onAction) {
+          void ctx.onAction({ [dataKey]: next, value: next });
+        } else if (onAction) {
+          void onAction();
+        }
+      }}
+    />
+  );
+}
+
+export function TimerAdapter({
+  duration_seconds,
+  label,
+  auto_start,
+}: AdapterBaseProps & {
+  duration_seconds?: number;
+  label?: string;
+  auto_start?: boolean;
+}) {
+  return (
+    <Timer
+      duration_seconds={duration_seconds}
+      label={label}
+      auto_start={auto_start}
+    />
+  );
+}
+
+export function TabsAdapter({
+  tabs,
+  default_tab,
+  ctx,
+}: AdapterBaseProps & {
+  tabs?: Array<{ label: string; screen_id: string }>;
+  default_tab?: string;
+}) {
+  return (
+    <Tabs
+      tabs={tabs}
+      default_tab={default_tab}
+      onSelectTab={(screenId) => {
+        ctx?.onNavigateScreen?.(screenId);
+      }}
+    />
+  );
+}
+
+export function ListAdapter({
+  items,
+  ordered,
+  bindValue,
+  ctx,
+}: AdapterBaseProps & { items?: string[]; ordered?: boolean }) {
+  const resolvedItems = Array.isArray(ctx?.bindValue)
+    ? (ctx.bindValue as string[])
+    : Array.isArray(bindValue)
+      ? (bindValue as string[])
+      : items ?? [];
+  return <List items={resolvedItems} ordered={ordered} />;
+}
+
+export function TableAdapter({
+  columns,
+  rows,
+  bindValue,
+  ctx,
+}: AdapterBaseProps & { columns?: string[]; rows?: string[][] }) {
+  const resolvedRows = Array.isArray(ctx?.bindValue)
+    ? (ctx.bindValue as string[][])
+    : Array.isArray(bindValue)
+      ? (bindValue as string[][])
+      : rows ?? [];
+  return <Table columns={columns} rows={resolvedRows} />;
+}
+
+export function FormAdapter({
+  fields,
+  submit_label,
+  onAction,
+  ctx,
+}: AdapterBaseProps & {
+  fields?: FormFieldSpec[];
+  submit_label?: string;
+}) {
+  return (
+    <Form
+      fields={fields}
+      submit_label={submit_label}
+      initialValues={ctx?.appData}
+      loading={Boolean(ctx?.isLoading)}
+      onSubmit={async (values) => {
+        for (const [k, v] of Object.entries(values)) {
+          ctx?.onDataChange?.(k, v);
+        }
+        if (ctx?.onAction) {
+          await ctx.onAction(values);
+        } else if (onAction) {
+          await onAction();
+        }
+      }}
+    />
+  );
+}
+
+export function ChartAdapter({
+  chart_type,
+  labels,
+  datasets,
+  title,
+  bindValue,
+  ctx,
+}: AdapterBaseProps & {
+  chart_type?: "bar" | "line" | "pie";
+  labels?: string[];
+  datasets?: Array<{ label: string; data: number[] }>;
+  title?: string;
+}) {
+  const resolvedDatasets = Array.isArray(ctx?.bindValue)
+    ? (ctx.bindValue as Array<{ label: string; data: number[] }>)
+    : Array.isArray(bindValue)
+      ? (bindValue as Array<{ label: string; data: number[] }>)
+      : datasets;
+  return (
+    <Chart
+      chart_type={chart_type}
+      labels={labels}
+      datasets={resolvedDatasets}
+      title={title}
+    />
+  );
+}
+
+export function ChatThreadAdapter({
+  persona_prompt,
+  initial_message,
+  placeholder,
+  ctx,
+}: AdapterBaseProps & {
+  persona_prompt?: string;
+  initial_message?: string;
+  placeholder?: string;
+}) {
+  return (
+    <ChatThread
+      persona_prompt={persona_prompt}
+      initial_message={initial_message}
+      placeholder={placeholder}
+      appId={ctx?.appId}
     />
   );
 }

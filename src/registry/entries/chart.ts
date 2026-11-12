@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ChartStub } from "../stubs";
+import { ChartAdapter } from "../adapters";
 import type { RegistryEntry } from "../types";
 
 const datasetSchema = z
@@ -23,7 +23,7 @@ type Props = z.infer<typeof propsSchema>;
 export const chartEntry: RegistryEntry<Props, "chart"> = {
   type: "chart",
   propsSchema,
-  component: ChartStub,
+  component: ChartAdapter,
   llmDescription: `Use \`chart\` to visualize data as a bar, line, or pie chart.
 Props:
 - chart_type ("bar" | "line" | "pie", optional, default "bar"): Chart style.
@@ -42,5 +42,5 @@ Example: { type: "chart", props: { chart_type: "bar", labels: ["Mon","Tue","Wed"
       },
     },
   ],
-  isStub: true,
+  isStub: false,
 };

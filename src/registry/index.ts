@@ -53,7 +53,7 @@ export const COMPONENT_REGISTRY = [
   widenEntry(chatBubbleEntry),
   widenEntry(conversationLoopEntry),
 
-  // 11 new components (stubs until Phase 5)
+  // 11 expanded v2 components (implemented in Phase 5)
   widenEntry(markdownEntry),
   widenEntry(listEntry),
   widenEntry(tableEntry),

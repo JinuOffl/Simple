@@ -65,7 +65,7 @@ export interface ManifestConnectorLike {
 
 export interface ManifestFieldLike {
   name: string;
-  type: "string" | "number" | "boolean" | "date" | "json";
+  type: "string" | "number" | "boolean" | "date" | "json" | "image_ref";
   required?: boolean;
 }
 

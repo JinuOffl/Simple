@@ -13,6 +13,7 @@ export interface RegistryRenderContext {
   onClickActionId?: string;
   onDataChange?: (key: string, value: unknown) => void;
   onAction?: (extraAppData?: Record<string, unknown>) => void | Promise<void>;
+  onNavigateScreen?: (screenId: string) => void;
 }
 
 export interface RegistryEntry<

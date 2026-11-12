@@ -74,3 +74,4 @@ export function getManifestConsentSummary(manifest: Manifest | ManifestV2): Mani
     requiresConsent,
   };
 }
+

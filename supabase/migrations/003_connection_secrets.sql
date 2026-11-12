@@ -24,3 +24,4 @@ create trigger connection_secrets_updated_at
 alter table connection_secrets enable row level security;
 
 revoke all on table connection_secrets from public, anon, authenticated;
+

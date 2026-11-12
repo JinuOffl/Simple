@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TabsStub } from "../stubs";
+import { TabsAdapter } from "../adapters";
 import type { RegistryEntry } from "../types";
 
 const tabSchema = z
@@ -21,7 +21,7 @@ type Props = z.infer<typeof propsSchema>;
 export const tabsEntry: RegistryEntry<Props, "tabs"> = {
   type: "tabs",
   propsSchema,
-  component: TabsStub,
+  component: TabsAdapter,
   llmDescription: `Use \`tabs\` to create a tabbed navigation bar that switches between screens.
 Props:
 - tabs (array, optional): Each tab has label (string) and screen_id (string referencing a screen in the manifest).
@@ -39,5 +39,5 @@ Example: { type: "tabs", props: { tabs: [{ label: "Home", screen_id: "home" }, {
       },
     },
   ],
-  isStub: true,
+  isStub: false,
 };

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { StatStub } from "../stubs";
+import { StatAdapter } from "../adapters";
 import type { RegistryEntry } from "../types";
 
 const propsSchema = z
@@ -16,7 +16,7 @@ type Props = z.infer<typeof propsSchema>;
 export const statEntry: RegistryEntry<Props, "stat"> = {
   type: "stat",
   propsSchema,
-  component: StatStub,
+  component: StatAdapter,
   llmDescription: `Use \`stat\` to display a single key metric or KPI in a large, prominent style.
 Props:
 - label (string, optional): Metric name e.g. "Steps Today".
@@ -28,5 +28,5 @@ Example: { type: "stat", props: { label: "Heart Rate", value: 72, unit: "bpm" } 
   examples: [
     { props: { label: "Temperature", value: 24, unit: "°C", description: "Feels like 26°C" } },
   ],
-  isStub: true,
+  isStub: false,
 };

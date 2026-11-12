@@ -123,11 +123,11 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
     summary: "On/off switch (`label`, `default_value`, `save_to`) often paired with `on_click`.",
     exampleProps: { label: "Light", default_value: false, save_to: "light_state" },
   },
-  // Stub components (schema-valid; full UI rendering lands in Phase 5)
+  // Expanded components implemented in Phase 5
   {
     type: "markdown",
     requiredPermissions: [],
-    isStub: true,
+    isStub: false,
     allowedPropKeys: ["content"],
     summary: "Rich formatted markdown block (`content`).",
     exampleProps: { content: "## Summary" },
@@ -135,7 +135,7 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
   {
     type: "list",
     requiredPermissions: [],
-    isStub: true,
+    isStub: false,
     allowedPropKeys: ["items", "ordered"],
     summary: "Styled bulleted or numbered list (`items`, `ordered`).",
     exampleProps: { items: ["First", "Second"], ordered: false },
@@ -143,7 +143,7 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
   {
     type: "table",
     requiredPermissions: [],
-    isStub: true,
+    isStub: false,
     allowedPropKeys: ["columns", "rows"],
     summary: "Tabular grid (`columns`: string[], `rows`: string[][]).",
     exampleProps: { columns: ["Item", "Value"], rows: [["A", "1"]] },
@@ -151,7 +151,7 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
   {
     type: "form",
     requiredPermissions: [],
-    isStub: true,
+    isStub: false,
     allowedPropKeys: ["fields", "submit_label"],
     summary: "Structured input form (`fields`, `submit_label`).",
     exampleProps: {
@@ -162,7 +162,7 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
   {
     type: "chart",
     requiredPermissions: [],
-    isStub: true,
+    isStub: false,
     allowedPropKeys: ["chart_type", "labels", "datasets", "title"],
     summary: "Data chart (`chart_type` bar|line|pie, `labels`, `datasets`).",
     exampleProps: {
@@ -174,7 +174,7 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
   {
     type: "stat",
     requiredPermissions: [],
-    isStub: true,
+    isStub: false,
     allowedPropKeys: ["label", "value", "unit", "description"],
     summary: "Large KPI metric tile (`label`, `value`, `unit`, `description`).",
     exampleProps: { label: "Total", value: 42, unit: "items" },
@@ -182,7 +182,7 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
   {
     type: "slider",
     requiredPermissions: [],
-    isStub: true,
+    isStub: false,
     allowedPropKeys: ["label", "min", "max", "step", "default_value", "save_to"],
     summary: "Numeric range slider (`min`, `max`, `step`, `default_value`, `save_to`).",
     exampleProps: { label: "Level", min: 0, max: 100, step: 5, default_value: 50, save_to: "level" },
@@ -190,7 +190,7 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
   {
     type: "timer",
     requiredPermissions: [],
-    isStub: true,
+    isStub: false,
     allowedPropKeys: ["duration_seconds", "label", "auto_start"],
     summary: "Countdown timer (`duration_seconds`, `label`, `auto_start`).",
     exampleProps: { duration_seconds: 300, label: "Focus", auto_start: false },
@@ -198,7 +198,7 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
   {
     type: "tabs",
     requiredPermissions: [],
-    isStub: true,
+    isStub: false,
     allowedPropKeys: ["tabs", "default_tab"],
     summary: "Screen tab switcher (`tabs: [{ label, screen_id }]`, `default_tab`).",
     exampleProps: { tabs: [{ label: "Home", screen_id: "main" }], default_tab: "main" },
@@ -206,7 +206,7 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
   {
     type: "chat_thread",
     requiredPermissions: [],
-    isStub: true,
+    isStub: false,
     allowedPropKeys: ["persona_prompt", "initial_message", "placeholder"],
     summary: "Persistent multi-turn chat thread (`persona_prompt`, `initial_message`, `placeholder`).",
     exampleProps: { persona_prompt: "You are helpful.", initial_message: "Hi!" },

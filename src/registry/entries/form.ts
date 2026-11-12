@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FormStub } from "../stubs";
+import { FormAdapter } from "../adapters";
 import type { RegistryEntry } from "../types";
 
 const fieldSchema = z
@@ -24,7 +24,7 @@ type Props = z.infer<typeof propsSchema>;
 export const formEntry: RegistryEntry<Props, "form"> = {
   type: "form",
   propsSchema,
-  component: FormStub,
+  component: FormAdapter,
   llmDescription: `Use \`form\` to collect user input with labeled fields and a submit button.
 Props:
 - fields (array, optional): Each field has name, label, type ("text"|"number"|"email"|"textarea"), placeholder, required.
@@ -35,5 +35,5 @@ Example: { type: "form", props: { fields: [{ name: "email", label: "Email", type
   examples: [
     { props: { fields: [{ name: "name", label: "Your Name", type: "text", required: true }], submit_label: "Save" } },
   ],
-  isStub: true,
+  isStub: false,
 };
