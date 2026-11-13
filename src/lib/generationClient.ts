@@ -52,12 +52,235 @@ export interface GenerationClientResult {
   unsupported?: { message?: string; alternative?: string };
 }
 
-function parseManifestPayload(payload: unknown): Manifest | ManifestV2 | null {
+function findNodeInManifest(manifest: Record<string, unknown> | null, nodeId: string): Record<string, unknown> | null {
+  if (!manifest || !Array.isArray(manifest.screens)) return null;
+  for (const sc of manifest.screens) {
+    if (sc && Array.isArray((sc as Record<string, unknown>).nodes)) {
+      for (const n of (sc as Record<string, unknown>).nodes as Array<Record<string, unknown>>) {
+        if (n && n.id === nodeId) return n;
+      }
+    }
+  }
+  return null;
+}
+
+function sanitizeAndRepairManifest(raw: unknown, fallbackExisting?: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+
+  const obj = structuredClone(raw) as Record<string, unknown>;
+  const fallback =
+    fallbackExisting && typeof fallbackExisting === "object"
+      ? (fallbackExisting as Record<string, unknown>)
+      : null;
+
+  // 1. Core manifest fields
+  if (obj.schema_version !== 2 && obj.schema_version !== 1) {
+    obj.schema_version = 2;
+  }
+  if (!obj.app_id || typeof obj.app_id !== "string") {
+    obj.app_id = (fallback?.app_id as string) || `app-${Date.now()}`;
+  }
+  if (!obj.name || typeof obj.name !== "string") {
+    obj.name = (fallback?.name as string) || "Simple App";
+  }
+  if (!obj.icon || typeof obj.icon !== "string") {
+    obj.icon = (fallback?.icon as string) || "📱";
+  }
+  if (!Array.isArray(obj.permissions)) {
+    obj.permissions = Array.isArray(fallback?.permissions) ? fallback.permissions : [];
+  }
+  if (!Array.isArray(obj.connectors)) {
+    obj.connectors = Array.isArray(fallback?.connectors) ? fallback.connectors : [];
+  }
+
+  // 2. data.collections
+  if (!obj.data || typeof obj.data !== "object") {
+    obj.data = { collections: [] };
+  } else {
+    const dataObj = obj.data as Record<string, unknown>;
+    if (!Array.isArray(dataObj.collections)) {
+      dataObj.collections = [];
+    } else {
+      const allowedFieldTypes = new Set(["string", "number", "boolean", "date", "json", "image_ref"]);
+      dataObj.collections = dataObj.collections.map((col, cIdx) => {
+        if (!col || typeof col !== "object") return { name: `col_${cIdx}`, shared: false, fields: [] };
+        const c = { ...(col as Record<string, unknown>) };
+        if (!c.name || typeof c.name !== "string") {
+          c.name = typeof c.id === "string" ? c.id : `collection_${cIdx}`;
+        }
+        delete c.id;
+        c.shared = Boolean(c.shared);
+        if (!Array.isArray(c.fields)) {
+          c.fields = [];
+        } else {
+          c.fields = (c.fields as Array<Record<string, unknown>>).map((f, fIdx) => {
+            if (!f || typeof f !== "object") return { name: `field_${fIdx}`, type: "string" };
+            const field = { ...f };
+            const name = typeof field.name === "string" ? field.name : typeof field.id === "string" ? field.id : `field_${fIdx}`;
+            let type = typeof field.type === "string" ? field.type.toLowerCase() : "string";
+            if (type === "text" || !allowedFieldTypes.has(type)) {
+              type = "string";
+            }
+            return { name, type };
+          });
+        }
+        return c;
+      });
+    }
+  }
+
+  // 3. actions
+  const allowedKinds = new Set([
+    "llm_call",
+    "local_compute",
+    "api_fetch",
+    "mcp_call",
+    "navigate",
+    "save_data",
+    "record_insert",
+    "record_update",
+    "conversation_loop",
+    "sandbox_fn",
+  ]);
+
+  if (!Array.isArray(obj.actions)) {
+    obj.actions = [];
+  } else {
+    obj.actions = (obj.actions as Array<Record<string, unknown>>)
+      .map((action, aIdx) => {
+        if (!action || typeof action !== "object") return null;
+        const a = { ...action };
+        const id = typeof a.id === "string" ? a.id : `act_${aIdx}`;
+        let kind = typeof a.kind === "string" ? a.kind : "";
+
+        // Normalize non-standard LLM action types to valid ActionKindSchema
+        if (!kind && typeof a.type === "string") {
+          const t = a.type.toLowerCase();
+          if (t === "create" || t === "insert") kind = "record_insert";
+          else if (t === "update" || t === "edit") kind = "record_update";
+          else if (t === "navigate" || t === "goto") kind = "navigate";
+          else if (t === "save") kind = "save_data";
+          else kind = "local_compute";
+        }
+
+        if (!allowedKinds.has(kind)) {
+          kind = "local_compute";
+        }
+
+        // Clean up invalid extra fields that fail strict action schema
+        delete a.type;
+        delete a.label;
+
+        const cleanAction: Record<string, unknown> = { id, kind };
+        if (typeof a.prompt_template === "string") cleanAction.prompt_template = a.prompt_template;
+        if (typeof a.persona_prompt === "string") cleanAction.persona_prompt = a.persona_prompt;
+        if (typeof a.operation === "string") cleanAction.operation = a.operation;
+        if (typeof a.api === "string") cleanAction.api = a.api;
+        if (typeof a.connector_id === "string") cleanAction.connector_id = a.connector_id;
+        if (typeof a.tool_name === "string") cleanAction.tool_name = a.tool_name;
+        if (typeof a.collection === "string") cleanAction.collection = a.collection;
+        if (a.params && typeof a.params === "object") cleanAction.params = a.params;
+        if (Array.isArray(a.input_from)) cleanAction.input_from = a.input_from;
+        if (typeof a.render_result_into === "string") cleanAction.render_result_into = a.render_result_into;
+        if (typeof a.output_key === "string") cleanAction.output_key = a.output_key;
+
+        return cleanAction;
+      })
+      .filter(Boolean);
+  }
+
+  // 4. screens and nodes
+  if (!Array.isArray(obj.screens) || obj.screens.length === 0) {
+    if (fallback && Array.isArray(fallback.screens)) {
+      obj.screens = fallback.screens;
+    } else {
+      obj.screens = [
+        {
+          id: "main",
+          title: (obj.name as string) || "Main",
+          nodes: [],
+        },
+      ];
+    }
+  } else {
+    const screensList = obj.screens as Array<Record<string, unknown>>;
+    obj.screens = screensList.map((sc, sIdx) => {
+      const s = { ...sc };
+      s.id = typeof s.id === "string" ? s.id : `screen_${sIdx}`;
+      s.title = typeof s.title === "string" ? s.title : "Screen";
+      if (!Array.isArray(s.nodes)) s.nodes = [];
+
+      s.nodes = (s.nodes as Array<Record<string, unknown>>).map((node, nIdx) => {
+        if (!node || typeof node !== "object") {
+          return { id: `node_${nIdx}`, type: "text", props: { content: "" } };
+        }
+        const n = { ...node };
+        n.id = typeof n.id === "string" ? n.id : `node_${nIdx}`;
+        n.type = typeof n.type === "string" ? n.type : "text";
+
+        // Specific repair for checklist
+        if (n.type === "checklist") {
+          const props = n.props && typeof n.props === "object" ? { ...(n.props as Record<string, unknown>) } : {};
+          if (!Array.isArray(props.items)) {
+            // Check if existing manifest had items for this node
+            const fallbackNode = findNodeInManifest(fallback, String(n.id));
+            if (fallbackNode?.props && Array.isArray((fallbackNode.props as Record<string, unknown>).items)) {
+              props.items = (fallbackNode.props as Record<string, unknown>).items;
+            } else {
+              props.items = ["Morning reflection", "Core priority block", "Daily review"];
+            }
+          }
+          // Remove illegal props like collection or fields
+          delete props.collection;
+          delete props.fields;
+          n.props = props;
+        }
+
+        // Specific repair for button
+        if (n.type === "button") {
+          const props = n.props && typeof n.props === "object" ? { ...(n.props as Record<string, unknown>) } : {};
+          if (typeof props.label !== "string") {
+            props.label = "Action";
+          }
+          n.props = props;
+        }
+
+        // Specific repair for card
+        if (n.type === "card") {
+          const props = n.props && typeof n.props === "object" ? { ...(n.props as Record<string, unknown>) } : {};
+          if (typeof props.title !== "string") props.title = "";
+          if (typeof props.body !== "string") props.body = "";
+          n.props = props;
+        }
+
+        return n;
+      });
+
+      return s;
+    });
+  }
+
+  return obj;
+}
+
+function parseManifestPayload(payload: unknown, fallbackExisting?: unknown): Manifest | ManifestV2 | null {
+  if (!payload || typeof payload !== "object") return null;
+
   const v2Parse = ManifestV2Schema.safeParse(payload);
   if (v2Parse.success) return v2Parse.data;
 
   const v1Parse = ManifestSchema.safeParse(payload);
   if (v1Parse.success) return v1Parse.data;
+
+  // Attempt automatic schema repair for LLM deviations
+  const repaired = sanitizeAndRepairManifest(payload, fallbackExisting);
+  if (repaired) {
+    const repairedV2 = ManifestV2Schema.safeParse(repaired);
+    if (repairedV2.success) return repairedV2.data;
+
+    const repairedV1 = ManifestSchema.safeParse(repaired);
+    if (repairedV1.success) return repairedV1.data;
+  }
 
   return null;
 }
@@ -232,7 +455,9 @@ export async function generateAppWithFallback(
         msg.includes("Failed to send a request") ||
         msg.includes("FetchError") ||
         msg.includes("NetworkError") ||
-        msg.includes("Failed to fetch")
+        msg.includes("Failed to fetch") ||
+        msg.includes("offline") ||
+        msg.includes("not reachable")
       ) {
         remoteNetworkFailed = true;
       } else {
@@ -273,20 +498,24 @@ export async function generateAppWithFallback(
         }
 
         if (ops.length > 0) {
-          const patched = applyJsonPatch(
-            existingManifest as unknown as ManifestV2Like,
-            ops
-          );
-          const parsed = parseManifestPayload(patched);
-          if (parsed) {
-            return { ok: true, manifest: parsed };
+          try {
+            const patched = applyJsonPatch(
+              existingManifest as unknown as ManifestV2Like,
+              ops
+            );
+            const parsed = parseManifestPayload(patched, existingManifest);
+            if (parsed) {
+              return { ok: true, manifest: parsed };
+            }
+          } catch (patchErr) {
+            console.warn("applyJsonPatch failed, attempting direct payload parse:", patchErr);
           }
-        } else {
-          // If the model emitted a complete replacement manifest instead of RFC 6902 patch
-          const directParsed = parseManifestPayload(patchData);
-          if (directParsed) {
-            return { ok: true, manifest: directParsed };
-          }
+        }
+
+        // If the model emitted a complete replacement manifest instead of RFC 6902 patch
+        const directParsed = parseManifestPayload(patchData, existingManifest);
+        if (directParsed) {
+          return { ok: true, manifest: directParsed };
         }
       } else {
         // Create flow
@@ -315,8 +544,37 @@ export async function generateAppWithFallback(
     }
   }
 
-  // ── 4. Deterministic In-Browser Starter Template Fallback ───────────────────
-  if (!existingManifest) {
+  // ── 4. Deterministic In-Browser Starter Template or Edit Fallback ───────────
+  if (existingManifest) {
+    const isCrudOrFix = /crud|create|edit|update|delete|not working|fix|habit|checklist|add/i.test(userPrompt);
+    if (isCrudOrFix) {
+      const cloned = structuredClone(existingManifest) as Record<string, unknown>;
+      if (Array.isArray(cloned.screens)) {
+        for (const s of cloned.screens as Array<Record<string, unknown>>) {
+          if (Array.isArray(s.nodes)) {
+            for (const n of s.nodes as Array<Record<string, unknown>>) {
+              if (n.type === "checklist") {
+                const props = (n.props as Record<string, unknown>) || {};
+                n.props = {
+                  ...props,
+                  items: Array.isArray(props.items) && props.items.length > 0
+                    ? props.items
+                    : ["Review top 3 priorities", "Complete deep work block", "Log evening wrap-up"],
+                  allowAdd: true,
+                  allowDelete: true,
+                  allowEdit: true,
+                };
+              }
+            }
+          }
+        }
+      }
+      const repaired = parseManifestPayload(cloned, existingManifest);
+      if (repaired) {
+        return { ok: true, manifest: repaired };
+      }
+    }
+  } else {
     try {
       const matcher = new KeywordTemplateMatcher(0.2);
       const match = await matcher.findBestMatch(userPrompt);

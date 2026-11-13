@@ -4,7 +4,11 @@ import type { RegistryEntry } from "../types";
 
 const propsSchema = z
   .object({
-    items: z.array(z.string()),
+    items: z.array(z.string()).default([]),
+    allowAdd: z.boolean().optional(),
+    allowDelete: z.boolean().optional(),
+    allowEdit: z.boolean().optional(),
+    placeholder: z.string().optional(),
   })
   .strict();
 
@@ -14,10 +18,14 @@ export const checklistEntry: RegistryEntry<Props, "checklist"> = {
   type: "checklist",
   propsSchema,
   component: ChecklistAdapter,
-  llmDescription: `Use \`checklist\` to display an interactive to-do or task list with checkboxes.
+  llmDescription: `Use \`checklist\` to display an interactive to-do, habit tracker, or task list with full CRUD support (add, edit, delete, toggle checkboxes).
 Props:
-- items (string[], required): Array of task strings. Each becomes a tappable checkbox row.
-Shows a progress bar at the bottom.
+- items (string[], required): Initial array of task strings. Each becomes an interactive row.
+- allowAdd (boolean, optional, default: true): Show add task input.
+- allowDelete (boolean, optional, default: true): Allow deleting tasks.
+- allowEdit (boolean, optional, default: true): Allow inline editing of task text.
+- placeholder (string, optional): Input placeholder text.
+Shows a progress bar and completion count at the bottom.
 Example: { type: "checklist", props: { items: ["Buy milk", "Walk the dog", "Read a book"] } }`,
   requiredPermissions: [],
   examples: [

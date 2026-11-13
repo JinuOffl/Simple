@@ -95,9 +95,40 @@ export function ButtonAdapter({
 }
 
 export function ChecklistAdapter({
+  id,
   items,
-}: AdapterBaseProps & { items?: string[] }) {
-  return <Checklist items={Array.isArray(items) ? items : []} />;
+  allowAdd,
+  allowDelete,
+  allowEdit,
+  placeholder,
+  bindValue,
+  ctx,
+}: AdapterBaseProps & {
+  items?: string[];
+  allowAdd?: boolean;
+  allowDelete?: boolean;
+  allowEdit?: boolean;
+  placeholder?: string;
+}) {
+  const resolvedItems = Array.isArray(ctx?.bindValue)
+    ? (ctx.bindValue as string[])
+    : Array.isArray(bindValue)
+      ? (bindValue as string[])
+      : Array.isArray(items)
+        ? items
+        : [];
+
+  return (
+    <Checklist
+      id={id}
+      items={resolvedItems}
+      allowAdd={allowAdd}
+      allowDelete={allowDelete}
+      allowEdit={allowEdit}
+      placeholder={placeholder}
+      ctx={ctx}
+    />
+  );
 }
 
 export function CalculatorAdapter(_props: AdapterBaseProps) {

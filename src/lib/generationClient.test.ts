@@ -132,5 +132,129 @@ describe("generationClient", () => {
     fetchSpy.mockRestore();
     localStorage.removeItem("simple_byok_key");
   });
+
+  it("heals and repairs LLM generated operations with non-standard action types and field types", async () => {
+    vi.spyOn(supabase.functions, "invoke").mockResolvedValueOnce({
+      data: null,
+      error: new Error("Failed to send a request to the Edge Function") as any,
+    });
+
+    localStorage.setItem("simple_byok_key", "mock-groq-key");
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("local-functions")) {
+        throw new Error("Local dev server offline");
+      }
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  operations: [
+                    {
+                      op: "add",
+                      path: "/data/collections/0",
+                      value: {
+                        id: "tasks",
+                        name: "Tasks",
+                        fields: [
+                          { id: "title", name: "Title", type: "text" },
+                        ],
+                      },
+                    },
+                    {
+                      op: "add",
+                      path: "/actions/0",
+                      value: {
+                        id: "create_task",
+                        type: "create",
+                        collection: "tasks",
+                        label: "Add Task",
+                      },
+                    },
+                  ],
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    });
+
+    const existingManifest = {
+      schema_version: 2,
+      app_id: "test-app",
+      name: "Checklist",
+      icon: "✅",
+      permissions: [],
+      connectors: [],
+      data: { collections: [] },
+      screens: [{ id: "main", title: "Main", nodes: [] }],
+      actions: [],
+    };
+
+    const res = await generateAppWithFallback({
+      userPrompt: "Add CRUD functionalities such as create edit update delete",
+      existingManifest: existingManifest as any,
+    });
+
+    expect(res.ok).toBe(true);
+    expect(res.manifest).toBeDefined();
+    // Verify healed collection field type: "text" -> "string"
+    expect((res.manifest as any).data.collections[0].fields[0].type).toBe("string");
+    // Verify healed action: type "create" -> kind "record_insert"
+    expect((res.manifest as any).actions[0].kind).toBe("record_insert");
+
+    fetchSpy.mockRestore();
+    localStorage.removeItem("simple_byok_key");
+  });
+
+  it("handles edit requests for habit tracker when LLM fails by returning updated manifest", async () => {
+    vi.spyOn(supabase.functions, "invoke").mockResolvedValueOnce({
+      data: null,
+      error: new Error("Edge Function offline") as any,
+    });
+
+    const existingManifest = {
+      schema_version: 2,
+      app_id: "tpl-daily-checklist",
+      name: "Daily Checklist",
+      icon: "✅",
+      permissions: [],
+      connectors: [],
+      data: { collections: [] },
+      screens: [
+        {
+          id: "main",
+          title: "Checklist",
+          nodes: [
+            {
+              id: "tasks_checklist",
+              type: "checklist",
+              props: {
+                items: ["Review top 3 priorities"],
+              },
+            },
+          ],
+        },
+      ],
+      actions: [],
+    };
+
+    const res = await generateAppWithFallback({
+      userPrompt: "edit, create, delete logics are not working",
+      existingManifest: existingManifest as any,
+    });
+
+    expect(res.ok).toBe(true);
+    expect(res.manifest).toBeDefined();
+    const checklistNode = (res.manifest as any).screens[0].nodes[0];
+    expect(checklistNode.props.allowAdd).toBe(true);
+    expect(checklistNode.props.allowDelete).toBe(true);
+    expect(checklistNode.props.allowEdit).toBe(true);
+  });
 });
 

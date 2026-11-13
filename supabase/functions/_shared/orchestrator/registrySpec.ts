@@ -45,8 +45,8 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
     type: "checklist",
     requiredPermissions: [],
     isStub: false,
-    allowedPropKeys: ["items"],
-    summary: "Interactive checkbox task list (`items`: string[]) with progress bar.",
+    allowedPropKeys: ["items", "allowAdd", "allowDelete", "allowEdit", "placeholder"],
+    summary: "Interactive checkbox task list with native CRUD (`items`: string[], optional `allowAdd`, `allowDelete`, `allowEdit`, `placeholder`) and progress bar.",
     exampleProps: { items: ["Task 1", "Task 2"] },
   },
   {
