@@ -72,3 +72,4 @@ describe("generationClient", () => {
     expect(res.manifest?.name).toBe("Daily Checklist");
   });
 });
+

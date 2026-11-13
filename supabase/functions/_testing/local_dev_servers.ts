@@ -53,7 +53,7 @@ const { handler: fakeMcpHandler } = createFakeMcpHandler({
 Deno.serve({ hostname: "127.0.0.1", port: mcpPort }, fakeMcpHandler);
 
 const devBypassHeaderName = "x-simple-local-dev";
-const isLocalDevNoAuth = Deno.env.get("MCP_LOCAL_DEV_OPEN") === "true";
+const isLocalDevNoAuth = true;
 
 interface InMemoryConnRecord {
   id: string;
@@ -85,6 +85,7 @@ localConnections.set("local-fake-ha", {
 const getLocalEnv = (k: string): string | undefined => {
   if (k === "MCP_ALLOW_LOCAL_DEV_LOOPBACK") return "true";
   if (k === "API_FETCH_LOCAL_DEV_OPEN") return "true";
+  if (k === "GENERATION_LOCAL_DEV_OPEN") return "true";
   if (k === "FAKE_MCP_SERVER_URL") return fakeMcpUrl;
   return Deno.env.get(k) ?? dotEnv[k];
 };

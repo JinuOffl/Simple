@@ -4,7 +4,40 @@ import type { ManifestV2 } from "@/schema/manifest.v2";
 import { ManifestSchema } from "@/schema/manifest.v1";
 import { ManifestV2Schema } from "@/schema/manifest.v2";
 import { KeywordTemplateMatcher } from "../../supabase/functions/_shared/orchestrator/templates.ts";
-import type { ManifestV2Like } from "../../supabase/functions/_shared/orchestrator/types.ts";
+import { analyzePrompt } from "../../supabase/functions/_shared/orchestrator/analyzer.ts";
+import { resolveCapabilities } from "../../supabase/functions/_shared/orchestrator/resolver.ts";
+import {
+  buildCreateManifestPrompt,
+  buildEditPatchPrompt,
+} from "../../supabase/functions/_shared/orchestrator/prompts.ts";
+import { applyJsonPatch } from "../../supabase/functions/_shared/orchestrator/jsonPatch.ts";
+import type {
+  ConversationTurn,
+  JsonPatchOperation,
+  ManifestV2Like,
+} from "../../supabase/functions/_shared/orchestrator/types.ts";
+
+function extractJsonFromText(rawText: string): unknown {
+  let cleaned = rawText.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+  }
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const firstObj = cleaned.indexOf("{");
+    const lastObj = cleaned.lastIndexOf("}");
+    if (firstObj !== -1 && lastObj > firstObj) {
+      return JSON.parse(cleaned.slice(firstObj, lastObj + 1));
+    }
+    const firstArr = cleaned.indexOf("[");
+    const lastArr = cleaned.lastIndexOf("]");
+    if (firstArr !== -1 && lastArr > firstArr) {
+      return JSON.parse(cleaned.slice(firstArr, lastArr + 1));
+    }
+    throw new Error("Model output did not contain valid JSON.");
+  }
+}
 
 export interface GenerateAppParams {
   userPrompt: string;
@@ -29,11 +62,58 @@ function parseManifestPayload(payload: unknown): Manifest | ManifestV2 | null {
   return null;
 }
 
+function getClientGroqKey(): string {
+  const envKey = (import.meta.env.VITE_GROQ_API_KEY as string | undefined) ?? "";
+  if (envKey.trim()) return envKey.trim();
+
+  try {
+    const stored = localStorage.getItem("simple_byok_key");
+    if (stored) return stored.trim();
+  } catch {
+    // ignore
+  }
+
+  return "";
+}
+
+async function callGroqDirectly(
+  apiKey: string,
+  system: string,
+  prompt: string
+): Promise<unknown> {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey.trim()}`,
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Groq API error (${res.status}): ${text}`);
+  }
+
+  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const rawText = json.choices?.[0]?.message?.content ?? "";
+  return extractJsonFromText(rawText);
+}
+
 /**
  * Invoke app generation with a resilient fallback chain:
  * 1. Local Deno dev server (/local-functions/generate-app) if running
- * 2. Supabase Edge Function (generate-app)
- * 3. In-browser deterministic template matcher / offline fallback
+ * 2. Supabase Edge Function (generate-app) if deployed
+ * 3. In-browser direct Groq API compilation (if GROQ_API_KEY is configured)
+ * 4. In-browser deterministic template matcher / offline fallback
  */
 export async function generateAppWithFallback(
   params: GenerateAppParams
@@ -78,12 +158,15 @@ export async function generateAppWithFallback(
           return {
             ok: false,
             unsupported: errorJson.unsupported as { message?: string; alternative?: string },
-            error: typeof errorJson.error === "string" ? errorJson.error : "Unsupported capability requested.",
+            error:
+              typeof errorJson.error === "string"
+                ? errorJson.error
+                : "Unsupported capability requested.",
           };
         }
       }
     } catch {
-      // Local dev endpoint not responding, continue to remote Supabase
+      // Local dev endpoint not responding, continue to next tier
     }
   }
 
@@ -99,15 +182,22 @@ export async function generateAppWithFallback(
     });
 
     if (!error && data) {
-      const responseRecord = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : null;
+      const responseRecord =
+        typeof data === "object" && data !== null ? (data as Record<string, unknown>) : null;
       if (responseRecord && responseRecord.ok === false) {
         return {
           ok: false,
-          error: typeof responseRecord.error === "string" ? responseRecord.error : "Failed to generate app manifest.",
-          unsupported: responseRecord.unsupported as { message?: string; alternative?: string } | undefined,
+          error:
+            typeof responseRecord.error === "string"
+              ? responseRecord.error
+              : "Failed to generate app manifest.",
+          unsupported: responseRecord.unsupported as
+            | { message?: string; alternative?: string }
+            | undefined,
         };
       }
-      const candidatePayload = responseRecord && "manifest" in responseRecord ? responseRecord.manifest : data;
+      const candidatePayload =
+        responseRecord && "manifest" in responseRecord ? responseRecord.manifest : data;
       const parsed = parseManifestPayload(candidatePayload);
       if (parsed) {
         return { ok: true, manifest: parsed };
@@ -131,40 +221,104 @@ export async function generateAppWithFallback(
     remoteNetworkFailed = true;
   }
 
-  // ── 3. Deterministic In-Browser Fallback ───────────────────────────────────────
-  // If remote Supabase was unreachable / unconfigured, attempt local template match:
-  try {
-    const matcher = new KeywordTemplateMatcher(0.2);
-    const match = await matcher.findBestMatch(userPrompt);
+  // ── 3. Direct Groq In-Browser Generation (Edit & Custom Apps) ────────────────
+  const groqKey = getClientGroqKey();
+  if (groqKey) {
+    try {
+      if (existingManifest) {
+        // Edit flow via RFC 6902 JSON patch
+        const analysis = analyzePrompt(
+          userPrompt,
+          existingManifest as unknown as ManifestV2Like,
+          (conversationContext as unknown as ConversationTurn[]) ?? []
+        );
+        const plan = resolveCapabilities(analysis, null);
+        const payload = buildEditPatchPrompt({
+          userPrompt,
+          existingManifest: existingManifest as unknown as ManifestV2Like,
+          analysis,
+          plan,
+          conversationContext: (conversationContext as unknown as ConversationTurn[]) ?? [],
+        });
 
-    if (match && match.manifest) {
-      const cloned = structuredClone(match.manifest) as ManifestV2Like;
-      cloned.app_id = `app-${Date.now()}`;
-      // Adapt title if user had a specific request (e.g. Clock / World Clock)
-      if (match.slug === "world-clock" && /indian|us|time/i.test(userPrompt)) {
-        cloned.name = "World Clock (US / IST)";
-        cloned.description = "Live dual time display for US and Indian time zones.";
+        const patchData = await callGroqDirectly(groqKey, payload.system, payload.prompt);
+        let ops: JsonPatchOperation[] = [];
+        if (Array.isArray(patchData)) {
+          ops = patchData as JsonPatchOperation[];
+        } else if (patchData && typeof patchData === "object" && "operations" in patchData) {
+          ops = (patchData as { operations: JsonPatchOperation[] }).operations;
+        }
+
+        if (ops.length > 0) {
+          const patched = applyJsonPatch(
+            existingManifest as unknown as ManifestV2Like,
+            ops
+          );
+          const parsed = parseManifestPayload(patched);
+          if (parsed) {
+            return { ok: true, manifest: parsed };
+          }
+        }
+      } else {
+        // Create flow
+        const analysis = analyzePrompt(userPrompt, undefined, (conversationContext as unknown as ConversationTurn[]) ?? []);
+        const matcher = new KeywordTemplateMatcher(0.25);
+        const templateMatch = await matcher.findBestMatch(userPrompt);
+        const plan = resolveCapabilities(analysis, templateMatch);
+
+        const payload = buildCreateManifestPrompt({
+          userPrompt,
+          analysis,
+          plan,
+          templateMatch,
+          conversationContext: (conversationContext as unknown as ConversationTurn[]) ?? [],
+        });
+
+        const createdData = await callGroqDirectly(groqKey, payload.system, payload.prompt);
+        const parsed = parseManifestPayload(createdData);
+        if (parsed) {
+          return { ok: true, manifest: parsed };
+        }
       }
-      const parsed = parseManifestPayload(cloned);
-      if (parsed) {
-        return { ok: true, manifest: parsed };
-      }
+    } catch (err) {
+      console.warn("Direct Groq in-browser generation failed:", err);
     }
-  } catch (err) {
-    console.warn("Client template fallback failed:", err);
   }
 
-  // ── 4. Helpful Diagnostic Message ──────────────────────────────────────────
-  if (remoteNetworkFailed) {
+  // ── 4. Deterministic In-Browser Starter Template Fallback ───────────────────
+  if (!existingManifest) {
+    try {
+      const matcher = new KeywordTemplateMatcher(0.2);
+      const match = await matcher.findBestMatch(userPrompt);
+
+      if (match && match.manifest) {
+        const cloned = structuredClone(match.manifest) as ManifestV2Like;
+        cloned.app_id = `app-${Date.now()}`;
+        if (match.slug === "world-clock" && /indian|us|time/i.test(userPrompt)) {
+          cloned.name = "World Clock (US / IST)";
+          cloned.description = "Live dual time display for US and Indian time zones.";
+        }
+        const parsed = parseManifestPayload(cloned);
+        if (parsed) {
+          return { ok: true, manifest: parsed };
+        }
+      }
+    } catch (err) {
+      console.warn("Client template fallback failed:", err);
+    }
+  }
+
+  // ── 5. Diagnostic Error Notice ──────────────────────────────────────────────
+  if (remoteNetworkFailed && !groqKey) {
     return {
       ok: false,
       error:
-        "The Supabase Edge Function is not reachable (check VITE_SUPABASE_URL in .env). To build apps locally without remote Supabase deployment, start the local MCP dev server: 'npm run dev:mcp'.",
+        "The Supabase Edge Function is not reachable (check VITE_SUPABASE_URL in .env). To build apps locally, run 'npm run dev:mcp' or enter a Groq API key in the /plan screen.",
     };
   }
 
   return {
     ok: false,
-    error: "Failed to generate app manifest. Please try rephrasing or check your connection.",
+    error: "Failed to generate app manifest. Please try rephrasing or check your prompt.",
   };
 }

@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, execSync } from "node:child_process";
 
 const env = {
   ...process.env,
@@ -21,7 +21,7 @@ const denoProc = spawn(
     "supabase/functions/deno.json",
     "--allow-net",
     "--allow-env",
-    "--allow-read=.env",
+    "--allow-read",
     "supabase/functions/_testing/local_dev_servers.ts",
   ],
   { stdio: "inherit", env, shell: isWin }
@@ -33,9 +33,22 @@ const viteProc = spawn(npxBin, ["vite"], {
   shell: isWin,
 });
 
+function killTree(proc) {
+  if (!proc || !proc.pid) return;
+  if (isWin) {
+    try {
+      execSync(`taskkill /pid ${proc.pid} /T /F`, { stdio: "ignore" });
+    } catch {
+      // process already dead
+    }
+  } else {
+    proc.kill();
+  }
+}
+
 function shutdown() {
-  denoProc.kill();
-  viteProc.kill();
+  killTree(denoProc);
+  killTree(viteProc);
   process.exit(0);
 }
 
@@ -44,13 +57,13 @@ process.on("SIGTERM", shutdown);
 
 denoProc.on("exit", (code) => {
   if (code && code !== 0) {
-    viteProc.kill();
+    killTree(viteProc);
     process.exit(code);
   }
 });
 
 viteProc.on("exit", (code) => {
-  denoProc.kill();
+  killTree(denoProc);
   process.exit(code ?? 0);
 });
 
