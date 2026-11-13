@@ -81,31 +81,53 @@ async function callGroqDirectly(
   system: string,
   prompt: string
 ): Promise<unknown> {
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey.trim()}`,
-    },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-    }),
-  });
+  const candidateModels = [
+    "qwen/qwen3.8-27b",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "openai/gpt-oss-120b",
+  ];
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Groq API error (${res.status}): ${text}`);
+  let lastError: Error | null = null;
+
+  for (const model of candidateModels) {
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey.trim()}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.1,
+          response_format: { type: "json_object" },
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        // Model decommissioned, not found, or rate limit on that model -> try next candidate
+        if (res.status === 404 || res.status === 400 || res.status === 422) {
+          lastError = new Error(`Groq model ${model} unavailable (${res.status}): ${text}`);
+          continue;
+        }
+        throw new Error(`Groq API error (${res.status}): ${text}`);
+      }
+
+      const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const rawText = json.choices?.[0]?.message?.content ?? "";
+      return extractJsonFromText(rawText);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
   }
 
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const rawText = json.choices?.[0]?.message?.content ?? "";
-  return extractJsonFromText(rawText);
+  throw lastError ?? new Error("All candidate Groq models failed.");
 }
 
 /**
@@ -223,6 +245,7 @@ export async function generateAppWithFallback(
 
   // ── 3. Direct Groq In-Browser Generation (Edit & Custom Apps) ────────────────
   const groqKey = getClientGroqKey();
+  let lastGroqError: string | null = null;
   if (groqKey) {
     try {
       if (existingManifest) {
@@ -258,6 +281,12 @@ export async function generateAppWithFallback(
           if (parsed) {
             return { ok: true, manifest: parsed };
           }
+        } else {
+          // If the model emitted a complete replacement manifest instead of RFC 6902 patch
+          const directParsed = parseManifestPayload(patchData);
+          if (directParsed) {
+            return { ok: true, manifest: directParsed };
+          }
         }
       } else {
         // Create flow
@@ -282,6 +311,7 @@ export async function generateAppWithFallback(
       }
     } catch (err) {
       console.warn("Direct Groq in-browser generation failed:", err);
+      lastGroqError = err instanceof Error ? err.message : String(err);
     }
   }
 
@@ -309,6 +339,13 @@ export async function generateAppWithFallback(
   }
 
   // ── 5. Diagnostic Error Notice ──────────────────────────────────────────────
+  if (lastGroqError) {
+    return {
+      ok: false,
+      error: `LLM generation error: ${lastGroqError}`,
+    };
+  }
+
   if (remoteNetworkFailed && !groqKey) {
     return {
       ok: false,

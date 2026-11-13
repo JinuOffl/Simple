@@ -43,9 +43,9 @@ export const DEFAULT_LLM_CONFIG = {
   primary: {
     provider: "groq",
     baseUrl: "https://api.groq.com/openai/v1",
-    generationModel: "llama-3.3-70b-versatile",
-    critiqueModel: "llama-3.1-8b-instant",
-    runtimeModel: "llama-3.1-8b-instant",
+    generationModel: "qwen/qwen3.8-27b",
+    critiqueModel: "qwen/qwen3.8-27b",
+    runtimeModel: "qwen/qwen3.8-27b",
     generationMaxTokens: 4096,
     runtimeMaxTokens: 1024,
     generationTemperature: 0.3,
