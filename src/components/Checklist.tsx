@@ -24,7 +24,7 @@ export function Checklist({
   allowAdd = true,
   allowDelete = true,
   allowEdit = true,
-  placeholder = "Add a new task or habit...",
+  placeholder = "Add item...",
   ctx,
   onDataChange,
 }: ChecklistProps) {

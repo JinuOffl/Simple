@@ -227,7 +227,7 @@ function sanitizeAndRepairManifest(raw: unknown, fallbackExisting?: unknown): Re
             if (fallbackNode?.props && Array.isArray((fallbackNode.props as Record<string, unknown>).items)) {
               props.items = (fallbackNode.props as Record<string, unknown>).items;
             } else {
-              props.items = ["Morning reflection", "Core priority block", "Daily review"];
+              props.items = [];
             }
           }
           // Remove illegal props like collection or fields
@@ -544,37 +544,8 @@ export async function generateAppWithFallback(
     }
   }
 
-  // ── 4. Deterministic In-Browser Starter Template or Edit Fallback ───────────
-  if (existingManifest) {
-    const isCrudOrFix = /crud|create|edit|update|delete|not working|fix|habit|checklist|add/i.test(userPrompt);
-    if (isCrudOrFix) {
-      const cloned = structuredClone(existingManifest) as Record<string, unknown>;
-      if (Array.isArray(cloned.screens)) {
-        for (const s of cloned.screens as Array<Record<string, unknown>>) {
-          if (Array.isArray(s.nodes)) {
-            for (const n of s.nodes as Array<Record<string, unknown>>) {
-              if (n.type === "checklist") {
-                const props = (n.props as Record<string, unknown>) || {};
-                n.props = {
-                  ...props,
-                  items: Array.isArray(props.items) && props.items.length > 0
-                    ? props.items
-                    : ["Review top 3 priorities", "Complete deep work block", "Log evening wrap-up"],
-                  allowAdd: true,
-                  allowDelete: true,
-                  allowEdit: true,
-                };
-              }
-            }
-          }
-        }
-      }
-      const repaired = parseManifestPayload(cloned, existingManifest);
-      if (repaired) {
-        return { ok: true, manifest: repaired };
-      }
-    }
-  } else {
+  // ── 4. Deterministic In-Browser Starter Template Fallback ───────────────────
+  if (!existingManifest) {
     try {
       const matcher = new KeywordTemplateMatcher(0.2);
       const match = await matcher.findBestMatch(userPrompt);
@@ -582,10 +553,6 @@ export async function generateAppWithFallback(
       if (match && match.manifest) {
         const cloned = structuredClone(match.manifest) as ManifestV2Like;
         cloned.app_id = `app-${Date.now()}`;
-        if (match.slug === "world-clock" && /indian|us|time/i.test(userPrompt)) {
-          cloned.name = "World Clock (US / IST)";
-          cloned.description = "Live dual time display for US and Indian time zones.";
-        }
         const parsed = parseManifestPayload(cloned);
         if (parsed) {
           return { ok: true, manifest: parsed };

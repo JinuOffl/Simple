@@ -212,49 +212,31 @@ describe("generationClient", () => {
     localStorage.removeItem("simple_byok_key");
   });
 
-  it("handles edit requests for habit tracker when LLM fails by returning updated manifest", async () => {
+  it("returns clear diagnostic error when edit generation cannot reach edge function and no Groq key is present", async () => {
     vi.spyOn(supabase.functions, "invoke").mockResolvedValueOnce({
       data: null,
-      error: new Error("Edge Function offline") as any,
+      error: new Error("Failed to send a request to the Edge Function") as any,
     });
 
     const existingManifest = {
       schema_version: 2,
-      app_id: "tpl-daily-checklist",
-      name: "Daily Checklist",
-      icon: "✅",
+      app_id: "tpl-app",
+      name: "Custom App",
+      icon: "⚡",
       permissions: [],
       connectors: [],
       data: { collections: [] },
-      screens: [
-        {
-          id: "main",
-          title: "Checklist",
-          nodes: [
-            {
-              id: "tasks_checklist",
-              type: "checklist",
-              props: {
-                items: ["Review top 3 priorities"],
-              },
-            },
-          ],
-        },
-      ],
+      screens: [{ id: "main", title: "Main", nodes: [] }],
       actions: [],
     };
 
     const res = await generateAppWithFallback({
-      userPrompt: "edit, create, delete logics are not working",
+      userPrompt: "Add a new button",
       existingManifest: existingManifest as any,
     });
 
-    expect(res.ok).toBe(true);
-    expect(res.manifest).toBeDefined();
-    const checklistNode = (res.manifest as any).screens[0].nodes[0];
-    expect(checklistNode.props.allowAdd).toBe(true);
-    expect(checklistNode.props.allowDelete).toBe(true);
-    expect(checklistNode.props.allowEdit).toBe(true);
+    expect(res.ok).toBe(false);
+    expect(res.error).toContain("The Supabase Edge Function is not reachable");
   });
 });
 
