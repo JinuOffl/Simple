@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppStore } from "@/lib/zustandStore";
+import { clearLocalGuestSession, getLocalGuestSession } from "@/lib/guestAuth";
 import { AuthScreen } from "@/screens/AuthScreen";
 import { McpDemoScreen } from "@/screens/McpDemoScreen";
 import { HomeScreen } from "@/screens/HomeScreen";
@@ -21,14 +22,25 @@ export default function App() {
   const setSession = useAppStore((s) => s.setSession);
 
   useEffect(() => {
-    // Initialize session from Supabase (handles magic link callback)
+    // Initialize session from Supabase (handles magic link callback or anonymous session)
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+      if (data.session) {
+        setSession(data.session);
+      } else {
+        const localGuest = getLocalGuestSession();
+        setSession(localGuest);
+      }
     });
 
     // Listen for auth state changes (magic link clicks, sign-outs)
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+      if (session) {
+        clearLocalGuestSession();
+        setSession(session);
+      } else {
+        const localGuest = getLocalGuestSession();
+        setSession(localGuest);
+      }
     });
 
     return () => listener.subscription.unsubscribe();

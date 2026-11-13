@@ -28,6 +28,18 @@ export function AppRunnerScreen() {
       const cached = apps.find((a) => a.id === id);
       let loadedApp: SavedApp | null = cached ?? null;
 
+      if (!loadedApp && user?.id.startsWith("guest-")) {
+        try {
+          const stored = localStorage.getItem(`simple_guest_apps_${user.id}`);
+          if (stored) {
+            const guestApps: SavedApp[] = JSON.parse(stored);
+            loadedApp = guestApps.find((a) => a.id === id) ?? null;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       if (!loadedApp) {
         const { data, error } = await supabase.from("apps").select("*").eq("id", id).single();
         if (error || !data) { setError("App not found"); setLoading(false); return; }
@@ -53,11 +65,22 @@ export function AppRunnerScreen() {
         }
       }
 
-      const { data: dataRows } = await supabase.from("app_data").select("key, value").eq("app_id", id);
-      if (dataRows) {
-        const merged: Record<string, unknown> = {};
-        for (const row of dataRows) merged[row.key] = row.value;
-        setAppData(merged);
+      if (user?.id.startsWith("guest-")) {
+        try {
+          const localDataRaw = localStorage.getItem(`simple_guest_data_${id}`);
+          if (localDataRaw) {
+            setAppData(JSON.parse(localDataRaw));
+          }
+        } catch {
+          // ignore
+        }
+      } else {
+        const { data: dataRows } = await supabase.from("app_data").select("key, value").eq("app_id", id);
+        if (dataRows) {
+          const merged: Record<string, unknown> = {};
+          for (const row of dataRows) merged[row.key] = row.value;
+          setAppData(merged);
+        }
       }
 
       setLoading(false);
@@ -87,12 +110,24 @@ export function AppRunnerScreen() {
   const handleDataChange = async (key: string, value: unknown) => {
     if (userRole === "viewer") return;
     setAppData(prev => ({ ...prev, [key]: value }));
-    if (id) {
-      await supabase.from("app_data").upsert(
-        { app_id: id, key, value, updated_at: new Date().toISOString() },
-        { onConflict: "app_id,key" }
-      );
+    if (!id) return;
+
+    if (user?.id.startsWith("guest-")) {
+      try {
+        const raw = localStorage.getItem(`simple_guest_data_${id}`);
+        const data = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+        data[key] = value;
+        localStorage.setItem(`simple_guest_data_${id}`, JSON.stringify(data));
+      } catch {
+        // ignore
+      }
+      return;
     }
+
+    await supabase.from("app_data").upsert(
+      { app_id: id, key, value, updated_at: new Date().toISOString() },
+      { onConflict: "app_id,key" }
+    );
   };
 
   const handleEdit = () => {

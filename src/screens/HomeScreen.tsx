@@ -203,7 +203,11 @@ export function HomeScreen() {
             onClick={signOut}
             className="nt-tag hover:border-n-border2 hover:text-n-text2 transition-colors cursor-pointer"
           >
-            {session?.user.email?.split("@")[0] ?? "account"}
+            {session?.user.is_anonymous ||
+            session?.user.user_metadata?.is_guest ||
+            session?.user.id.startsWith("guest-")
+              ? "guest (sign out)"
+              : (session?.user.email?.split("@")[0] ?? "account")}
           </button>
         </div>
       </header>

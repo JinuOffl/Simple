@@ -11,6 +11,11 @@ import {
 } from "./credits";
 import { PLANS } from "@/config/plans";
 import { supabase } from "./supabaseClient";
+import {
+  clearLocalGuestSession,
+  isGuestUser,
+  loginAsGuest,
+} from "./guestAuth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +36,7 @@ interface AuthSlice {
   user: User | null;
   session: Session | null;
   setSession: (session: Session | null) => void;
+  signInAsGuest: () => Promise<{ ok: boolean; error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -139,8 +145,26 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setSession: (session) =>
     set({ session, user: session?.user ?? null }),
 
+  signInAsGuest: async () => {
+    try {
+      const { session } = await loginAsGuest();
+      set({ session, user: session.user });
+      return { ok: true };
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : "Guest sign-in failed",
+      };
+    }
+  },
+
   signOut: async () => {
-    await supabase.auth.signOut();
+    clearLocalGuestSession();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // ignore
+    }
     set({
       session: null,
       user: null,
@@ -201,6 +225,23 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   fetchApps: async () => {
     set({ loadingApps: true });
+    const { user } = get();
+    if (!user) {
+      set({ apps: [], loadingApps: false });
+      return;
+    }
+
+    if (user.id.startsWith("guest-")) {
+      try {
+        const stored = localStorage.getItem(`simple_guest_apps_${user.id}`);
+        const apps: SavedApp[] = stored ? JSON.parse(stored) : [];
+        set({ apps: apps.map(normalizeSavedApp), loadingApps: false });
+      } catch {
+        set({ apps: [], loadingApps: false });
+      }
+      return;
+    }
+
     const { data, error } = await supabase
       .from("apps")
       .select("*")
@@ -209,6 +250,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     if (error) {
       console.error("fetchApps error:", error);
+      if (isGuestUser(user)) {
+        try {
+          const stored = localStorage.getItem(`simple_guest_apps_${user.id}`);
+          if (stored) {
+            const apps: SavedApp[] = JSON.parse(stored);
+            set({ apps: apps.map(normalizeSavedApp), loadingApps: false });
+            return;
+          }
+        } catch {
+          // ignore
+        }
+      }
     } else {
       set({ apps: ((data as SavedApp[] | null) ?? []).map(normalizeSavedApp) });
     }
@@ -220,6 +273,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!user) {
       set({
         entitlement: createDefaultEntitlement(),
+        usageLedger: [],
+        loadingEntitlement: false,
+        entitlementSyncStatus: "synced",
+      });
+      return;
+    }
+
+    if (user.id.startsWith("guest-")) {
+      set({
+        entitlement: createDefaultEntitlement(user.id),
         usageLedger: [],
         loadingEntitlement: false,
         entitlementSyncStatus: "synced",
@@ -267,6 +330,63 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     const schemaVersion =
       "schema_version" in manifest && manifest.schema_version === 2 ? 2 : 1;
+
+    // Handle local guest storage path
+    if (user.id.startsWith("guest-")) {
+      const existingApps = get().apps;
+      const now = new Date().toISOString();
+      let result: SavedApp;
+
+      if (existingId) {
+        const existing = existingApps.find((a) => a.id === existingId);
+        result = {
+          ...(existing ?? {}),
+          id: existingId,
+          user_id: user.id,
+          name: manifest.name,
+          icon: manifest.icon,
+          manifest,
+          schema_version: schemaVersion,
+          status: existing?.status ?? "active",
+          pinned_order: existing?.pinned_order ?? null,
+          created_at: existing?.created_at ?? now,
+          updated_at: now,
+        };
+        const updated = existingApps.map((a) => (a.id === existingId ? result : a));
+        try {
+          localStorage.setItem(`simple_guest_apps_${user.id}`, JSON.stringify(updated));
+        } catch (e) {
+          console.warn("Failed to persist guest app:", e);
+        }
+        set({ apps: updated });
+      } else {
+        result = {
+          id: typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `app-${Date.now()}`,
+          user_id: user.id,
+          name: manifest.name,
+          icon: manifest.icon,
+          manifest,
+          schema_version: schemaVersion,
+          status: "active",
+          pinned_order: null,
+          created_at: now,
+          updated_at: now,
+        };
+        const nextApps = [result, ...existingApps];
+        const limit = entitlement?.active_app_limit ?? PLANS.free.activeAppLimit;
+        const toSleepIds = new Set(selectAppsToSleepOnLimit(nextApps, limit));
+        const processed = nextApps.map((a) =>
+          toSleepIds.has(a.id) ? { ...a, status: "sleeping" as const } : a
+        );
+        try {
+          localStorage.setItem(`simple_guest_apps_${user.id}`, JSON.stringify(processed));
+        } catch (e) {
+          console.warn("Failed to persist guest app:", e);
+        }
+        set({ apps: processed });
+      }
+      return result;
+    }
 
     const basePayload = {
       user_id: user.id,
@@ -351,6 +471,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   sleepApp: async (id) => {
+    const { user } = get();
+    if (user?.id.startsWith("guest-")) {
+      set((s) => {
+        const next = s.apps.map((a) => (a.id === id ? { ...a, status: "sleeping" as const } : a));
+        try {
+          localStorage.setItem(`simple_guest_apps_${user.id}`, JSON.stringify(next));
+        } catch (e) {
+          console.warn("Failed to persist guest apps sleep:", e);
+        }
+        return { lastLimitError: null, apps: next };
+      });
+      return;
+    }
+
     const { error } = await supabase
       .from("apps")
       .update({ status: "sleeping" })
@@ -368,7 +502,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   wakeApp: async (id) => {
-    const { apps, entitlement } = get();
+    const { apps, entitlement, user } = get();
     const activeLimit = entitlement?.active_app_limit ?? PLANS.free.activeAppLimit;
     const planLabel = entitlement?.plan ?? "free";
     const otherActiveCount = apps.filter(
@@ -379,6 +513,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const msg = `Active app limit reached (${activeLimit}/${activeLimit} on ${planLabel} plan). Put another app to sleep or export it as JSON first.`;
       set({ lastLimitError: msg });
       return { ok: false, error: msg };
+    }
+
+    if (user?.id.startsWith("guest-")) {
+      set((s) => {
+        const next = s.apps.map((a) => (a.id === id ? { ...a, status: "active" as const } : a));
+        try {
+          localStorage.setItem(`simple_guest_apps_${user.id}`, JSON.stringify(next));
+        } catch (e) {
+          console.warn("Failed to persist guest apps wake:", e);
+        }
+        return { lastLimitError: null, apps: next };
+      });
+      return { ok: true };
     }
 
     const { error } = await supabase
