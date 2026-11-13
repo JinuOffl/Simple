@@ -3,8 +3,10 @@ import { spawn } from "node:child_process";
 const env = {
   ...process.env,
   MCP_LOCAL_DEV_OPEN: "true",
+  GENERATION_LOCAL_DEV_OPEN: "true",
   VITE_LOCAL_MCP_ACTION_URL: "/local-functions/run-mcp-action",
   VITE_LOCAL_MANAGE_CONNECTION_URL: "/local-functions/manage-connection",
+  VITE_LOCAL_GENERATE_APP_URL: "/local-functions/generate-app",
 };
 
 const isWin = process.platform === "win32";

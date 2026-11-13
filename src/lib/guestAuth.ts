@@ -91,3 +91,4 @@ export async function loginAsGuest(): Promise<{ session: Session; isLocal: boole
   const localSession = createLocalGuestSession();
   return { session: localSession, isLocal: true };
 }
+

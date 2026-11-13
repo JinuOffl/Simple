@@ -5,6 +5,7 @@ import {
   type ManageConnectionStore,
 } from "../manage-connection/handler.ts";
 import { handleRunApiFetch } from "../run-api-fetch/handler.ts";
+import { handleGenerateApp } from "../generate-app/handler.ts";
 import type {
   DecryptedUserConnector,
   MaskedConnectionSummary,
@@ -201,6 +202,13 @@ Deno.serve({ hostname: "127.0.0.1", port: edgePort }, (req) => {
 
   if (url.pathname.endsWith("/run-api-fetch")) {
     return handleRunApiFetch(req, {
+      getEnv: getLocalEnv,
+      ...devAuthOverride,
+    });
+  }
+
+  if (url.pathname.endsWith("/generate-app")) {
+    return handleGenerateApp(req, {
       getEnv: getLocalEnv,
       ...devAuthOverride,
     });

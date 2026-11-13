@@ -1,12 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
 import { useAppStore } from "@/lib/zustandStore";
-import { ManifestSchema, type Manifest } from "@/schema/manifest.v1";
-import { ManifestV2Schema, type ManifestV2 } from "@/schema/manifest.v2";
 import { ManifestRenderer } from "@/renderer/ManifestRenderer";
 import { isHighRiskMcpTool } from "@/actions/mcpAction";
 import { getManifestConsentSummary } from "@/lib/manifestConsent";
+import { generateAppWithFallback } from "@/lib/generationClient";
 
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
@@ -55,80 +53,23 @@ export function BuilderScreen() {
     setGenerating(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("generate-app", {
-        body: {
-          user_prompt: userPrompt,
-          existing_manifest: currentManifest ?? undefined,
-          conversation_context: conversationContext,
-        },
+      const result = await generateAppWithFallback({
+        userPrompt,
+        existingManifest: currentManifest ?? undefined,
+        conversationContext,
       });
 
-      if (error) {
-        let detailedMessage = error.message;
-        const contextResponse = (error as { context?: { json?: () => Promise<unknown> } }).context;
-        if (contextResponse && typeof contextResponse.json === "function") {
-          try {
-            const payload = (await contextResponse.json()) as {
-              unsupported?: { message?: string; alternative?: string };
-              error?: string;
-            };
-            if (payload?.unsupported?.message) {
-              detailedMessage = payload.unsupported.alternative
-                ? `${payload.unsupported.message} ${payload.unsupported.alternative}`
-                : payload.unsupported.message;
-            } else if (payload?.error) {
-              detailedMessage = payload.error;
-            }
-          } catch {
-            // Keep original invoke error message when response body is non-JSON
-          }
-        }
-        throw new Error(detailedMessage);
-      }
-
-      const responseRecord =
-        typeof data === "object" && data !== null ? (data as Record<string, unknown>) : null;
-
-      if (responseRecord && responseRecord.ok === false) {
-        const unsupported = responseRecord.unsupported as
-          | { message?: string; alternative?: string }
-          | undefined;
-        if (unsupported?.message) {
-          const full = unsupported.alternative
-            ? `${unsupported.message} ${unsupported.alternative}`
-            : unsupported.message;
+      if (!result.ok || !result.manifest) {
+        if (result.unsupported?.message) {
+          const full = result.unsupported.alternative
+            ? `${result.unsupported.message} ${result.unsupported.alternative}`
+            : result.unsupported.message;
           throw new Error(full);
         }
-        throw new Error(
-          typeof responseRecord.error === "string"
-            ? responseRecord.error
-            : "Failed to generate app manifest."
-        );
+        throw new Error(result.error ?? "Failed to generate app manifest.");
       }
 
-      const candidatePayload =
-        responseRecord && "manifest" in responseRecord ? responseRecord.manifest : data;
-
-      // Try v2 first; fall back to v1 if an older response shape arrives
-      const v2Parse = ManifestV2Schema.safeParse(candidatePayload);
-      let parsedManifest: Manifest | ManifestV2;
-
-      if (v2Parse.success) {
-        parsedManifest = v2Parse.data;
-      } else {
-        const v1Parse = ManifestSchema.safeParse(candidatePayload);
-        if (!v1Parse.success) {
-          const isV2Candidate =
-            typeof candidatePayload === "object" &&
-            candidatePayload !== null &&
-            "schema_version" in candidatePayload &&
-            (candidatePayload as Record<string, unknown>).schema_version === 2;
-          const issues = isV2Candidate ? v2Parse.error.issues : v1Parse.error.issues;
-          throw new Error(`Invalid manifest: ${issues[0]?.message ?? "unknown"}`);
-        }
-        parsedManifest = v1Parse.data;
-      }
-
+      const parsedManifest = result.manifest;
       setManifest(parsedManifest);
 
       const assistantMsg: ChatMessage = {

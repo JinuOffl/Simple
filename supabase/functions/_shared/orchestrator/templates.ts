@@ -363,7 +363,7 @@ export const STARTER_TEMPLATES: readonly StarterTemplate[] = [
     icon: "🕒",
     category: "utilities",
     tags: ["clock", "timezone", "time", "world clock"],
-    keywords: ["world clock", "timezone", "current time", "digital clock", "tokyo time"],
+    keywords: ["clock", "clock widget", "world clock", "timezone", "current time", "digital clock", "tokyo time"],
     manifest: {
       schema_version: 2,
       app_id: "tpl-world-clock",
