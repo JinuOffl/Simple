@@ -124,34 +124,43 @@ export function ManifestRenderer({
         }
 
         const onClickActionId = node.on_click;
-        const onAction = onClickActionId
-          ? async (extraAppData?: Record<string, unknown>) => {
-              const action = getAction(onClickActionId);
-              if (!action) return;
-              const isAsyncNetwork =
-                action.kind === "mcp_call" ||
-                action.kind === "llm_call" ||
-                action.kind === "api_fetch";
-              if (isAsyncNetwork) {
-                setComponentLoading(node.id, true);
-              }
-              try {
-                await runAction({
-                  action,
-                  appData: extraAppData ? { ...appData, ...extraAppData } : appData,
-                  appId,
-                  onDataChange,
-                  isPreview,
-                  availableScreenIds,
-                  onNavigateScreen: setActiveScreenId,
-                });
-              } finally {
-                if (isAsyncNetwork) {
-                  setComponentLoading(node.id, false);
-                }
-              }
+        const executeActionById = async (
+          actionId: string,
+          extraAppData?: Record<string, unknown>
+        ) => {
+          const action = getAction(actionId);
+          if (!action) return;
+          const isAsyncNetwork =
+            action.kind === "mcp_call" ||
+            action.kind === "llm_call" ||
+            action.kind === "api_fetch";
+          if (isAsyncNetwork) {
+            setComponentLoading(node.id, true);
+          }
+          try {
+            await runAction({
+              action,
+              appData: extraAppData ? { ...appData, ...extraAppData } : appData,
+              appId,
+              onDataChange,
+              isPreview,
+              availableScreenIds,
+              onNavigateScreen: setActiveScreenId,
+            });
+          } finally {
+            if (isAsyncNetwork) {
+              setComponentLoading(node.id, false);
             }
-          : undefined;
+          }
+        };
+
+        const onAction = async (extraOrActionId?: Record<string, unknown> | string) => {
+          if (typeof extraOrActionId === "string") {
+            await executeActionById(extraOrActionId);
+          } else if (onClickActionId) {
+            await executeActionById(onClickActionId, extraOrActionId);
+          }
+        };
 
         const ctx: RegistryRenderContext = {
           nodeId: node.id,

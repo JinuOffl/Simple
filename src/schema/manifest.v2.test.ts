@@ -16,7 +16,7 @@ import { ManifestSchema, type Manifest } from "./manifest.v1";
 
 describe("Registry completeness", () => {
   it("every entry in COMPONENT_REGISTRY has required metadata and valid examples", () => {
-    expect(COMPONENT_REGISTRY.length).toBe(23);
+    expect(COMPONENT_REGISTRY.length).toBe(26);
 
     for (const entry of COMPONENT_REGISTRY) {
       expect(typeof entry.type).toBe("string");
@@ -43,8 +43,8 @@ describe("Registry completeness", () => {
     }
   });
 
-  it("VALID_COMPONENT_TYPES has exactly 23 entries", () => {
-    expect(VALID_COMPONENT_TYPES.size).toBe(23);
+  it("VALID_COMPONENT_TYPES has exactly 26 entries", () => {
+    expect(VALID_COMPONENT_TYPES.size).toBe(26);
     for (const entry of COMPONENT_REGISTRY) {
       expect(VALID_COMPONENT_TYPES.has(entry.type)).toBe(true);
     }
@@ -58,7 +58,7 @@ describe("Registry completeness", () => {
     const nonStubEntries = COMPONENT_REGISTRY.filter((entry) => !entry.isStub);
     const stubEntries = COMPONENT_REGISTRY.filter((entry) => Boolean(entry.isStub));
 
-    expect(nonStubEntries.length).toBe(23);
+    expect(nonStubEntries.length).toBe(26);
     expect(stubEntries.length).toBe(0);
 
     for (const entry of nonStubEntries) {

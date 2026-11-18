@@ -163,8 +163,8 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
     type: "chart",
     requiredPermissions: [],
     isStub: false,
-    allowedPropKeys: ["chart_type", "labels", "datasets", "title"],
-    summary: "Data chart (`chart_type` bar|line|pie, `labels`, `datasets`).",
+    allowedPropKeys: ["chart_type", "labels", "datasets", "title", "live", "max_points"],
+    summary: "Data chart (`chart_type` bar|line|pie, `labels`, `datasets`, optional `live`, `max_points`).",
     exampleProps: {
       chart_type: "bar",
       labels: ["Mon", "Tue"],
@@ -210,6 +210,36 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
     allowedPropKeys: ["persona_prompt", "initial_message", "placeholder"],
     summary: "Persistent multi-turn chat thread (`persona_prompt`, `initial_message`, `placeholder`).",
     exampleProps: { persona_prompt: "You are helpful.", initial_message: "Hi!" },
+  },
+  // Phase 6 sketch components
+  {
+    type: "heatmap",
+    requiredPermissions: [],
+    isStub: false,
+    allowedPropKeys: ["rows", "days", "save_to", "title"],
+    summary: "Toggleable habit/frequency grid (`rows`: string[], optional `days` default 14, `save_to`, `title`).",
+    exampleProps: { rows: ["Workout", "Reading"], days: 14, title: "Daily Habits" },
+  },
+  {
+    type: "status",
+    requiredPermissions: [],
+    isStub: false,
+    allowedPropKeys: ["label", "state"],
+    summary: "Operational status indicator (`label`: string, optional `state`: ok|warn|off).",
+    exampleProps: { label: "System Operational", state: "ok" },
+  },
+  {
+    type: "icon_row",
+    requiredPermissions: [],
+    isStub: false,
+    allowedPropKeys: ["items"],
+    summary: "Action launcher row with up to 4 icons (`items: [{ icon, label, action }]`).",
+    exampleProps: {
+      items: [
+        { icon: "camera", label: "Snap", action: "take_photo" },
+        { icon: "bulb", label: "Lights", action: "toggle_lights" },
+      ],
+    },
   },
 ];
 

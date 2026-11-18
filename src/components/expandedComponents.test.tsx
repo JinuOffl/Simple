@@ -184,6 +184,28 @@ describe("Phase 5 Expanded Components Suite", () => {
       );
       expect(screen.getByText("Pie Title")).toBeTruthy();
     });
+
+    it("renders streaming live chart when live is true and bindValue is updated", () => {
+      const { rerender } = render(
+        <Chart title="Live Pulse" live={true} max_points={3} bindValue={65} />
+      );
+
+      expect(screen.getByText("Live Pulse")).toBeTruthy();
+      expect(screen.getByText("line")).toBeTruthy();
+
+      // Stream next data points
+      rerender(
+        <Chart title="Live Pulse" live={true} max_points={3} bindValue={72} />
+      );
+      rerender(
+        <Chart title="Live Pulse" live={true} max_points={3} bindValue={80} />
+      );
+      rerender(
+        <Chart title="Live Pulse" live={true} max_points={3} bindValue={85} />
+      );
+
+      expect(document.querySelector("svg")).toBeTruthy();
+    });
   });
 
   describe("ChatThread", () => {

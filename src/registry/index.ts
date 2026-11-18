@@ -25,6 +25,9 @@ import { sliderEntry } from "./entries/slider";
 import { timerEntry } from "./entries/timer";
 import { tabsEntry } from "./entries/tabs";
 import { chatThreadEntry } from "./entries/chat_thread";
+import { heatmapEntry } from "./entries/heatmap";
+import { statusEntry } from "./entries/status";
+import { iconRowEntry } from "./entries/icon_row";
 
 export type {
   Permission,
@@ -65,6 +68,11 @@ export const COMPONENT_REGISTRY = [
   widenEntry(timerEntry),
   widenEntry(tabsEntry),
   widenEntry(chatThreadEntry),
+
+  // 3 Phase 6 sketch components
+  widenEntry(heatmapEntry),
+  widenEntry(statusEntry),
+  widenEntry(iconRowEntry),
 ] as const;
 
 export type RegistryComponentType = (typeof COMPONENT_REGISTRY)[number]["type"];

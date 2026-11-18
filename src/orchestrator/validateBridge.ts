@@ -6,7 +6,7 @@ import type {
 
 /**
  * Bridge connecting the pure shared orchestrator (`VALIDATE` stage) to the
- * canonical React/Zod 23-component `ManifestV2Schema` validator in `src/schema/validator.ts`.
+ * canonical React/Zod 26-component `ManifestV2Schema` validator in `src/schema/validator.ts`.
  */
 export function validateWithAppZodSchema(raw: unknown): ValidationResult {
   const result = validateManifestV2(raw);

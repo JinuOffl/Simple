@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 interface Dataset {
   label: string;
   data: number[];
@@ -8,6 +10,9 @@ interface ChartProps {
   labels?: string[];
   datasets?: Dataset[];
   title?: string;
+  live?: boolean;
+  max_points?: number;
+  bindValue?: unknown;
 }
 
 const PALETTE = ["#ffffff", "#888888", "#555555", "#aaaaaa", "#333333"];
@@ -15,23 +20,62 @@ const PALETTE = ["#ffffff", "#888888", "#555555", "#aaaaaa", "#333333"];
 /**
  * Lightweight, high-contrast SVG chart widget styled for Nothing-OS dark UI.
  * Renders bar, line, and pie charts with zero heavy charting dependencies.
+ * Supports streaming live points into a ring buffer when `live === true`.
  */
 export function Chart({
   chart_type = "bar",
   labels = [],
   datasets = [],
   title,
+  live = false,
+  max_points = 60,
+  bindValue,
 }: ChartProps) {
-  if (!datasets || datasets.length === 0) {
+  const maxPoints = max_points ?? 60;
+  const [liveBuffer, setLiveBuffer] = useState<number[]>(() => {
+    if (live && typeof bindValue === "number" && !Number.isNaN(bindValue)) {
+      return [bindValue];
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    if (live && typeof bindValue === "number" && !Number.isNaN(bindValue)) {
+      setLiveBuffer((prev) => {
+        const next = [...prev, bindValue];
+        return next.length > maxPoints ? next.slice(-maxPoints) : next;
+      });
+    }
+  }, [live, bindValue, maxPoints]);
+
+  const effectiveType = live ? "line" : chart_type;
+  const effectiveDatasets = live
+    ? liveBuffer.length > 0
+      ? [
+          {
+            label: title ?? "Live",
+            data: liveBuffer.length === 1 ? [liveBuffer[0], liveBuffer[0]] : liveBuffer,
+          },
+        ]
+      : []
+    : datasets;
+
+  const effectiveLabels = live
+    ? labels && labels.length === (effectiveDatasets[0]?.data.length ?? 0)
+      ? labels
+      : (effectiveDatasets[0]?.data ?? []).map((_, i) => `${i + 1}`)
+    : labels;
+
+  if (!effectiveDatasets || effectiveDatasets.length === 0) {
     return (
       <div className="w-full bg-n-surface border border-n-border rounded-sm p-4 text-center text-n-text3 text-xs">
-        (No chart data)
+        {live ? "(Waiting for live data...)" : "(No chart data)"}
       </div>
     );
   }
 
-  const primaryData = datasets[0]?.data ?? [];
-  const maxVal = Math.max(1, ...datasets.flatMap((d) => d.data));
+  const primaryData = effectiveDatasets[0]?.data ?? [];
+  const maxVal = Math.max(1, ...effectiveDatasets.flatMap((d) => d.data));
 
   return (
     <div className="w-full bg-n-surface border border-n-border rounded-sm p-4 animate-fade-in space-y-3">
@@ -41,23 +85,23 @@ export function Chart({
             {title}
           </p>
           <span className="nt-tag text-[8px] px-1.5 py-0.5 leading-none lowercase">
-            {chart_type}
+            {effectiveType}
           </span>
         </div>
       )}
 
-      {chart_type === "pie" ? (
-        <RenderPieChart labels={labels} data={primaryData} />
-      ) : chart_type === "line" ? (
+      {effectiveType === "pie" ? (
+        <RenderPieChart labels={effectiveLabels} data={primaryData} />
+      ) : effectiveType === "line" ? (
         <RenderLineChart
-          labels={labels}
-          datasets={datasets}
+          labels={effectiveLabels}
+          datasets={effectiveDatasets}
           maxVal={maxVal}
         />
       ) : (
         <RenderBarChart
-          labels={labels}
-          datasets={datasets}
+          labels={effectiveLabels}
+          datasets={effectiveDatasets}
           maxVal={maxVal}
         />
       )}

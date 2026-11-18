@@ -21,6 +21,9 @@ import { Table } from "@/components/Table";
 import { Form, type FormFieldSpec } from "@/components/Form";
 import { Chart } from "@/components/Chart";
 import { ChatThread } from "@/components/ChatThread";
+import { Heatmap } from "@/components/Heatmap";
+import { Status } from "@/components/Status";
+import { IconRow, type IconRowItem } from "@/components/IconRow";
 import type { RegistryRenderContext } from "./types";
 
 interface AdapterBaseProps {
@@ -479,6 +482,8 @@ export function ChartAdapter({
   labels,
   datasets,
   title,
+  live,
+  max_points,
   bindValue,
   ctx,
 }: AdapterBaseProps & {
@@ -486,18 +491,22 @@ export function ChartAdapter({
   labels?: string[];
   datasets?: Array<{ label: string; data: number[] }>;
   title?: string;
+  live?: boolean;
+  max_points?: number;
 }) {
-  const resolvedDatasets = Array.isArray(ctx?.bindValue)
-    ? (ctx.bindValue as Array<{ label: string; data: number[] }>)
-    : Array.isArray(bindValue)
-      ? (bindValue as Array<{ label: string; data: number[] }>)
-      : datasets;
+  const resolvedValue = ctx?.bindValue !== undefined ? ctx.bindValue : bindValue;
+  const resolvedDatasets = Array.isArray(resolvedValue)
+    ? (resolvedValue as Array<{ label: string; data: number[] }>)
+    : datasets;
   return (
     <Chart
       chart_type={chart_type}
       labels={labels}
       datasets={resolvedDatasets}
       title={title}
+      live={live}
+      max_points={max_points}
+      bindValue={resolvedValue}
     />
   );
 }
@@ -518,6 +527,74 @@ export function ChatThreadAdapter({
       initial_message={initial_message}
       placeholder={placeholder}
       appId={ctx?.appId}
+    />
+  );
+}
+
+export function HeatmapAdapter({
+  id,
+  rows,
+  days,
+  save_to,
+  title,
+  bindValue,
+  ctx,
+}: AdapterBaseProps & {
+  rows: string[];
+  days?: number;
+  save_to?: string;
+  title?: string;
+}) {
+  return (
+    <Heatmap
+      id={id}
+      rows={rows}
+      days={days}
+      save_to={save_to}
+      title={title}
+      bindValue={bindValue}
+      ctx={ctx}
+    />
+  );
+}
+
+export function StatusAdapter({
+  id,
+  label,
+  state,
+  bindValue,
+  ctx,
+}: AdapterBaseProps & {
+  label: string;
+  state?: "ok" | "warn" | "off";
+}) {
+  return (
+    <Status
+      id={id}
+      label={label}
+      state={state}
+      bindValue={bindValue}
+      ctx={ctx}
+    />
+  );
+}
+
+export function IconRowAdapter({
+  id,
+  items,
+  bindValue,
+  onAction,
+  ctx,
+}: AdapterBaseProps & {
+  items: IconRowItem[];
+}) {
+  return (
+    <IconRow
+      id={id}
+      items={items}
+      bindValue={bindValue}
+      onAction={onAction}
+      ctx={ctx}
     />
   );
 }

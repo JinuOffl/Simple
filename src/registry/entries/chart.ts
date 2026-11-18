@@ -15,6 +15,8 @@ const propsSchema = z
     labels: z.array(z.string()).optional(),
     datasets: z.array(datasetSchema).optional(),
     title: z.string().optional(),
+    live: z.boolean().optional(),
+    max_points: z.number().int().positive().optional(),
   })
   .strict();
 
@@ -30,6 +32,8 @@ Props:
 - labels (string[], optional): X-axis or slice labels.
 - datasets (array, optional): Each has label (string) and data (number[]).
 - title (string, optional): Chart title.
+- live (boolean, optional): Stream dynamic numerical inputs into a rolling real-time line chart.
+- max_points (number, optional, default 60): Maximum data points to retain in live ring buffer.
 Example: { type: "chart", props: { chart_type: "bar", labels: ["Mon","Tue","Wed"], datasets: [{ label: "Steps", data: [5000,8000,6000] }] } }`,
   requiredPermissions: [],
   examples: [
@@ -39,6 +43,13 @@ Example: { type: "chart", props: { chart_type: "bar", labels: ["Mon","Tue","Wed"
         labels: ["Jan", "Feb", "Mar"],
         datasets: [{ label: "Sales", data: [120, 200, 150] }],
         title: "Monthly Sales",
+      },
+    },
+    {
+      props: {
+        title: "Live Stream",
+        live: true,
+        max_points: 30,
       },
     },
   ],
