@@ -11,7 +11,7 @@ import {
 } from "@/lib/entitlementProvider";
 
 const COST_LABELS: Record<CreditCostClass, string> = {
-  generation: "Generate / Edit App",
+  generation: "Generate / Edit Tool",
   runtime_llm: "Runtime LLM Action",
   mcp_call: "MCP Connector Tool Call",
   api_fetch: "Allowlisted Public API",
@@ -143,10 +143,10 @@ export function PlanUsageScreen() {
 
           <p className="text-n-text2 text-xs leading-relaxed">{planConfig.description}</p>
 
-          {/* Active apps meter */}
+          {/* Active tools meter */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[11px] font-mono">
-              <span className="text-n-text2">ACTIVE APPS</span>
+              <span className="text-n-text2">ACTIVE TOOLS</span>
               <span className="text-white">
                 {activeApps.length} / {currentEntitlement.active_app_limit}
               </span>
@@ -159,7 +159,7 @@ export function PlanUsageScreen() {
             </div>
             {sleepingApps.length > 0 && (
               <p className="text-n-text3 text-[10px] font-mono">
-                {sleepingApps.length} sleeping app{sleepingApps.length !== 1 ? "s" : ""} (never deleted — exportable anytime)
+                {sleepingApps.length} sleeping tool${sleepingApps.length !== 1 ? "s" : ""} (never deleted — exportable anytime)
               </p>
             )}
           </div>
@@ -181,16 +181,16 @@ export function PlanUsageScreen() {
           </div>
         </section>
 
-        {/* Manage Active & Sleeping Apps */}
+        {/* Manage Active & Sleeping Tools */}
         <section className="glass p-5 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-n-text3 text-[9px] uppercase tracking-[0.18em]">
-              apps ({activeApps.length} active · {sleepingApps.length} sleeping)
+              tools ({activeApps.length} active · {sleepingApps.length} sleeping)
             </p>
           </div>
 
           {apps.length === 0 ? (
-            <p className="text-n-text3 text-xs">No saved apps yet.</p>
+            <p className="text-n-text3 text-xs">No saved tools yet.</p>
           ) : (
             <div className="border border-n-border rounded-sm divide-y divide-n-border">
               {apps.map((app) => {
@@ -312,7 +312,7 @@ export function PlanUsageScreen() {
           </div>
 
           <p className="text-n-text2 text-xs leading-relaxed">
-            Provide your own Groq API key to bypass monthly credit limits for app generation
+            Provide your own Groq API key to bypass monthly credit limits for tool generation
             and runtime LLM actions. Keys are AES-GCM-256 encrypted server-side and never
             exposed in client bundles.
           </p>
@@ -348,7 +348,7 @@ export function PlanUsageScreen() {
             <div className="space-y-2">
               <input
                 type="password"
-                placeholder="gsk_••••••••••••••••"
+                placeholder="••••••••••••••••"
                 value={byokInput}
                 onChange={(e) => setByokInput(e.target.value)}
                 className="w-full bg-n-surface border border-n-border text-white text-xs p-2.5 rounded-sm font-mono outline-none focus:border-white/50"

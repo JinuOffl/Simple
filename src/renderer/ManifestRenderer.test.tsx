@@ -336,4 +336,60 @@ describe("ManifestRenderer", () => {
       expect(onDataChange).toHaveBeenCalledWith("status_card", "light.living_room is on");
     });
   });
+
+  it("rerenders with changed items in preview and asserts the new items show", () => {
+    const checklistManifest1: ManifestV2 = {
+      schema_version: 2,
+      app_id: "preview-app-1",
+      name: "Checklist Preview",
+      icon: "✅",
+      permissions: [],
+      connectors: [],
+      data: { collections: [] },
+      screens: [
+        {
+          id: "main",
+          title: "Tasks",
+          nodes: [
+            {
+              id: "chk_preview",
+              type: "checklist",
+              props: { items: ["Initial Task A", "Initial Task B"] },
+            },
+          ],
+        },
+      ],
+      actions: [],
+    };
+
+    const { rerender } = render(
+      <ManifestRenderer manifest={checklistManifest1} isPreview={true} />
+    );
+
+    expect(screen.getByText("Initial Task A")).toBeTruthy();
+    expect(screen.getByText("Initial Task B")).toBeTruthy();
+
+    const checklistManifest2: ManifestV2 = {
+      ...checklistManifest1,
+      screens: [
+        {
+          id: "main",
+          title: "Tasks",
+          nodes: [
+            {
+              id: "chk_preview",
+              type: "checklist",
+              props: { items: ["Updated Task X", "Updated Task Y"] },
+            },
+          ],
+        },
+      ],
+    };
+
+    rerender(<ManifestRenderer manifest={checklistManifest2} isPreview={true} />);
+
+    expect(screen.queryByText("Initial Task A")).toBeNull();
+    expect(screen.getByText("Updated Task X")).toBeTruthy();
+    expect(screen.getByText("Updated Task Y")).toBeTruthy();
+  });
 });

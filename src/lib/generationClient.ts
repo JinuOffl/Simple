@@ -3,40 +3,28 @@ import type { Manifest } from "@/schema/manifest.v1";
 import type { ManifestV2 } from "@/schema/manifest.v2";
 import { ManifestSchema } from "@/schema/manifest.v1";
 import { ManifestV2Schema } from "@/schema/manifest.v2";
+import { needsMigration, migrateV1toV2 } from "@/schema/migrator";
 import { KeywordTemplateMatcher } from "../../supabase/functions/_shared/orchestrator/templates.ts";
-import { analyzePrompt } from "../../supabase/functions/_shared/orchestrator/analyzer.ts";
-import { resolveCapabilities } from "../../supabase/functions/_shared/orchestrator/resolver.ts";
-import {
-  buildCreateManifestPrompt,
-  buildEditPatchPrompt,
-} from "../../supabase/functions/_shared/orchestrator/prompts.ts";
-import { applyJsonPatch } from "../../supabase/functions/_shared/orchestrator/jsonPatch.ts";
+import { healManifest } from "../../supabase/functions/_shared/orchestrator/heal.ts";
+import { runGenerateOrchestrator } from "../../supabase/functions/_shared/orchestrator/stateMachine.ts";
+import { BrowserGroqLlmProvider } from "./browserLlmProvider";
+import { logGeneration } from "./generationLog";
 import type {
   ConversationTurn,
-  JsonPatchOperation,
   ManifestV2Like,
+  ValidationResult,
 } from "../../supabase/functions/_shared/orchestrator/types.ts";
 
-function extractJsonFromText(rawText: string): unknown {
-  let cleaned = rawText.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+async function readInvokeError(error: unknown): Promise<{ message: string; body?: Record<string, unknown> }> {
+  const ctx = (error as { context?: Response }).context;
+  if (ctx && typeof ctx.clone === "function") {
+    try {
+      const body = (await ctx.clone().json()) as Record<string, unknown>;
+      const message = typeof body.error === "string" ? body.error : (error as Error).message;
+      return { message, body };
+    } catch { /* fall through */ }
   }
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    const firstObj = cleaned.indexOf("{");
-    const lastObj = cleaned.lastIndexOf("}");
-    if (firstObj !== -1 && lastObj > firstObj) {
-      return JSON.parse(cleaned.slice(firstObj, lastObj + 1));
-    }
-    const firstArr = cleaned.indexOf("[");
-    const lastArr = cleaned.lastIndexOf("]");
-    if (firstArr !== -1 && lastArr > firstArr) {
-      return JSON.parse(cleaned.slice(firstArr, lastArr + 1));
-    }
-    throw new Error("Model output did not contain valid JSON.");
-  }
+  return { message: (error as Error)?.message ?? String(error) };
 }
 
 export interface GenerateAppParams {
@@ -50,217 +38,10 @@ export interface GenerationClientResult {
   manifest?: Manifest | ManifestV2;
   error?: string;
   unsupported?: { message?: string; alternative?: string };
-}
-
-function findNodeInManifest(manifest: Record<string, unknown> | null, nodeId: string): Record<string, unknown> | null {
-  if (!manifest || !Array.isArray(manifest.screens)) return null;
-  for (const sc of manifest.screens) {
-    if (sc && Array.isArray((sc as Record<string, unknown>).nodes)) {
-      for (const n of (sc as Record<string, unknown>).nodes as Array<Record<string, unknown>>) {
-        if (n && n.id === nodeId) return n;
-      }
-    }
-  }
-  return null;
-}
-
-function sanitizeAndRepairManifest(raw: unknown, fallbackExisting?: unknown): Record<string, unknown> | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-
-  const obj = structuredClone(raw) as Record<string, unknown>;
-  const fallback =
-    fallbackExisting && typeof fallbackExisting === "object"
-      ? (fallbackExisting as Record<string, unknown>)
-      : null;
-
-  // 1. Core manifest fields
-  if (obj.schema_version !== 2 && obj.schema_version !== 1) {
-    obj.schema_version = 2;
-  }
-  if (!obj.app_id || typeof obj.app_id !== "string") {
-    obj.app_id = (fallback?.app_id as string) || `app-${Date.now()}`;
-  }
-  if (!obj.name || typeof obj.name !== "string") {
-    obj.name = (fallback?.name as string) || "Simple App";
-  }
-  if (!obj.icon || typeof obj.icon !== "string") {
-    obj.icon = (fallback?.icon as string) || "📱";
-  }
-  if (!Array.isArray(obj.permissions)) {
-    obj.permissions = Array.isArray(fallback?.permissions) ? fallback.permissions : [];
-  }
-  if (!Array.isArray(obj.connectors)) {
-    obj.connectors = Array.isArray(fallback?.connectors) ? fallback.connectors : [];
-  }
-
-  // 2. data.collections
-  if (!obj.data || typeof obj.data !== "object") {
-    obj.data = { collections: [] };
-  } else {
-    const dataObj = obj.data as Record<string, unknown>;
-    if (!Array.isArray(dataObj.collections)) {
-      dataObj.collections = [];
-    } else {
-      const allowedFieldTypes = new Set(["string", "number", "boolean", "date", "json", "image_ref"]);
-      dataObj.collections = dataObj.collections.map((col, cIdx) => {
-        if (!col || typeof col !== "object") return { name: `col_${cIdx}`, shared: false, fields: [] };
-        const c = { ...(col as Record<string, unknown>) };
-        if (!c.name || typeof c.name !== "string") {
-          c.name = typeof c.id === "string" ? c.id : `collection_${cIdx}`;
-        }
-        delete c.id;
-        c.shared = Boolean(c.shared);
-        if (!Array.isArray(c.fields)) {
-          c.fields = [];
-        } else {
-          c.fields = (c.fields as Array<Record<string, unknown>>).map((f, fIdx) => {
-            if (!f || typeof f !== "object") return { name: `field_${fIdx}`, type: "string" };
-            const field = { ...f };
-            const name = typeof field.name === "string" ? field.name : typeof field.id === "string" ? field.id : `field_${fIdx}`;
-            let type = typeof field.type === "string" ? field.type.toLowerCase() : "string";
-            if (type === "text" || !allowedFieldTypes.has(type)) {
-              type = "string";
-            }
-            return { name, type };
-          });
-        }
-        return c;
-      });
-    }
-  }
-
-  // 3. actions
-  const allowedKinds = new Set([
-    "llm_call",
-    "local_compute",
-    "api_fetch",
-    "mcp_call",
-    "navigate",
-    "save_data",
-    "record_insert",
-    "record_update",
-    "conversation_loop",
-    "sandbox_fn",
-  ]);
-
-  if (!Array.isArray(obj.actions)) {
-    obj.actions = [];
-  } else {
-    obj.actions = (obj.actions as Array<Record<string, unknown>>)
-      .map((action, aIdx) => {
-        if (!action || typeof action !== "object") return null;
-        const a = { ...action };
-        const id = typeof a.id === "string" ? a.id : `act_${aIdx}`;
-        let kind = typeof a.kind === "string" ? a.kind : "";
-
-        // Normalize non-standard LLM action types to valid ActionKindSchema
-        if (!kind && typeof a.type === "string") {
-          const t = a.type.toLowerCase();
-          if (t === "create" || t === "insert") kind = "record_insert";
-          else if (t === "update" || t === "edit") kind = "record_update";
-          else if (t === "navigate" || t === "goto") kind = "navigate";
-          else if (t === "save") kind = "save_data";
-          else kind = "local_compute";
-        }
-
-        if (!allowedKinds.has(kind)) {
-          kind = "local_compute";
-        }
-
-        // Clean up invalid extra fields that fail strict action schema
-        delete a.type;
-        delete a.label;
-
-        const cleanAction: Record<string, unknown> = { id, kind };
-        if (typeof a.prompt_template === "string") cleanAction.prompt_template = a.prompt_template;
-        if (typeof a.persona_prompt === "string") cleanAction.persona_prompt = a.persona_prompt;
-        if (typeof a.operation === "string") cleanAction.operation = a.operation;
-        if (typeof a.api === "string") cleanAction.api = a.api;
-        if (typeof a.connector_id === "string") cleanAction.connector_id = a.connector_id;
-        if (typeof a.tool_name === "string") cleanAction.tool_name = a.tool_name;
-        if (typeof a.collection === "string") cleanAction.collection = a.collection;
-        if (a.params && typeof a.params === "object") cleanAction.params = a.params;
-        if (Array.isArray(a.input_from)) cleanAction.input_from = a.input_from;
-        if (typeof a.render_result_into === "string") cleanAction.render_result_into = a.render_result_into;
-        if (typeof a.output_key === "string") cleanAction.output_key = a.output_key;
-
-        return cleanAction;
-      })
-      .filter(Boolean);
-  }
-
-  // 4. screens and nodes
-  if (!Array.isArray(obj.screens) || obj.screens.length === 0) {
-    if (fallback && Array.isArray(fallback.screens)) {
-      obj.screens = fallback.screens;
-    } else {
-      obj.screens = [
-        {
-          id: "main",
-          title: (obj.name as string) || "Main",
-          nodes: [],
-        },
-      ];
-    }
-  } else {
-    const screensList = obj.screens as Array<Record<string, unknown>>;
-    obj.screens = screensList.map((sc, sIdx) => {
-      const s = { ...sc };
-      s.id = typeof s.id === "string" ? s.id : `screen_${sIdx}`;
-      s.title = typeof s.title === "string" ? s.title : "Screen";
-      if (!Array.isArray(s.nodes)) s.nodes = [];
-
-      s.nodes = (s.nodes as Array<Record<string, unknown>>).map((node, nIdx) => {
-        if (!node || typeof node !== "object") {
-          return { id: `node_${nIdx}`, type: "text", props: { content: "" } };
-        }
-        const n = { ...node };
-        n.id = typeof n.id === "string" ? n.id : `node_${nIdx}`;
-        n.type = typeof n.type === "string" ? n.type : "text";
-
-        // Specific repair for checklist
-        if (n.type === "checklist") {
-          const props = n.props && typeof n.props === "object" ? { ...(n.props as Record<string, unknown>) } : {};
-          if (!Array.isArray(props.items)) {
-            // Check if existing manifest had items for this node
-            const fallbackNode = findNodeInManifest(fallback, String(n.id));
-            if (fallbackNode?.props && Array.isArray((fallbackNode.props as Record<string, unknown>).items)) {
-              props.items = (fallbackNode.props as Record<string, unknown>).items;
-            } else {
-              props.items = [];
-            }
-          }
-          // Remove illegal props like collection or fields
-          delete props.collection;
-          delete props.fields;
-          n.props = props;
-        }
-
-        // Specific repair for button
-        if (n.type === "button") {
-          const props = n.props && typeof n.props === "object" ? { ...(n.props as Record<string, unknown>) } : {};
-          if (typeof props.label !== "string") {
-            props.label = "Action";
-          }
-          n.props = props;
-        }
-
-        // Specific repair for card
-        if (n.type === "card") {
-          const props = n.props && typeof n.props === "object" ? { ...(n.props as Record<string, unknown>) } : {};
-          if (typeof props.title !== "string") props.title = "";
-          if (typeof props.body !== "string") props.body = "";
-          n.props = props;
-        }
-
-        return n;
-      });
-
-      return s;
-    });
-  }
-
-  return obj;
+  trace?: unknown;
+  patch?: unknown[];
+  diagnostics?: unknown;
+  tier?: "local" | "edge" | "browser" | "template";
 }
 
 function parseManifestPayload(payload: unknown, fallbackExisting?: unknown): Manifest | ManifestV2 | null {
@@ -273,7 +54,7 @@ function parseManifestPayload(payload: unknown, fallbackExisting?: unknown): Man
   if (v1Parse.success) return v1Parse.data;
 
   // Attempt automatic schema repair for LLM deviations
-  const repaired = sanitizeAndRepairManifest(payload, fallbackExisting);
+  const repaired = healManifest(payload, fallbackExisting);
   if (repaired) {
     const repairedV2 = ManifestV2Schema.safeParse(repaired);
     if (repairedV2.success) return repairedV2.data;
@@ -286,6 +67,9 @@ function parseManifestPayload(payload: unknown, fallbackExisting?: unknown): Man
 }
 
 function getClientGroqKey(): string {
+  if (!import.meta.env.DEV) {
+    return "";
+  }
   const envKey = (import.meta.env.VITE_GROQ_API_KEY as string | undefined) ?? "";
   if (envKey.trim()) return envKey.trim();
 
@@ -299,58 +83,19 @@ function getClientGroqKey(): string {
   return "";
 }
 
-async function callGroqDirectly(
-  apiKey: string,
-  system: string,
-  prompt: string
-): Promise<unknown> {
-  const candidateModels = [
-    "qwen/qwen3.8-27b",
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "openai/gpt-oss-120b",
-  ];
-
-  let lastError: Error | null = null;
-
-  for (const model of candidateModels) {
-    try {
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey.trim()}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: prompt },
-          ],
-          temperature: 0.1,
-          response_format: { type: "json_object" },
-        }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        // Model decommissioned, not found, or rate limit on that model -> try next candidate
-        if (res.status === 404 || res.status === 400 || res.status === 422) {
-          lastError = new Error(`Groq model ${model} unavailable (${res.status}): ${text}`);
-          continue;
-        }
-        throw new Error(`Groq API error (${res.status}): ${text}`);
-      }
-
-      const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      const rawText = json.choices?.[0]?.message?.content ?? "";
-      return extractJsonFromText(rawText);
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-    }
+function validateWithAppZodSchema(raw: unknown): ValidationResult {
+  const parsed = parseManifestPayload(raw);
+  if (parsed) {
+    return { kind: "valid", manifest: parsed as ManifestV2Like };
   }
-
-  throw lastError ?? new Error("All candidate Groq models failed.");
+  const v2 = ManifestV2Schema.safeParse(raw);
+  if (!v2.success) {
+    return {
+      kind: "invalid",
+      errors: v2.error.issues.map((e) => `${e.path.join(".")}: ${e.message}`),
+    };
+  }
+  return { kind: "invalid", errors: ["Manifest failed schema validation"] };
 }
 
 /**
@@ -363,7 +108,41 @@ async function callGroqDirectly(
 export async function generateAppWithFallback(
   params: GenerateAppParams
 ): Promise<GenerationClientResult> {
-  const { userPrompt, existingManifest, conversationContext } = params;
+  const userPrompt = params.userPrompt;
+  const conversationContext = params.conversationContext;
+  const existingManifest = params.existingManifest
+    ? (needsMigration(params.existingManifest) ? migrateV1toV2(params.existingManifest) : params.existingManifest)
+    : undefined;
+  const startTime = Date.now();
+  const existingManifestBytes = existingManifest
+    ? new TextEncoder().encode(JSON.stringify(existingManifest)).length
+    : 0;
+
+  const {
+    data: { session: callerSession },
+  } = await supabase.auth.getSession();
+  const callerUser = callerSession?.user;
+
+  const recordAndReturn = (result: GenerationClientResult): GenerationClientResult => {
+    const traceObj = result.trace as Record<string, unknown> | undefined;
+    const diagObj = result.diagnostics as Record<string, unknown> | undefined;
+    logGeneration({
+      tier: result.tier,
+      userPrompt,
+      existingManifestBytes,
+      ok: result.ok,
+      error: result.error,
+      validationErrors: Array.isArray(diagObj?.validationErrors)
+        ? (diagObj.validationErrors as string[])
+        : undefined,
+      repairAttempts:
+        typeof traceObj?.repairAttempts === "number"
+          ? traceObj.repairAttempts
+          : undefined,
+      latencyMs: Date.now() - startTime,
+    });
+    return result;
+  };
 
   const localEndpoint =
     import.meta.env.VITE_LOCAL_GENERATE_APP_URL ??
@@ -372,10 +151,7 @@ export async function generateAppWithFallback(
   // ── 1. Try local dev server endpoint first (npm run dev:mcp) ──────────────────
   if (localEndpoint) {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const bearer = session?.access_token ?? "local-dev-user";
+      const bearer = callerSession?.access_token ?? "local-dev-user";
 
       const res = await fetch(localEndpoint, {
         method: "POST",
@@ -395,19 +171,30 @@ export async function generateAppWithFallback(
         const candidate = payload.manifest ?? payload;
         const parsed = parseManifestPayload(candidate);
         if (parsed) {
-          return { ok: true, manifest: parsed };
+          return recordAndReturn({
+            ok: true,
+            manifest: parsed,
+            tier: "local",
+            trace: payload.trace,
+            patch: Array.isArray(payload.patch) ? (payload.patch as unknown[]) : undefined,
+            diagnostics: payload.diagnostics,
+          });
         }
       } else {
         const errorJson = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         if (errorJson.unsupported) {
-          return {
+          return recordAndReturn({
             ok: false,
             unsupported: errorJson.unsupported as { message?: string; alternative?: string },
             error:
               typeof errorJson.error === "string"
                 ? errorJson.error
                 : "Unsupported capability requested.",
-          };
+            tier: "local",
+            trace: errorJson.trace,
+            patch: Array.isArray(errorJson.patch) ? (errorJson.patch as unknown[]) : undefined,
+            diagnostics: errorJson.diagnostics,
+          });
         }
       }
     } catch {
@@ -417,6 +204,13 @@ export async function generateAppWithFallback(
 
   // ── 2. Try remote Supabase Edge Function ─────────────────────────────────────
   let remoteNetworkFailed = false;
+  if (callerUser?.id?.startsWith("guest-")) {
+    return recordAndReturn({
+      ok: false,
+      error: "Sign in with email to generate tools (offline guest)",
+    });
+  }
+
   try {
     const { data, error } = await supabase.functions.invoke("generate-app", {
       body: {
@@ -430,38 +224,80 @@ export async function generateAppWithFallback(
       const responseRecord =
         typeof data === "object" && data !== null ? (data as Record<string, unknown>) : null;
       if (responseRecord && responseRecord.ok === false) {
-        return {
+        return recordAndReturn({
           ok: false,
           error:
             typeof responseRecord.error === "string"
               ? responseRecord.error
-              : "Failed to generate app manifest.",
+              : "Failed to generate tool manifest.",
           unsupported: responseRecord.unsupported as
             | { message?: string; alternative?: string }
             | undefined,
-        };
+          tier: "edge",
+          trace: responseRecord.trace,
+          patch: Array.isArray(responseRecord.patch)
+            ? (responseRecord.patch as unknown[])
+            : undefined,
+          diagnostics: responseRecord.diagnostics,
+        });
       }
       const candidatePayload =
         responseRecord && "manifest" in responseRecord ? responseRecord.manifest : data;
       const parsed = parseManifestPayload(candidatePayload);
       if (parsed) {
-        return { ok: true, manifest: parsed };
+        return recordAndReturn({
+          ok: true,
+          manifest: parsed,
+          tier: "edge",
+          trace: responseRecord?.trace,
+          patch: Array.isArray(responseRecord?.patch)
+            ? (responseRecord.patch as unknown[])
+            : undefined,
+          diagnostics: responseRecord?.diagnostics,
+        });
       }
     }
 
     if (error) {
-      const msg = error.message ?? String(error);
-      if (
-        msg.includes("Failed to send a request") ||
-        msg.includes("FetchError") ||
-        msg.includes("NetworkError") ||
-        msg.includes("Failed to fetch") ||
-        msg.includes("offline") ||
-        msg.includes("not reachable")
-      ) {
+      const { message, body } = await readInvokeError(error);
+      if (body?.unsupported) {
+        return recordAndReturn({
+          ok: false,
+          unsupported: body.unsupported as { message?: string; alternative?: string },
+          error: message,
+          tier: "edge",
+          trace: body.trace,
+          patch: Array.isArray(body.patch) ? (body.patch as unknown[]) : undefined,
+          diagnostics: body.diagnostics,
+        });
+      }
+
+      let errorText = message;
+      const diagValErrors = (body?.diagnostics as Record<string, unknown> | undefined)?.validationErrors;
+      if (Array.isArray(diagValErrors) && diagValErrors.length > 0) {
+        const top3 = (diagValErrors as string[]).slice(0, 3).join("; ");
+        errorText = `${errorText} (${top3})`;
+      }
+
+      const isNetworkFailure =
+        errorText.includes("Failed to send a request") ||
+        errorText.includes("FetchError") ||
+        errorText.includes("NetworkError") ||
+        errorText.includes("Failed to fetch") ||
+        errorText.includes("offline") ||
+        errorText.includes("not reachable");
+
+      if (isNetworkFailure || (!body && import.meta.env.DEV)) {
         remoteNetworkFailed = true;
       } else {
-        return { ok: false, error: msg };
+        return recordAndReturn({
+          ok: false,
+          error: errorText,
+          tier: "edge",
+          trace: body?.trace,
+          patch: Array.isArray(body?.patch) ? (body?.patch as unknown[]) : undefined,
+          diagnostics: body?.diagnostics,
+        });
       }
     }
   } catch {
@@ -471,73 +307,44 @@ export async function generateAppWithFallback(
   // ── 3. Direct Groq In-Browser Generation (Edit & Custom Apps) ────────────────
   const groqKey = getClientGroqKey();
   let lastGroqError: string | null = null;
-  if (groqKey) {
+  if (groqKey && import.meta.env.DEV) {
     try {
-      if (existingManifest) {
-        // Edit flow via RFC 6902 JSON patch
-        const analysis = analyzePrompt(
+      const llmProvider = new BrowserGroqLlmProvider(groqKey);
+      const orchResult = await runGenerateOrchestrator(
+        {
           userPrompt,
-          existingManifest as unknown as ManifestV2Like,
-          (conversationContext as unknown as ConversationTurn[]) ?? []
-        );
-        const plan = resolveCapabilities(analysis, null);
-        const payload = buildEditPatchPrompt({
-          userPrompt,
-          existingManifest: existingManifest as unknown as ManifestV2Like,
-          analysis,
-          plan,
+          existingManifest: (existingManifest as unknown as ManifestV2Like) ?? undefined,
           conversationContext: (conversationContext as unknown as ConversationTurn[]) ?? [],
+        },
+        {
+          llmProvider,
+          validateManifest: validateWithAppZodSchema,
+        }
+      );
+
+      if (orchResult.ok && orchResult.manifest) {
+        return recordAndReturn({
+          ok: true,
+          manifest: orchResult.manifest as unknown as ManifestV2,
+          patch: orchResult.patch,
+          trace: orchResult.trace,
+          diagnostics: orchResult.diagnostics,
+          tier: "browser",
         });
-
-        const patchData = await callGroqDirectly(groqKey, payload.system, payload.prompt);
-        let ops: JsonPatchOperation[] = [];
-        if (Array.isArray(patchData)) {
-          ops = patchData as JsonPatchOperation[];
-        } else if (patchData && typeof patchData === "object" && "operations" in patchData) {
-          ops = (patchData as { operations: JsonPatchOperation[] }).operations;
-        }
-
-        if (ops.length > 0) {
-          try {
-            const patched = applyJsonPatch(
-              existingManifest as unknown as ManifestV2Like,
-              ops
-            );
-            const parsed = parseManifestPayload(patched, existingManifest);
-            if (parsed) {
-              return { ok: true, manifest: parsed };
-            }
-          } catch (patchErr) {
-            console.warn("applyJsonPatch failed, attempting direct payload parse:", patchErr);
-          }
-        }
-
-        // If the model emitted a complete replacement manifest instead of RFC 6902 patch
-        const directParsed = parseManifestPayload(patchData, existingManifest);
-        if (directParsed) {
-          return { ok: true, manifest: directParsed };
-        }
-      } else {
-        // Create flow
-        const analysis = analyzePrompt(userPrompt, undefined, (conversationContext as unknown as ConversationTurn[]) ?? []);
-        const matcher = new KeywordTemplateMatcher(0.25);
-        const templateMatch = await matcher.findBestMatch(userPrompt);
-        const plan = resolveCapabilities(analysis, templateMatch);
-
-        const payload = buildCreateManifestPrompt({
-          userPrompt,
-          analysis,
-          plan,
-          templateMatch,
-          conversationContext: (conversationContext as unknown as ConversationTurn[]) ?? [],
-        });
-
-        const createdData = await callGroqDirectly(groqKey, payload.system, payload.prompt);
-        const parsed = parseManifestPayload(createdData);
-        if (parsed) {
-          return { ok: true, manifest: parsed };
-        }
       }
+
+      if (orchResult.unsupported) {
+        return recordAndReturn({
+          ok: false,
+          unsupported: orchResult.unsupported,
+          error: orchResult.error ?? "Unsupported capability requested.",
+          trace: orchResult.trace,
+          diagnostics: orchResult.diagnostics,
+          tier: "browser",
+        });
+      }
+
+      lastGroqError = orchResult.error ?? "Browser orchestrator failed";
     } catch (err) {
       console.warn("Direct Groq in-browser generation failed:", err);
       lastGroqError = err instanceof Error ? err.message : String(err);
@@ -555,7 +362,7 @@ export async function generateAppWithFallback(
         cloned.app_id = `app-${Date.now()}`;
         const parsed = parseManifestPayload(cloned);
         if (parsed) {
-          return { ok: true, manifest: parsed };
+          return recordAndReturn({ ok: true, manifest: parsed, tier: "template" });
         }
       }
     } catch (err) {
@@ -565,22 +372,24 @@ export async function generateAppWithFallback(
 
   // ── 5. Diagnostic Error Notice ──────────────────────────────────────────────
   if (lastGroqError) {
-    return {
+    return recordAndReturn({
       ok: false,
       error: `LLM generation error: ${lastGroqError}`,
-    };
+      tier: "browser",
+    });
   }
 
   if (remoteNetworkFailed && !groqKey) {
-    return {
+    return recordAndReturn({
       ok: false,
       error:
         "The Supabase Edge Function is not reachable (check VITE_SUPABASE_URL in .env). To build apps locally, run 'npm run dev:mcp' or enter a Groq API key in the /plan screen.",
-    };
+      tier: "edge",
+    });
   }
 
-  return {
+  return recordAndReturn({
     ok: false,
-    error: "Failed to generate app manifest. Please try rephrasing or check your prompt.",
-  };
+    error: "Failed to generate tool manifest. Please try rephrasing or check your prompt.",
+  });
 }

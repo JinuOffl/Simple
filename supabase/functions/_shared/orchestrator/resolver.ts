@@ -94,6 +94,7 @@ export function resolveCapabilities(
     apis,
     requiresRuntimeLlm,
     notes,
+    toolRequirements: [],
   };
 }
 

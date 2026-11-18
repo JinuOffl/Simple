@@ -178,7 +178,7 @@ describe("PlanUsageScreen", () => {
 
     expect(screen.getByText("3 / 3")).toBeTruthy();
     expect(screen.getByText(/88 left/i)).toBeTruthy();
-    expect(screen.getByText(/1 sleeping app/i)).toBeTruthy();
+    expect(screen.getByText(/1 sleeping (app|tool)/i)).toBeTruthy();
     expect(screen.getByText("Quiz")).toBeTruthy();
     expect(screen.getByText("server-verified")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /upgrade/i })).toBeNull();
@@ -199,6 +199,6 @@ describe("PlanUsageScreen", () => {
     const wakeBtn = screen.getByRole("button", { name: "Wake" });
     fireEvent.click(wakeBtn);
 
-    expect(await screen.findByText(/Active app limit reached/i)).toBeTruthy();
+    expect(await screen.findByText(/Active (app|tool) limit reached/i)).toBeTruthy();
   });
 });

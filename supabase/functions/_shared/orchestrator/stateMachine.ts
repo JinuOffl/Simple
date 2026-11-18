@@ -23,6 +23,7 @@ import {
   buildCritiquePrompt,
   buildEditPatchPrompt,
 } from "./prompts.ts";
+import { healManifest } from "./heal.ts";
 
 export interface OrchestratorDependencies {
   llmProvider: LLMProvider;
@@ -161,7 +162,7 @@ export async function runGenerateOrchestrator(
     return {
       ok: false,
       state: "FAILED",
-      error: "Please describe the app or change you want (between 2 and 4000 characters).",
+      error: "Please describe the tool or change you want (between 2 and 4000 characters).",
       trace: makeTrace("FAILED", 0, "invalid_input"),
     };
   }
@@ -199,7 +200,7 @@ export async function runGenerateOrchestrator(
       plan.honestyMessage ?? "This request requires a capability that Simple v2 does not support.";
     const alternative =
       plan.closestAlternative ??
-      "Try asking for an app built with checklists, calculators, quizzes, API lookups, or MCP tools.";
+      "Try asking for a tool built with checklists, calculators, quizzes, API lookups, or MCP tools.";
     return {
       ok: false,
       state: "FAILED",
@@ -302,7 +303,7 @@ export async function runGenerateOrchestrator(
           ok: false,
           state: "FAILED",
           error: `Could not apply a clean edit after ${repairAttempts} repair attempt(s): ${lastErrors[0]}`,
-          diagnostics: { validationErrors: lastErrors },
+          diagnostics: { validationErrors: lastErrors, rawCandidate: lastCandidate },
           trace: makeTrace("FAILED", repairAttempts, "repair_exhausted"),
         };
       }
@@ -328,6 +329,7 @@ export async function runGenerateOrchestrator(
     }
 
     // ── VALIDATE ──────────────────────────────────────────────────────────────
+    candidateRaw = healManifest(candidateRaw, request.existingManifest);
     const validation = await enterState("VALIDATE", attempt, () => {
       const pureResult = validateManifestPure(candidateRaw);
       if (pureResult.kind !== "valid") return pureResult;
@@ -350,7 +352,7 @@ export async function runGenerateOrchestrator(
         ok: false,
         state: "FAILED",
         error: `Manifest validation failed after ${repairAttempts} repair attempt(s): ${lastErrors[0] ?? "invalid manifest"}`,
-        diagnostics: { validationErrors: lastErrors },
+        diagnostics: { validationErrors: lastErrors, rawCandidate: candidateRaw },
         trace: makeTrace("FAILED", repairAttempts, "repair_exhausted"),
       };
     }
@@ -358,7 +360,9 @@ export async function runGenerateOrchestrator(
     const validManifest: ManifestV2Like = validation.manifest;
 
     // ── DRY_RUN ───────────────────────────────────────────────────────────────
-    const dryRun = await enterState("DRY_RUN", attempt, () => runManifestDryRun(validManifest));
+    const dryRun = await enterState("DRY_RUN", attempt, () =>
+      runManifestDryRun(validManifest, { isCreate: !editMode })
+    );
     lastDryRun = dryRun;
 
     if (!dryRun.pass) {
@@ -373,7 +377,7 @@ export async function runGenerateOrchestrator(
         ok: false,
         state: "FAILED",
         error: `Dry-run simulation failed after ${repairAttempts} repair attempt(s): ${dryRun.errors[0] ?? "broken workflow"}`,
-        diagnostics: { validationErrors: dryRun.errors, dryRunReport: dryRun },
+        diagnostics: { validationErrors: dryRun.errors, dryRunReport: dryRun, rawCandidate: candidateRaw },
         trace: makeTrace("FAILED", repairAttempts, "repair_exhausted"),
       };
     }
@@ -420,7 +424,7 @@ export async function runGenerateOrchestrator(
         ok: false,
         state: "FAILED",
         error: `Critique checks did not pass after ${repairAttempts} repair attempt(s): ${lastErrors[0] ?? "mismatch"}`,
-        diagnostics: { dryRunReport: dryRun, critique },
+        diagnostics: { dryRunReport: dryRun, critique, rawCandidate: candidateRaw },
         trace: makeTrace("FAILED", repairAttempts, "repair_exhausted"),
       };
     }

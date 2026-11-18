@@ -4,10 +4,10 @@ import { downloadAppExport, useAppStore } from "@/lib/zustandStore";
 import type { SavedApp } from "@/lib/zustandStore";
 
 const EXAMPLE_PROMPTS = [
-  { emoji: "👗", label: "outfit recommender", prompt: "Create an outfit recommender app that lets me take a photo of my clothes and get a style recommendation" },
-  { emoji: "🎓", label: "feynman tutor",      prompt: "Build a Feynman tutoring app where I pick a topic and it quizzes me with probing questions using voice" },
+  { emoji: "👗", label: "outfit recommender", prompt: "Create an outfit recommender tool that lets me take a photo of my clothes and get a style recommendation" },
+  { emoji: "🎓", label: "feynman tutor",      prompt: "Build a Feynman tutoring tool where I pick a topic and it quizzes me with probing questions using voice" },
   { emoji: "✅", label: "habit tracker",       prompt: "Make a daily habit tracker with a checklist of habits I can check off each day" },
-  { emoji: "🌍", label: "spanish quiz",        prompt: "Create a multiple choice quiz app for learning Spanish verbs with 5 questions" },
+  { emoji: "🌍", label: "spanish quiz",        prompt: "Create a multiple choice quiz tool for learning Spanish verbs with 5 questions" },
 ];
 
 function AppCard({
@@ -63,7 +63,7 @@ function AppCard({
                 e.stopPropagation();
                 onSleep();
               }}
-              title="Put app to sleep"
+              title="Put tool to sleep"
               aria-label={`Sleep ${app.name}`}
               className="px-1 py-0.5 text-[9px] text-n-text3 hover:text-white
                          opacity-60 sm:opacity-0 sm:group-hover:opacity-100
@@ -172,7 +172,7 @@ export function HomeScreen() {
             SIMPLE
           </h1>
           <p className="text-n-text3 text-[9px] uppercase tracking-[0.18em] mt-1.5">
-            {apps.length > 0 ? `${apps.length} app${apps.length !== 1 ? "s" : ""}` : "your mini-apps"}
+            {apps.length > 0 ? `${apps.length} tool${apps.length !== 1 ? "s" : ""}` : "your mini-tools"}
           </p>
         </div>
 
@@ -226,7 +226,7 @@ export function HomeScreen() {
                 }}
                 className="text-[10px] font-mono uppercase tracking-wider text-n-text2 hover:text-white underline"
               >
-                manage plan & sleeping apps →
+                manage plan & sleeping tools →
               </button>
             </div>
             <button
@@ -253,7 +253,7 @@ export function HomeScreen() {
                 className="font-doto text-n-text3 tracking-widest"
                 style={{ fontSize: "22px", fontVariationSettings: "'ROND' 0" }}
               >
-                NO APPS YET
+                NO TOOLS YET
               </p>
               <p className="text-n-text3 text-[10px] uppercase tracking-wider mt-2">
                 tap a prompt below to start

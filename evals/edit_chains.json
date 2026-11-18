@@ -1,0 +1,192 @@
+[
+  {
+    "id": "chain-1-habit-tracker",
+    "name": "Habit Tracker Evolution",
+    "initialBase": "daily-checklist",
+    "initialPrompt": "Create a daily habit tracker",
+    "steps": [
+      {
+        "step": 1,
+        "prompt": "Add a new checklist item 'Drink 2L of water' to the daily tasks",
+        "expect": { "requiredComponents": ["checklist"] }
+      },
+      {
+        "step": 2,
+        "prompt": "Rename the app to 'Morning Routine Tracker' and change the header card title to 'Daily Focus'",
+        "expect": { "requiredComponents": ["card"] }
+      },
+      {
+        "step": 3,
+        "prompt": "Add a weekly completion bar chart to visualize progress",
+        "expect": { "requiredComponents": ["chart"] }
+      },
+      {
+        "step": 4,
+        "prompt": "Add a 25-minute focus countdown timer to the screen",
+        "expect": { "requiredComponents": ["timer"] }
+      },
+      {
+        "step": 5,
+        "prompt": "Add a button 'Log Evening Wrap-up' wired to save_data for completion status",
+        "expect": { "requiredComponents": ["button"] }
+      },
+      {
+        "step": 6,
+        "prompt": "Remove the chart from the screen to keep the layout minimal",
+        "expect": { "requiredComponents": ["checklist", "timer"] }
+      }
+    ]
+  },
+  {
+    "id": "chain-2-weather-forecast",
+    "name": "Travel Weather Companion",
+    "initialBase": "weather-forecast",
+    "initialPrompt": "Create a live weather checker",
+    "steps": [
+      {
+        "step": 1,
+        "prompt": "Change the forecast city from London to Paris in the weather fetch action",
+        "expect": { "requiredComponents": ["card"] }
+      },
+      {
+        "step": 2,
+        "prompt": "Add a packing checklist component with items 'Raincoat' and 'Compact Umbrella'",
+        "expect": { "requiredComponents": ["checklist"] }
+      },
+      {
+        "step": 3,
+        "prompt": "Add an hourly forecast temperature line chart",
+        "expect": { "requiredComponents": ["chart"] }
+      },
+      {
+        "step": 4,
+        "prompt": "Add a secondary button 'Check Tokyo' wired to fetch Tokyo weather into the weather card",
+        "expect": { "requiredComponents": ["button"] }
+      },
+      {
+        "step": 5,
+        "prompt": "Add a text note component at the bottom: 'Forecast updated live via Open-Meteo.'",
+        "expect": { "requiredComponents": ["text"] }
+      },
+      {
+        "step": 6,
+        "prompt": "Rename the app to 'World Travel Weather' and update the main screen title to 'Traveler Hub'",
+        "expect": { "requiredComponents": ["card"] }
+      }
+    ]
+  },
+  {
+    "id": "chain-3-feynman-tutor",
+    "name": "Interactive Biology Tutor",
+    "initialBase": "feynman-study-tutor",
+    "initialPrompt": "Create a Feynman study tutor",
+    "steps": [
+      {
+        "step": 1,
+        "prompt": "Add a 45-minute countdown timer with label 'Deep Study Block'",
+        "expect": { "requiredComponents": ["timer"] }
+      },
+      {
+        "step": 2,
+        "prompt": "Add a stat metric tile showing 'Mastered Concepts: 5'",
+        "expect": { "requiredComponents": ["stat"] }
+      },
+      {
+        "step": 3,
+        "prompt": "Update the tutor persona prompt to focus specifically on cellular biology and genetic concepts",
+        "expect": { "requiredComponents": ["conversation_loop"] }
+      },
+      {
+        "step": 4,
+        "prompt": "Add a study topics checklist with items 'Cell Respiration', 'Photosynthesis', and 'Mitosis'",
+        "expect": { "requiredComponents": ["checklist"] }
+      },
+      {
+        "step": 5,
+        "prompt": "Add a text note 'Tip: Explain each step simply without using jargon'",
+        "expect": { "requiredComponents": ["text"] }
+      },
+      {
+        "step": 6,
+        "prompt": "Rename the app to 'Biology Master Tutor' and change the icon to '🧬'",
+        "expect": { "requiredComponents": ["conversation_loop"] }
+      }
+    ]
+  },
+  {
+    "id": "chain-4-smart-home",
+    "name": "Home Automation Dashboard",
+    "initialBase": "smart-home-light",
+    "initialPrompt": "Create a smart light controller",
+    "steps": [
+      {
+        "step": 1,
+        "prompt": "Add a button 'Turn Off All' wired to home_assistant light.turn_off with living room entity",
+        "expect": { "requiredComponents": ["button"] }
+      },
+      {
+        "step": 2,
+        "prompt": "Add a range slider for brightness level from 0 to 100 with default 80 and save_to 'light_brightness'",
+        "expect": { "requiredComponents": ["slider"] }
+      },
+      {
+        "step": 3,
+        "prompt": "Change the status card title to 'Living Room Automation'",
+        "expect": { "requiredComponents": ["card"] }
+      },
+      {
+        "step": 4,
+        "prompt": "Add a toggle switch for 'Night Mode' saving to 'night_mode_state'",
+        "expect": { "requiredComponents": ["toggle"] }
+      },
+      {
+        "step": 5,
+        "prompt": "Add a temperature stat tile displaying value 22 with unit '°C' and label 'Room Temp'",
+        "expect": { "requiredComponents": ["stat"] }
+      },
+      {
+        "step": 6,
+        "prompt": "Rename the app to 'Home Automation Hub' and change the icon to '🏠'",
+        "expect": { "requiredComponents": ["toggle"] }
+      }
+    ]
+  },
+  {
+    "id": "chain-5-pocket-calculator",
+    "name": "Smart Bill & Tip Calculator",
+    "initialBase": "pocket-calculator",
+    "initialPrompt": "Create a tactile pocket calculator",
+    "steps": [
+      {
+        "step": 1,
+        "prompt": "Add a tip percentage slider with min 10, max 30, and default 18 saving to 'tip_pct'",
+        "expect": { "requiredComponents": ["slider"] }
+      },
+      {
+        "step": 2,
+        "prompt": "Add an instructional text note 'Enter bill total and tip percentage to calculate split'",
+        "expect": { "requiredComponents": ["text"] }
+      },
+      {
+        "step": 3,
+        "prompt": "Change the screen title to 'Bill Split Breakdown'",
+        "expect": { "requiredComponents": ["calculator"] }
+      },
+      {
+        "step": 4,
+        "prompt": "Add a ghost button 'Clear Calculation' to reset inputs",
+        "expect": { "requiredComponents": ["button"] }
+      },
+      {
+        "step": 5,
+        "prompt": "Add a card titled 'Split Summary' with body 'Total per person will show here'",
+        "expect": { "requiredComponents": ["card"] }
+      },
+      {
+        "step": 6,
+        "prompt": "Rename the app to 'Smart Bill Splitter' and change the icon to '💵'",
+        "expect": { "requiredComponents": ["calculator"] }
+      }
+    ]
+  }
+]

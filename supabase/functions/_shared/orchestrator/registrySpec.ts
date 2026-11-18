@@ -1,4 +1,4 @@
-import type { Permission } from "./types.ts";
+import type { ActionKind, Permission } from "./types.ts";
 
 /**
  * Pure registry & capability metadata shared by the generation orchestrator
@@ -304,6 +304,157 @@ export const VALID_LOCAL_OPERATIONS: ReadonlySet<string> = new Set([
   "get_current_time",
   "format_date",
 ]);
+
+export interface ActionContractSpec {
+  readonly kind: ActionKind;
+  readonly requiredFields: readonly string[];
+  readonly optionalFields: readonly string[];
+  readonly summary: string;
+  readonly example: Record<string, unknown>;
+}
+
+export const ACTION_CONTRACT: readonly ActionContractSpec[] = [
+  {
+    kind: "llm_call",
+    requiredFields: ["id", "kind", "prompt_template", "render_result_into"],
+    optionalFields: ["credit_cost_class", "output_key"],
+    summary:
+      "Execute an LLM prompt; prompt_template may use {{key}} placeholders from appData/props; render_result_into must target a screen node id.",
+    example: {
+      id: "a_generate_quote",
+      kind: "llm_call",
+      prompt_template: "Give an inspiring quote about {{topic}}.",
+      render_result_into: "quote_card",
+    },
+  },
+  {
+    kind: "local_compute",
+    requiredFields: ["id", "kind", "operation", "input_from", "render_result_into"],
+    optionalFields: ["output_key"],
+    summary:
+      "Deterministic computation on device; operation in allowed list (add, subtract, multiply, divide, concat, count, get_current_time, format_date); input_from provides keys; render_result_into targets a node id.",
+    example: {
+      id: "a_sum_values",
+      kind: "local_compute",
+      operation: "add",
+      input_from: ["item_a", "item_b"],
+      render_result_into: "total_display",
+    },
+  },
+  {
+    kind: "api_fetch",
+    requiredFields: ["id", "kind", "api", "params", "render_result_into"],
+    optionalFields: ["output_key", "credit_cost_class"],
+    summary:
+      "Call an allowlisted server API (weather, currency, timezone, dictionary, country, trivia) with params; render_result_into targets a node id.",
+    example: {
+      id: "a_fetch_weather",
+      kind: "api_fetch",
+      api: "weather",
+      params: { city: "London" },
+      render_result_into: "weather_card",
+    },
+  },
+  {
+    kind: "mcp_call",
+    requiredFields: ["id", "kind", "connector_id", "tool_name"],
+    optionalFields: ["params", "input_from", "render_result_into", "output_key", "credit_cost_class"],
+    summary:
+      "Execute an MCP tool; connector_id and tool_name must be declared in manifest.connectors.",
+    example: {
+      id: "a_toggle_light",
+      kind: "mcp_call",
+      connector_id: "home_assistant",
+      tool_name: "light.toggle",
+      params: { entity_id: "light.living_room" },
+    },
+  },
+  {
+    kind: "navigate",
+    requiredFields: ["id", "kind", "params"],
+    optionalFields: [],
+    summary:
+      "Navigate to a different screen; params.target must match an existing screen id.",
+    example: {
+      id: "a_goto_settings",
+      kind: "navigate",
+      params: { target: "settings_screen" },
+    },
+  },
+  {
+    kind: "save_data",
+    requiredFields: ["id", "kind", "input_from"],
+    optionalFields: ["render_result_into", "output_key"],
+    summary:
+      "Persist state keys locally; input_from must be a non-empty array of appData keys.",
+    example: {
+      id: "a_save_prefs",
+      kind: "save_data",
+      input_from: ["username", "theme"],
+    },
+  },
+  {
+    kind: "record_insert",
+    requiredFields: ["id", "kind", "collection"],
+    optionalFields: ["input_from", "render_result_into"],
+    summary:
+      "Insert a record into data collection; collection must exist in data.collections.",
+    example: {
+      id: "a_insert_task",
+      kind: "record_insert",
+      collection: "tasks",
+      input_from: ["task_title"],
+    },
+  },
+  {
+    kind: "record_update",
+    requiredFields: ["id", "kind", "collection"],
+    optionalFields: ["params", "input_from", "render_result_into"],
+    summary:
+      "Update a record in data collection; collection must exist in data.collections.",
+    example: {
+      id: "a_update_task",
+      kind: "record_update",
+      collection: "tasks",
+      params: { completed: true },
+    },
+  },
+  {
+    kind: "conversation_loop",
+    requiredFields: ["id", "kind", "persona_prompt"],
+    optionalFields: ["render_result_into", "output_key", "credit_cost_class"],
+    summary:
+      "Multi-turn conversational AI interaction driven by persona_prompt.",
+    example: {
+      id: "a_tutor_loop",
+      kind: "conversation_loop",
+      persona_prompt: "You are a patient Feynman study tutor.",
+    },
+  },
+];
+
+export function buildActionContractPrompt(): string {
+  const contractLines = ACTION_CONTRACT.map((item) => {
+    const req = item.requiredFields.join(", ");
+    const opt =
+      item.optionalFields.length > 0 ? ` | optional: [${item.optionalFields.join(", ")}]` : "";
+    return `- ${item.kind}: required: [${req}]${opt} — ${item.summary}\n  example: ${JSON.stringify(
+      item.example
+    )}`;
+  });
+
+  return [
+    "ACTION SPECIFICATIONS (every action must have id and kind, plus listed fields):",
+    ...contractLines,
+    "",
+    "WIRING & INTEGRITY CONTRACT:",
+    "- `bind`: On a node, binds component prop display to dynamic app state or previous action outputs.",
+    "- `on_click`: On interactive nodes (e.g. button, toggle), must reference the exact `id` of an action defined in `actions`.",
+    "- `render_result_into`: On an action, must reference the exact `id` of a target node in `screens` where action output should render.",
+    "- `save_to`: In node props (e.g. toggle, slider, image_capture, mic_recorder), specifies the appData key where user input is saved.",
+    "- Unique IDs: Every screen id, node id, and action id MUST be globally unique across the manifest.",
+  ].join("\n");
+}
 
 export function buildRegistryCapabilityPrompt(includeStubs = false): string {
   const entries = includeStubs

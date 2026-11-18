@@ -135,7 +135,7 @@ describe("BuilderScreen Save-Time Consent", () => {
 
     expect(mockSaveApp).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeTruthy();
-    expect(screen.getByText(/Review App Capabilities Before Saving/i)).toBeTruthy();
+    expect(screen.getByText(/Review (App|Tool) Capabilities Before Saving/i)).toBeTruthy();
     expect(screen.getByText("notifications")).toBeTruthy();
     expect(screen.getByText("home_assistant")).toBeTruthy();
     expect(screen.getByText("lock.unlock")).toBeTruthy();

@@ -81,7 +81,7 @@ export function InviteJoinScreen() {
       if (data?.success && data?.app_id) {
         navigate(`/app/${data.app_id}`);
       } else {
-        setError("Failed to join app.");
+        setError("Failed to join tool.");
         setAccepting(false);
       }
     } catch (err) {
@@ -149,10 +149,10 @@ export function InviteJoinScreen() {
             </div>
 
             <p className="text-[11px] text-n-text3 font-mono leading-relaxed border-t border-n-border pt-3">
-              You are invited to collaborate on this app. You will be able to{" "}
+              You are invited to collaborate on this tool. You will be able to{" "}
               {inviteInfo.role === "editor"
                 ? "use, edit, and contribute to shared collections."
-                : "view live app data in real time."}
+                : "view live tool data in real time."}
             </p>
 
             <div className="pt-2 flex flex-col gap-2">
@@ -162,7 +162,7 @@ export function InviteJoinScreen() {
                 onClick={handleAccept}
                 className="btn-primary w-full"
               >
-                {accepting ? "Joining…" : "Accept & Open App"}
+                {accepting ? "Joining…" : "Accept & Open Tool"}
               </button>
               <button
                 type="button"

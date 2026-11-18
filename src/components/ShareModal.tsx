@@ -218,7 +218,7 @@ export function ShareModal({ appId, appName, isOwner, onClose }: ShareModalProps
             <p className="text-xs text-n-text3 py-2 text-center font-mono">Loading…</p>
           ) : members.length === 0 ? (
             <p className="text-xs text-n-text3 py-2 text-center font-mono">
-              Only you have access to this app.
+              Only you have access to this tool.
             </p>
           ) : (
             <div className="divide-y divide-n-border border border-n-border rounded-sm overflow-hidden bg-n-surface">

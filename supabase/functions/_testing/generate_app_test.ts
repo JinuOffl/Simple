@@ -1,6 +1,8 @@
 import { assertEquals, assertExists } from "jsr:@std/assert@1";
 import { resolveLlmRuntimeConfig } from "../_shared/orchestrator/llmConfig.ts";
 import { VercelAiFallbackProvider } from "../_shared/llmProvider.ts";
+import { validateManifestDeno } from "../_shared/manifestValidator.ts";
+import { encryptConnectionSecret } from "../_shared/secretCrypto.ts";
 import { handleGenerateApp } from "../generate-app/handler.ts";
 import { STARTER_TEMPLATES } from "../_shared/orchestrator/templates.ts";
 
@@ -237,4 +239,211 @@ Deno.test("handleGenerateApp enforces auth and 402 credits when Supabase service
   const paywallJson = await paywallRes.json();
   assertEquals(paywallJson.remaining_credits, 1);
 });
+
+Deno.test("validateManifestDeno accepts shared:false and image_ref field type in data.collections", () => {
+  const manifest = {
+    schema_version: 2,
+    app_id: "test-app-parity",
+    name: "Parity App",
+    icon: "📷",
+    permissions: [],
+    connectors: [],
+    data: {
+      collections: [
+        {
+          name: "t",
+          shared: false,
+          fields: [{ name: "p", type: "image_ref" }],
+        },
+      ],
+    },
+    screens: [{ id: "main", title: "Main", nodes: [] }],
+    actions: [],
+  };
+
+  const res = validateManifestDeno(manifest);
+  assertEquals(res.kind, "valid");
+});
+
+Deno.test("validateManifestDeno accepts valid tool field and preserves backwards compatibility", () => {
+  const base = {
+    schema_version: 2,
+    app_id: "test-tool-meta",
+    name: "Tool With Meta",
+    icon: "🧰",
+    permissions: [],
+    connectors: [],
+    data: { collections: [] },
+    screens: [{ id: "main", title: "Main", nodes: [] }],
+    actions: [],
+  };
+
+  // 1. Without tool field (backward compatible)
+  const withoutTool = validateManifestDeno(base);
+  assertEquals(withoutTool.kind, "valid");
+
+  // 2. With valid tool size and requires
+  const withTool = validateManifestDeno({
+    ...base,
+    tool: {
+      size: "4x2",
+      requires: [{ key_id: "api_key", label: "External API Key" }],
+    },
+  });
+  assertEquals(withTool.kind, "valid");
+
+  // 3. With invalid tool size
+  const withInvalidSize = validateManifestDeno({
+    ...base,
+    tool: { size: "invalid_size" },
+  });
+  assertEquals(withInvalidSize.kind, "invalid");
+});
+
+Deno.test("handleGenerateApp rejects non-v2 existing_manifest with status 400", async () => {
+  const req = new Request("http://localhost/generate-app", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_prompt: "Add a button",
+      existing_manifest: {
+        schema_version: 1,
+        app_id: "legacy-v1-app",
+        name: "Legacy App",
+      },
+    }),
+  });
+
+  const res = await handleGenerateApp(req, {
+    getEnv: () => undefined,
+  });
+
+  assertEquals(res.status, 400);
+  const json = await res.json();
+  assertEquals(json.error.includes("schema_version must be 2"), true);
+});
+
+Deno.test("handleGenerateApp uses BYOK key as Authorization bearer for the primary endpoint", async () => {
+  const encryptionKey = "test-encryption-key-for-byok-test-32b";
+  const userByokKey = "gsk_custom_user_byok_key_12345";
+  const encrypted = await encryptConnectionSecret(userByokKey, encryptionKey);
+
+  const envMap: Record<string, string> = {
+    SUPABASE_URL: "https://test.supabase.co",
+    SUPABASE_ANON_KEY: "anon-test-key",
+    SUPABASE_SERVICE_ROLE_KEY: "service-role-test-key",
+    CONNECTION_ENCRYPTION_KEY: encryptionKey,
+  };
+
+  const capturedAuthHeaders: string[] = [];
+
+  const mockFetch: typeof fetch = async (input, init) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+    if (url.endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({ id: "user-byok-1" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (url.includes("/rest/v1/byok_secrets")) {
+      return new Response(
+        JSON.stringify([{ encrypted_secret: encrypted, provider: "groq" }]),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (url.includes("/rest/v1/generation_jobs")) {
+      return new Response(JSON.stringify({}), { status: 201 });
+    }
+
+    if (url.includes("api.groq.com")) {
+      const headers = init?.headers;
+      let auth = "";
+      if (headers instanceof Headers) {
+        auth = headers.get("Authorization") ?? "";
+      } else if (Array.isArray(headers)) {
+        auth = headers.find(([k]) => k.toLowerCase() === "authorization")?.[1] ?? "";
+      } else if (headers && typeof headers === "object") {
+        auth = (headers as Record<string, string>)["Authorization"] ?? (headers as Record<string, string>)["authorization"] ?? "";
+      }
+      capturedAuthHeaders.push(auth);
+
+      const body = typeof init?.body === "string" ? JSON.parse(init.body) : {};
+      const messagesText = JSON.stringify(body.messages ?? "");
+      if (messagesText.includes("semantic QA reviewer")) {
+        return makeOpenAiJsonResponse({ pass: true, issues: [] });
+      }
+      return makeOpenAiJsonResponse(STARTER_TEMPLATES[0].manifest);
+    }
+
+    throw new Error(`Unexpected fetch URL: ${url}`);
+  };
+
+  const res = await handleGenerateApp(
+    new Request("http://localhost/generate-app", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer user-token",
+      },
+      body: JSON.stringify({ user_prompt: "Create a world clock app" }),
+    }),
+    {
+      getEnv: (k) => envMap[k],
+      baseFetch: mockFetch,
+    }
+  );
+
+  assertEquals(res.status, 200);
+  assertEquals(capturedAuthHeaders.length > 0, true);
+  assertEquals(capturedAuthHeaders[0], `Bearer ${userByokKey}`);
+});
+
+Deno.test("VercelAiFallbackProvider passes response_format json_object for generation and critique roles but not runtime", async () => {
+  const capturedBodies: Array<Record<string, unknown>> = [];
+  const mockFetch: typeof fetch = async (_input, init) => {
+    if (init?.body && typeof init.body === "string") {
+      capturedBodies.push(JSON.parse(init.body));
+    }
+    return makeOpenAiJsonResponse({ ok: true });
+  };
+
+  const runtimeConfig = resolveLlmRuntimeConfig((k) => {
+    if (k === "GROQ_API_KEY") return "test-groq-key";
+    return undefined;
+  });
+
+  const provider = new VercelAiFallbackProvider({ runtimeConfig, baseFetch: mockFetch });
+
+  // 1. generation role
+  await provider.completeJson({
+    role: "generation",
+    system: "sys",
+    prompt: "gen",
+  });
+
+  // 2. critique role
+  await provider.completeJson({
+    role: "critique",
+    system: "sys",
+    prompt: "crit",
+  });
+
+  // 3. runtime role (messages)
+  await provider.completeMessages({
+    role: "runtime",
+    messages: [{ role: "user", content: "hello" }],
+  });
+
+  assertEquals(capturedBodies.length, 3);
+  assertEquals(capturedBodies[0].response_format, { type: "json_object" });
+  assertEquals(capturedBodies[1].response_format, { type: "json_object" });
+  assertEquals(capturedBodies[2].response_format, undefined);
+});
+
+
+
+
 

@@ -77,3 +77,68 @@ export async function consumeCreditsRpc({
   };
 }
 
+export interface RefundCreditsParams {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  userId: string;
+  cost: number;
+  actionKind: string;
+  appId?: string;
+  fetchFn?: typeof fetch;
+}
+
+/**
+ * Calls Postgres `refund_credits` RPC using service_role credentials.
+ */
+export async function refundCreditsRpc({
+  supabaseUrl,
+  serviceRoleKey,
+  userId,
+  cost,
+  actionKind,
+  appId,
+  fetchFn = fetch,
+}: RefundCreditsParams): Promise<CreditConsumeOutcome> {
+  const endpoint = `${supabaseUrl.replace(/\/+$/, "")}/rest/v1/rpc/refund_credits`;
+
+  const res = await fetchFn(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+    body: JSON.stringify({
+      p_user_id: userId,
+      p_cost: cost,
+      p_action_kind: actionKind,
+      p_app_id: appId ?? null,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`refund_credits RPC failed (${res.status}): ${errText}`);
+  }
+
+  const rows = (await res.json()) as Array<{
+    refunded: boolean;
+    remaining_credits: number;
+    credits_used: number;
+    monthly_credit_limit: number;
+  }>;
+
+  const row = Array.isArray(rows) ? rows[0] : undefined;
+  if (!row) {
+    throw new Error("refund_credits RPC returned an empty or invalid response");
+  }
+
+  return {
+    allowed: true,
+    remainingCredits: row.remaining_credits,
+    creditsUsed: row.credits_used,
+    monthlyCreditLimit: row.monthly_credit_limit,
+  };
+}
+
+

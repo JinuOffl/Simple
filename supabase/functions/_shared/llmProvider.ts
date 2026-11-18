@@ -124,12 +124,19 @@ export class VercelAiFallbackProvider implements LLMProvider {
     const maxOutputTokens = args.maxTokens ?? selectMaxTokens(endpoint, args.role);
     const temperature = args.temperature ?? selectTemperature(endpoint, args.role);
 
+    const isJsonRole = args.role === "generation" || args.role === "critique";
+    const providerKey = endpoint.provider.split(".")[0].trim();
+    const providerOptions = isJsonRole
+      ? { [providerKey]: { response_format: { type: "json_object" } } }
+      : undefined;
+
     const result = args.messages
       ? await generateText({
           model: compat(modelId),
           messages: args.messages,
           temperature,
           maxOutputTokens,
+          providerOptions,
         })
       : await generateText({
           model: compat(modelId),
@@ -137,6 +144,7 @@ export class VercelAiFallbackProvider implements LLMProvider {
           prompt: args.prompt ?? "",
           temperature,
           maxOutputTokens,
+          providerOptions,
         });
 
     return { text: result.text, model: modelId };

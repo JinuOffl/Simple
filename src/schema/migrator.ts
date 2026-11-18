@@ -75,7 +75,7 @@ export function migrateV1toV2(v1: Manifest): ManifestV2 {
  * Check if a raw manifest object needs migration.
  * Returns true if schema_version is missing or < 2.
  */
-export function needsMigration(manifest: unknown): boolean {
+export function needsMigration(manifest: unknown): manifest is Manifest {
   if (manifest === null || typeof manifest !== "object") {
     return true;
   }

@@ -468,7 +468,14 @@ function buildSimulatedManifest(userPrompt: string, isRepair: boolean): Manifest
   return m;
 }
 
+function extractUserEditRequest(fullPrompt: string): string {
+  const match = fullPrompt.match(/Edit request:\s*"([^"]+)"/i) || fullPrompt.match(/Edit request:\s*(.+?)(?:\n|$)/i);
+  return (match ? match[1] : fullPrompt).toLowerCase();
+}
+
 function buildSimulatedEditPatch(prompt: string, isRepair: boolean): { operations: JsonPatchOperation[] } {
+  const lower = extractUserEditRequest(prompt);
+
   if (!isRepair && prompt.includes("[REPAIR_SIM:ROOT_PATCH]")) {
     // Deliberately try forbidden root replacement on first pass to test minimal patch rejection -> repair
     const m = structuredClone(
@@ -479,38 +486,275 @@ function buildSimulatedEditPatch(prompt: string, isRepair: boolean): { operation
     };
   }
 
-  if (prompt.toLowerCase().includes("rename") || prompt.toLowerCase().includes("tokyo forecast")) {
+  // 1. Removals
+  if (lower.includes("remove the chart") || lower.includes("remove chart")) {
+    return {
+      operations: [{ op: "remove", path: "/screens/0/nodes/2" }],
+    };
+  }
+
+  // 2. Specific item updates
+  if (lower.includes("drink 2l") || lower.includes("water")) {
     return {
       operations: [
-        { op: "replace", path: "/name", value: "Tokyo Forecast" },
-        { op: "replace", path: "/screens/0/nodes/0/props/title", value: "Tokyo Live Weather" },
+        {
+          op: "replace",
+          path: "/screens/0/nodes/1/props/items",
+          value: [
+            "Review top 3 priorities",
+            "Complete deep work block",
+            "Log evening wrap-up",
+            "Drink 2L of water",
+          ],
+        },
       ],
     };
   }
 
-  if (prompt.toLowerCase().includes("checklist")) {
+  // 3. Renames and icon updates
+  if (lower.includes("rename") || lower.includes("tokyo forecast")) {
+    const newName = lower.includes("morning routine")
+      ? "Morning Routine Tracker"
+      : lower.includes("world travel")
+      ? "World Travel Weather"
+      : lower.includes("biology master")
+      ? "Biology Master Tutor"
+      : lower.includes("home automation")
+      ? "Home Automation Hub"
+      : lower.includes("bill splitter")
+      ? "Smart Bill Splitter"
+      : "Tokyo Forecast";
+
+    const ops: JsonPatchOperation[] = [{ op: "replace", path: "/name", value: newName }];
+    if (lower.includes("daily focus")) {
+      ops.push({ op: "replace", path: "/screens/0/nodes/0/props/title", value: "Daily Focus" });
+    } else if (lower.includes("traveler hub")) {
+      ops.push({ op: "replace", path: "/screens/0/title", value: "Traveler Hub" });
+    } else if (lower.includes("🧬")) {
+      ops.push({ op: "replace", path: "/icon", value: "🧬" });
+    } else if (lower.includes("🏠")) {
+      ops.push({ op: "replace", path: "/icon", value: "🏠" });
+    } else if (lower.includes("💵")) {
+      ops.push({ op: "replace", path: "/icon", value: "💵" });
+    }
+    return { operations: ops };
+  }
+
+  // 4. Action parameter changes
+  if (lower.includes("paris")) {
+    return {
+      operations: [{ op: "replace", path: "/actions/0/params/city", value: "Paris" }],
+    };
+  }
+
+  // 5. Persona prompt changes
+  if (lower.includes("persona prompt") || lower.includes("cellular biology")) {
+    return {
+      operations: [
+        {
+          op: "replace",
+          path: "/screens/0/nodes/1/props/persona_prompt",
+          value: "You are a concise biology professor specializing in cellular biology and genetics.",
+        },
+        {
+          op: "replace",
+          path: "/actions/0/persona_prompt",
+          value: "You are a concise biology professor specializing in cellular biology and genetics.",
+        },
+      ],
+    };
+  }
+
+  // 6. Title changes
+  if (lower.includes("bill split breakdown")) {
+    return {
+      operations: [{ op: "replace", path: "/screens/0/title", value: "Bill Split Breakdown" }],
+    };
+  }
+  if (lower.includes("living room automation")) {
+    return {
+      operations: [{ op: "replace", path: "/screens/0/nodes/1/props/title", value: "Living Room Automation" }],
+    };
+  }
+
+  // 7. Component additions
+  if (lower.includes("chart")) {
     return {
       operations: [
         {
           op: "add",
           path: "/screens/0/nodes/-",
           value: {
-            id: "packing_checklist",
-            type: "checklist",
-            props: { items: ["Umbrella", "Rain jacket"] },
+            id: lower.includes("hourly") ? "hourly_chart" : "weekly_chart",
+            type: "chart",
+            props: {
+              chart_type: lower.includes("hourly") ? "line" : "bar",
+              labels: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+              datasets: [{ label: "Progress", data: [4, 5, 3, 5, 4] }],
+              title: lower.includes("hourly") ? "Hourly Temperature" : "Weekly Completion",
+            },
           },
         },
       ],
     };
   }
 
-  if (prompt.toLowerCase().includes("intro text") || prompt.toLowerCase().includes("split")) {
+  if (lower.includes("timer")) {
     return {
       operations: [
         {
-          op: "replace",
-          path: "/screens/0/nodes/0/props/content",
-          value: "Quick Split Calculator",
+          op: "add",
+          path: "/screens/0/nodes/-",
+          value: {
+            id: lower.includes("study") ? "study_timer" : "focus_timer",
+            type: "timer",
+            props: {
+              duration_seconds: lower.includes("45") ? 2700 : 1500,
+              label: lower.includes("deep study") ? "Deep Study Block" : "Focus Session",
+              auto_start: false,
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  if (lower.includes("stat") && !lower.includes("status")) {
+    return {
+      operations: [
+        {
+          op: "add",
+          path: "/screens/0/nodes/-",
+          value: {
+            id: lower.includes("temp") ? "temp_stat" : "mastery_stat",
+            type: "stat",
+            props: {
+              label: lower.includes("temp") ? "Room Temp" : "Mastered Concepts",
+              value: lower.includes("temp") ? 22 : 5,
+              unit: lower.includes("temp") ? "°C" : "concepts",
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  if (lower.includes("slider")) {
+    return {
+      operations: [
+        {
+          op: "add",
+          path: "/screens/0/nodes/-",
+          value: {
+            id: lower.includes("tip") ? "tip_slider" : "brightness_slider",
+            type: "slider",
+            props: {
+              label: lower.includes("tip") ? "Tip Percentage" : "Brightness Level",
+              min: lower.includes("tip") ? 10 : 0,
+              max: lower.includes("tip") ? 30 : 100,
+              step: lower.includes("tip") ? 1 : 5,
+              default_value: lower.includes("tip") ? 18 : 80,
+              save_to: lower.includes("tip") ? "tip_pct" : "light_brightness",
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  if (lower.includes("toggle") || lower.includes("night mode")) {
+    return {
+      operations: [
+        {
+          op: "add",
+          path: "/screens/0/nodes/-",
+          value: {
+            id: "night_mode_toggle",
+            type: "toggle",
+            props: { label: "Night Mode", default_value: false, save_to: "night_mode_state" },
+          },
+        },
+      ],
+    };
+  }
+
+  if (lower.includes("card")) {
+    return {
+      operations: [
+        {
+          op: "add",
+          path: "/screens/0/nodes/-",
+          value: {
+            id: "summary_card",
+            type: "card",
+            props: { title: "Split Summary", body: "Total per person will show here" },
+          },
+        },
+      ],
+    };
+  }
+
+  if (lower.includes("button") || lower.includes("log evening") || lower.includes("check tokyo") || lower.includes("turn off all") || lower.includes("clear calculation")) {
+    const btnId = lower.includes("tokyo")
+      ? "check_tokyo_btn"
+      : lower.includes("evening")
+      ? "log_evening_btn"
+      : lower.includes("turn off")
+      ? "all_off_btn"
+      : "clear_btn";
+
+    return {
+      operations: [
+        {
+          op: "add",
+          path: "/screens/0/nodes/-",
+          value: {
+            id: btnId,
+            type: "button",
+            props: { label: lower.includes("clear") ? "Clear Calculation" : "Run Action", variant: "primary" },
+          },
+        },
+      ],
+    };
+  }
+
+  if (lower.includes("checklist")) {
+    return {
+      operations: [
+        {
+          op: "add",
+          path: "/screens/0/nodes/-",
+          value: {
+            id: lower.includes("topics") ? "topics_checklist" : "packing_checklist",
+            type: "checklist",
+            props: {
+              items: lower.includes("topics")
+                ? ["Cell Respiration", "Photosynthesis", "Mitosis"]
+                : ["Raincoat", "Compact Umbrella"],
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  if (lower.includes("text") || lower.includes("note") || lower.includes("tip:") || lower.includes("forecast updated") || lower.includes("enter bill")) {
+    return {
+      operations: [
+        {
+          op: "add",
+          path: "/screens/0/nodes/-",
+          value: {
+            id: lower.includes("open-meteo") ? "forecast_note" : lower.includes("bill") ? "instructions_note" : "study_tip",
+            type: "text",
+            props: {
+              content: lower.includes("open-meteo")
+                ? "Forecast updated live via Open-Meteo."
+                : lower.includes("bill")
+                ? "Enter bill total and tip percentage to calculate split"
+                : "Tip: Explain each step simply without using jargon",
+            },
+          },
         },
       ],
     };

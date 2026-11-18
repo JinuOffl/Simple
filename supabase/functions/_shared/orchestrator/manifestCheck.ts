@@ -19,6 +19,8 @@ const VALID_ACTION_KINDS = new Set([
   "conversation_loop",
 ]);
 
+const VALID_TOOL_SIZES = new Set(["1x1", "2x1", "2x2", "4x2"]);
+
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
@@ -90,6 +92,44 @@ export function validateManifestPure(raw: unknown): ValidationResult {
 
   if (!Array.isArray(raw.actions)) {
     errors.push("actions must be an array.");
+  }
+
+  if (raw.tool !== undefined) {
+    if (!isPlainObject(raw.tool)) {
+      errors.push("tool must be a plain object.");
+    } else {
+      const toolObj = raw.tool as Record<string, unknown>;
+      if (
+        toolObj.size !== undefined &&
+        (typeof toolObj.size !== "string" || !VALID_TOOL_SIZES.has(toolObj.size))
+      ) {
+        errors.push(
+          `tool.size must be one of "1x1", "2x1", "2x2", "4x2" (got ${JSON.stringify(toolObj.size)}).`
+        );
+      }
+      if (toolObj.requires !== undefined) {
+        if (!Array.isArray(toolObj.requires)) {
+          errors.push("tool.requires must be an array.");
+        } else {
+          for (let i = 0; i < toolObj.requires.length; i++) {
+            const req = toolObj.requires[i];
+            if (!isPlainObject(req)) {
+              errors.push(`tool.requires[${i}] must be a plain object.`);
+              continue;
+            }
+            if (typeof req.key_id !== "string" || req.key_id.trim().length === 0) {
+              errors.push(`tool.requires[${i}].key_id must be a non-empty string.`);
+            }
+            if (typeof req.label !== "string" || req.label.trim().length === 0) {
+              errors.push(`tool.requires[${i}].label must be a non-empty string.`);
+            }
+            if (req.help_url !== undefined && typeof req.help_url !== "string") {
+              errors.push(`tool.requires[${i}].help_url must be a string.`);
+            }
+          }
+        }
+      }
+    }
   }
 
   if (errors.length > 0) {

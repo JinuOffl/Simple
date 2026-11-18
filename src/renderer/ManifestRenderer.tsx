@@ -19,6 +19,15 @@ interface ManifestRendererProps {
  * Normalizes v1 manifests via migrateV1toV2 and delegates all node rendering
  * to COMPONENT_REGISTRY entries.
  */
+function djb2Hash(str: string): string {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return (hash >>> 0).toString(36);
+}
+
 export function ManifestRenderer({
   manifest,
   appData = {},
@@ -159,7 +168,7 @@ export function ManifestRenderer({
 
         return (
           <EntryComponent
-            key={node.id}
+            key={`${node.id}:${djb2Hash(JSON.stringify(node.props ?? {}))}`}
             {...((node.props ?? {}) as Record<string, unknown>)}
             id={node.id}
             bindValue={ctx.bindValue}

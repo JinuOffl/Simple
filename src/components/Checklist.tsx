@@ -32,20 +32,22 @@ export function Checklist({
 
   // Initialize from localStorage, ctx.bindValue, ctx.appData, or props.items
   const [tasks, setTasks] = useState<ChecklistItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((item, idx) =>
-            typeof item === "string"
-              ? { id: `item-${idx}`, text: item, completed: false }
-              : { id: item.id || `item-${idx}`, text: item.text || "", completed: Boolean(item.completed) }
-          );
+    if (!ctx?.isPreview) {
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((item, idx) =>
+              typeof item === "string"
+                ? { id: `item-${idx}`, text: item, completed: false }
+                : { id: item.id || `item-${idx}`, text: item.text || "", completed: Boolean(item.completed) }
+            );
+          }
         }
+      } catch {
+        // ignore localStorage errors
       }
-    } catch {
-      // ignore localStorage errors
     }
 
     if (Array.isArray(ctx?.bindValue) && ctx.bindValue.length > 0) {
@@ -92,10 +94,12 @@ export function Checklist({
   // Helper to persist state
   const persist = (updated: ChecklistItem[]) => {
     setTasks(updated);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-    } catch {
-      // ignore
+    if (!ctx?.isPreview) {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
     }
     const stringItems = updated.map((t) => t.text);
     if (ctx?.onDataChange) {

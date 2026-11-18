@@ -53,7 +53,7 @@ describe("InviteJoinScreen", () => {
       expect(screen.getByText("Collaborative Tracker")).toBeTruthy();
       expect(screen.getByText("📊")).toBeTruthy();
       expect(screen.getByText(/editor/i)).toBeTruthy();
-      expect(screen.getByRole("button", { name: /Accept & Open App/i })).toBeTruthy();
+      expect(screen.getByRole("button", { name: /Accept & Open (App|Tool)/i })).toBeTruthy();
     });
   });
 
@@ -93,10 +93,10 @@ describe("InviteJoinScreen", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Accept & Open App/i })).toBeTruthy();
+      expect(screen.getByRole("button", { name: /Accept & Open (App|Tool)/i })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Accept & Open App/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Accept & Open (App|Tool)/i }));
 
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith("invites", {

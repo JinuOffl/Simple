@@ -141,6 +141,70 @@ describe("ANALYZE, RESOLVE & DRY_RUN stages", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });
+
+  it("enforces 1 screen and at most 4 nodes for NEW tools in DRY_RUN", () => {
+    const validNewTool: ManifestV2Like = {
+      schema_version: 2,
+      app_id: "valid-new-tool",
+      name: "Valid Tool",
+      icon: "✨",
+      permissions: [],
+      connectors: [],
+      data: { collections: [] },
+      screens: [
+        {
+          id: "main",
+          title: "Main",
+          nodes: [
+            { id: "n1", type: "text", props: { content: "Node 1" } },
+            { id: "n2", type: "text", props: { content: "Node 2" } },
+            { id: "n3", type: "text", props: { content: "Node 3" } },
+            { id: "n4", type: "text", props: { content: "Node 4" } },
+          ],
+        },
+      ],
+      actions: [],
+      tool: { size: "4x2" },
+    };
+
+    const validReport = runManifestDryRun(validNewTool, { isCreate: true });
+    expect(validReport.pass).toBe(true);
+    expect(validReport.errors).toEqual([]);
+
+    // Multi-screen rejected for create
+    const multiScreen: ManifestV2Like = {
+      ...validNewTool,
+      screens: [
+        validNewTool.screens[0]!,
+        { id: "s2", title: "Settings", nodes: [] },
+      ],
+    };
+    const multiReport = runManifestDryRun(multiScreen, { isCreate: true });
+    expect(multiReport.pass).toBe(false);
+    expect(multiReport.errors.some((e) => e.includes("New tool must have exactly 1 screen"))).toBe(true);
+
+    // Over 4 nodes rejected for create
+    const fiveNodes: ManifestV2Like = {
+      ...validNewTool,
+      screens: [
+        {
+          id: "main",
+          title: "Main",
+          nodes: [
+            ...validNewTool.screens[0]!.nodes,
+            { id: "n5", type: "text", props: { content: "Node 5" } },
+          ],
+        },
+      ],
+    };
+    const fiveReport = runManifestDryRun(fiveNodes, { isCreate: true });
+    expect(fiveReport.pass).toBe(false);
+    expect(fiveReport.errors.some((e) => e.includes("at most 4 nodes on its screen"))).toBe(true);
+
+    // In edit mode (isCreate: false), multi-screen and > 4 nodes are permitted
+    const editReport = runManifestDryRun(fiveNodes, { isCreate: false });
+    expect(editReport.pass).toBe(true);
+  });
 });
 
 describe("Orchestrator state machine & bounded repair loop", () => {

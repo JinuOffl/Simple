@@ -1,6 +1,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
-import { consumeCreditsRpc } from "../_shared/credits.ts";
-import { createEnvBackedLlmProvider } from "../_shared/llmProvider.ts";
+import { consumeCreditsRpc, refundCreditsRpc } from "../_shared/credits.ts";
+import { getCreditCostForClass } from "../_shared/plans.ts";
+import { VercelAiFallbackProvider } from "../_shared/llmProvider.ts";
 import { validateManifestDeno } from "../_shared/manifestValidator.ts";
 import { resolveLlmRuntimeConfig } from "../_shared/orchestrator/llmConfig.ts";
 import { runGenerateOrchestrator } from "../_shared/orchestrator/stateMachine.ts";
@@ -163,6 +164,18 @@ export async function handleGenerateApp(
     return jsonResponse({ error: "user_prompt is required" }, 400);
   }
 
+  if (body.existing_manifest) {
+    const existingSchemaVersion = (body.existing_manifest as unknown as Record<string, unknown>).schema_version;
+    if (existingSchemaVersion !== 2) {
+      return jsonResponse(
+        {
+          error: `Invalid existing_manifest: schema_version must be 2 (received ${existingSchemaVersion ?? "undefined"}). Convert v1 manifests before sending.`,
+        },
+        400
+      );
+    }
+  }
+
   const supabaseUrl = getEnv("SUPABASE_URL") ?? getEnv("VITE_SUPABASE_URL");
   const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
   const encryptionSecret =
@@ -217,7 +230,7 @@ export async function handleGenerateApp(
     byok.hasByok ? { apiKey: byok.apiKey, provider: byok.provider } : undefined
   );
   const llmProvider =
-    deps.llmProvider ?? createEnvBackedLlmProvider(getEnv, deps.baseFetch);
+    deps.llmProvider ?? new VercelAiFallbackProvider({ runtimeConfig, baseFetch });
 
   const result = await runGenerateOrchestrator(
     {
@@ -247,6 +260,22 @@ export async function handleGenerateApp(
 
   if (result.ok) {
     return jsonResponse(result, 200);
+  }
+
+  if (enforceSupabaseCredits && supabaseUrl && serviceRoleKey && !byok.hasByok) {
+    try {
+      await refundCreditsRpc({
+        supabaseUrl,
+        serviceRoleKey,
+        userId,
+        cost: getCreditCostForClass("generation"),
+        actionKind: "generate_app",
+        appId: body.app_id,
+        fetchFn: baseFetch,
+      });
+    } catch {
+      // Best-effort refund
+    }
   }
 
   if (result.unsupported) {

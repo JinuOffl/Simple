@@ -109,7 +109,10 @@ function checkNavigateTargets(
  * Simulated dry-run pass over a validated manifest.
  * Makes ZERO real network requests and NEVER executes user code.
  */
-export function runManifestDryRun(manifest: ManifestV2Like): DryRunReport {
+export function runManifestDryRun(
+  manifest: ManifestV2Like,
+  options?: { isCreate?: boolean }
+): DryRunReport {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -121,6 +124,16 @@ export function runManifestDryRun(manifest: ManifestV2Like): DryRunReport {
       visitedScreens: [],
       exercisedActions: [],
     };
+  }
+
+  if (options?.isCreate) {
+    if (manifest.screens.length !== 1) {
+      errors.push(`DRY_RUN: New tool must have exactly 1 screen (got ${manifest.screens.length}).`);
+    } else if (manifest.screens[0]!.nodes.length > 4) {
+      errors.push(
+        `DRY_RUN: New tool must have at most 4 nodes on its screen (got ${manifest.screens[0]!.nodes.length}).`
+      );
+    }
   }
 
   const screenMap = new Map(manifest.screens.map((s) => [s.id, s] as const));

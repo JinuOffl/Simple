@@ -205,7 +205,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   startEditing: (app) =>
     set({
-      currentManifest: app.manifest,
+      currentManifest: needsMigration(app.manifest) ? migrateV1toV2(app.manifest) : app.manifest,
       editingAppId: app.id,
       conversationContext: [],
       generationError: null,
@@ -510,7 +510,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     ).length;
 
     if (otherActiveCount >= activeLimit) {
-      const msg = `Active app limit reached (${activeLimit}/${activeLimit} on ${planLabel} plan). Put another app to sleep or export it as JSON first.`;
+      const msg = `Active tool limit reached (${activeLimit}/${activeLimit} on ${planLabel} plan). Put another tool to sleep or export it as JSON first.`;
       set({ lastLimitError: msg });
       return { ok: false, error: msg };
     }
@@ -535,7 +535,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     if (error) {
       const msg = error.message.includes("ACTIVE_APP_LIMIT_REACHED")
-        ? `Active app limit reached (${activeLimit}/${activeLimit}). Put another app to sleep first.`
+        ? `Active tool limit reached (${activeLimit}/${activeLimit}). Put another tool to sleep first.`
         : error.message;
       console.error("wakeApp error:", error);
       set({ lastLimitError: msg });

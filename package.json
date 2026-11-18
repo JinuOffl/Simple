@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:edge": "deno test --config supabase/functions/deno.json --allow-read --allow-env --allow-net supabase/functions/_testing/",
-    "evals": "deno run --config supabase/functions/deno.json --allow-read --allow-env --allow-net evals/run_evals.ts"
+    "evals": "deno run --config supabase/functions/deno.json --allow-read --allow-env --allow-net evals/run_evals.ts",
+    "audit:dist": "node scripts/audit-dist.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

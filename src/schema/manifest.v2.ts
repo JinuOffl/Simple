@@ -84,6 +84,20 @@ const ScreenSchema = z.object({
   nodes: z.array(NodeSchema),
 });
 
+// ── Tool meta (v2 addition for mobile tool builder) ───────────────────────────
+export const ToolSizeSchema = z.enum(["1x1", "2x1", "2x2", "4x2"]);
+
+export const ToolRequirementSchema = z.object({
+  key_id: z.string(),
+  label: z.string(),
+  help_url: z.string().optional(),
+});
+
+export const ToolMetaSchema = z.object({
+  size: ToolSizeSchema.default("2x1"),
+  requires: z.array(ToolRequirementSchema).optional(),
+});
+
 export const ManifestV2Schema = z.object({
   schema_version: z.literal(2),
   app_id: z.string(),
@@ -98,6 +112,7 @@ export const ManifestV2Schema = z.object({
   screens: z.array(ScreenSchema),
   actions: z.array(ActionSchema).default([]),
   multiplayer: z.object({ enabled: z.boolean() }).optional(),
+  tool: ToolMetaSchema.optional(),
 });
 
 export type ManifestV2 = z.infer<typeof ManifestV2Schema>;
@@ -105,3 +120,6 @@ export type ManifestV2Screen = z.infer<typeof ScreenSchema>;
 export type ManifestV2Node = z.infer<typeof NodeSchema>;
 export type ManifestV2Action = z.infer<typeof ActionSchema>;
 export type ManifestV2Collection = z.infer<typeof CollectionSchema>;
+export type ToolSize = z.infer<typeof ToolSizeSchema>;
+export type ToolRequirement = z.infer<typeof ToolRequirementSchema>;
+export type ToolMeta = z.infer<typeof ToolMetaSchema>;

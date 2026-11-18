@@ -91,6 +91,19 @@ export interface ManifestActionLike {
   credit_cost_class?: CreditCostClass;
 }
 
+export type ToolSize = "1x1" | "2x1" | "2x2" | "4x2";
+
+export interface ToolRequirementLike {
+  key_id: string;
+  label: string;
+  help_url?: string;
+}
+
+export interface ToolMetaLike {
+  size: ToolSize;
+  requires?: ToolRequirementLike[];
+}
+
 export interface ManifestV2Like {
   schema_version: 2;
   app_id: string;
@@ -108,6 +121,10 @@ export interface ManifestV2Like {
     enabled: boolean;
     default_role?: "editor" | "viewer";
     shared_collections?: string[];
+  };
+  tool?: {
+    size: "1x1" | "2x1" | "2x2" | "4x2";
+    requires?: Array<{ key_id: string; label: string; help_url?: string }>;
   };
 }
 
@@ -212,6 +229,7 @@ export interface ResolvedPlan {
   apis: string[];
   requiresRuntimeLlm: boolean;
   notes: string[];
+  toolRequirements?: ToolRequirementLike[];
 }
 
 export interface DryRunReport {
@@ -275,6 +293,7 @@ export interface GenerationResult {
     validationErrors?: string[];
     dryRunReport?: DryRunReport;
     critique?: CritiqueResult;
+    rawCandidate?: unknown;
   };
   trace: GenerationTrace;
 }

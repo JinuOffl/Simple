@@ -221,6 +221,50 @@ describe("ManifestV2Schema", () => {
       expect(result.data.actions).toEqual([]);
     }
   });
+
+  it("accepts valid tool field with size and requirements", () => {
+    const withTool = {
+      ...minimalV2,
+      tool: {
+        size: "2x2" as const,
+        requires: [
+          { key_id: "openweather", label: "OpenWeather API Key", help_url: "https://openweathermap.org" },
+        ],
+      },
+    };
+    const result = ManifestV2Schema.safeParse(withTool);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.tool?.size).toBe("2x2");
+      expect(result.data.tool?.requires).toHaveLength(1);
+    }
+  });
+
+  it("defaults tool size to 2x1 when tool object is present without size", () => {
+    const withEmptyTool = { ...minimalV2, tool: {} };
+    const result = ManifestV2Schema.safeParse(withEmptyTool);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.tool?.size).toBe("2x1");
+    }
+  });
+
+  it("preserves backward compatibility when tool is omitted", () => {
+    const result = ManifestV2Schema.safeParse(minimalV2);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.tool).toBeUndefined();
+    }
+  });
+
+  it("rejects invalid tool size", () => {
+    const withInvalidSize = {
+      ...minimalV2,
+      tool: { size: "3x3" },
+    };
+    const result = ManifestV2Schema.safeParse(withInvalidSize);
+    expect(result.success).toBe(false);
+  });
 });
 
 // ─── 3. migrateV1toV2 ─────────────────────────────────────────────────────────

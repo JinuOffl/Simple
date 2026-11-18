@@ -224,3 +224,245 @@ export async function runGoldenEvalSuite(
   };
 }
 
+export interface EditChainStepExpectation {
+  requiredComponents?: string[];
+  ok?: boolean;
+}
+
+export interface EditChainStepCase {
+  step: number;
+  prompt: string;
+  expect?: EditChainStepExpectation;
+}
+
+export interface EditChainCase {
+  id: string;
+  name: string;
+  initialBase?: string;
+  initialPrompt: string;
+  steps: EditChainStepCase[];
+}
+
+export interface EditChainStepOutcome {
+  step: number;
+  prompt: string;
+  passed: boolean;
+  firstPassValid: boolean;
+  postRepairValid: boolean;
+  repairAttempts: number;
+  latencyMs: number;
+  error?: string;
+  rawModelOutput?: string;
+  failureReasons: string[];
+}
+
+export interface EditChainOutcome {
+  id: string;
+  name: string;
+  passed: boolean;
+  steps: EditChainStepOutcome[];
+}
+
+export interface EditChainsSummary {
+  mode: "scripted" | "live";
+  totalChains: number;
+  totalSteps: number;
+  passedSteps: number;
+  firstPassValidCount: number;
+  firstPassValidRatePct: number;
+  postRepairValidCount: number;
+  postRepairValidRatePct: number;
+  totalRepairs: number;
+  avgRepairsPerStep: number;
+  latencyMs: {
+    min: number;
+    avg: number;
+    p50: number;
+    p95: number;
+    max: number;
+    total: number;
+  };
+  failures: Array<{
+    chainId: string;
+    step: number;
+    prompt: string;
+    error: string;
+    rawModelOutput?: string;
+  }>;
+  chains: EditChainOutcome[];
+}
+
+export async function runEditChainsSuite(
+  chains: EditChainCase[],
+  options: {
+    llmProvider: LLMProvider;
+    validateManifest: (raw: unknown) => ValidationResult;
+    mode: "scripted" | "live";
+  }
+): Promise<EditChainsSummary> {
+  const chainOutcomes: EditChainOutcome[] = [];
+  const allStepOutcomes: EditChainStepOutcome[] = [];
+  const failures: EditChainsSummary["failures"] = [];
+
+  for (const chain of chains) {
+    let currentManifest: ManifestV2Like | undefined;
+    if (chain.initialBase) {
+      const found = STARTER_TEMPLATES.find(
+        (t) => t.slug === chain.initialBase || t.id === chain.initialBase
+      );
+      if (found) {
+        currentManifest = structuredClone(found.manifest);
+      }
+    }
+
+    if (!currentManifest) {
+      const initRes = await runGenerateOrchestrator(
+        { userPrompt: chain.initialPrompt },
+        {
+          llmProvider: options.llmProvider,
+          config: DEFAULT_LLM_CONFIG,
+          validateManifest: options.validateManifest,
+        }
+      );
+      if (initRes.ok && initRes.manifest) {
+        currentManifest = initRes.manifest;
+      }
+    }
+
+    const stepOutcomes: EditChainStepOutcome[] = [];
+
+    for (const stepCase of chain.steps) {
+      if (options.mode === "live") {
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      const res = await runGenerateOrchestrator(
+        {
+          userPrompt: stepCase.prompt,
+          existingManifest: currentManifest,
+        },
+        {
+          llmProvider: options.llmProvider,
+          config: DEFAULT_LLM_CONFIG,
+          validateManifest: options.validateManifest,
+        }
+      );
+
+      const failureReasons: string[] = [];
+      const schemaValidPostRepair =
+        res.ok && res.manifest
+          ? options.validateManifest(res.manifest).kind === "valid"
+          : false;
+
+      const expectedOk = stepCase.expect?.ok ?? true;
+      if (res.ok !== expectedOk) {
+        failureReasons.push(
+          `Expected ok=${expectedOk}, got ok=${res.ok} (${res.error ?? "no error"})`
+        );
+      }
+
+      if (expectedOk && !schemaValidPostRepair) {
+        failureReasons.push("Expected post-repair manifest to pass strict validation.");
+      }
+
+      if (res.manifest && stepCase.expect?.requiredComponents) {
+        const nodeTypes = new Set(
+          res.manifest.screens.flatMap((s) => s.nodes.map((n) => n.type))
+        );
+        for (const reqComp of stepCase.expect.requiredComponents) {
+          if (!nodeTypes.has(reqComp)) {
+            failureReasons.push(`Missing expected component "${reqComp}".`);
+          }
+        }
+      }
+
+      const passed = failureReasons.length === 0;
+      const firstPassValid = schemaValidPostRepair && res.trace.repairAttempts === 0;
+
+      const rawModelOutput =
+        res.diagnostics?.rawCandidate !== undefined
+          ? typeof res.diagnostics.rawCandidate === "string"
+            ? res.diagnostics.rawCandidate
+            : JSON.stringify(res.diagnostics.rawCandidate)
+          : undefined;
+
+      const stepOutcome: EditChainStepOutcome = {
+        step: stepCase.step,
+        prompt: stepCase.prompt,
+        passed,
+        firstPassValid,
+        postRepairValid: schemaValidPostRepair,
+        repairAttempts: res.trace.repairAttempts,
+        latencyMs: res.trace.totalLatencyMs,
+        error: res.error,
+        rawModelOutput,
+        failureReasons,
+      };
+
+      if (options.mode === "live") {
+        console.log(
+          `  -> [${chain.id}] Step ${stepCase.step}/6: ${passed ? "PASS" : "FAIL"}${
+            !passed ? " (" + (res.error ?? failureReasons[0]) + ")" : ""
+          } [${res.trace.totalLatencyMs}ms, repairs=${res.trace.repairAttempts}]`
+        );
+      }
+
+      stepOutcomes.push(stepOutcome);
+      allStepOutcomes.push(stepOutcome);
+
+      if (!passed) {
+        failures.push({
+          chainId: chain.id,
+          step: stepCase.step,
+          prompt: stepCase.prompt,
+          error: res.error ?? failureReasons.join(" | "),
+          rawModelOutput,
+        });
+      }
+
+      if (res.manifest) {
+        currentManifest = res.manifest;
+      }
+    }
+
+    chainOutcomes.push({
+      id: chain.id,
+      name: chain.name,
+      passed: stepOutcomes.every((s) => s.passed),
+      steps: stepOutcomes,
+    });
+  }
+
+  const sortedLatencies = allStepOutcomes.map((s) => s.latencyMs).sort((a, b) => a - b);
+  const totalLatency = sortedLatencies.reduce((acc, v) => acc + v, 0);
+  const totalRepairs = allStepOutcomes.reduce((acc, s) => acc + s.repairAttempts, 0);
+  const postRepairValidCount = allStepOutcomes.filter((s) => s.postRepairValid).length;
+  const firstPassValidCount = allStepOutcomes.filter((s) => s.firstPassValid).length;
+  const totalSteps = allStepOutcomes.length;
+
+  return {
+    mode: options.mode,
+    totalChains: chains.length,
+    totalSteps,
+    passedSteps: allStepOutcomes.filter((s) => s.passed).length,
+    firstPassValidCount,
+    firstPassValidRatePct:
+      totalSteps > 0 ? Number(((firstPassValidCount / totalSteps) * 100).toFixed(2)) : 0,
+    postRepairValidCount,
+    postRepairValidRatePct:
+      totalSteps > 0 ? Number(((postRepairValidCount / totalSteps) * 100).toFixed(2)) : 0,
+    totalRepairs,
+    avgRepairsPerStep:
+      totalSteps > 0 ? Number((totalRepairs / totalSteps).toFixed(2)) : 0,
+    latencyMs: {
+      min: sortedLatencies[0] ?? 0,
+      avg: totalSteps > 0 ? Number((totalLatency / totalSteps).toFixed(2)) : 0,
+      p50: percentile(sortedLatencies, 50),
+      p95: percentile(sortedLatencies, 95),
+      max: sortedLatencies[sortedLatencies.length - 1] ?? 0,
+      total: Number(totalLatency.toFixed(2)),
+    },
+    failures,
+    chains: chainOutcomes,
+  };
+}
+

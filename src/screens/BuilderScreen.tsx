@@ -5,6 +5,7 @@ import { ManifestRenderer } from "@/renderer/ManifestRenderer";
 import { isHighRiskMcpTool } from "@/actions/mcpAction";
 import { getManifestConsentSummary } from "@/lib/manifestConsent";
 import { generateAppWithFallback } from "@/lib/generationClient";
+import { getGenerationLog } from "@/lib/generationLog";
 
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
@@ -27,13 +28,15 @@ export function BuilderScreen() {
   const [showConsentModal, setShowConsentModal] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const inputRef      = useRef<HTMLInputElement>(null);
+  const prefillSent   = useRef(false);
 
   useEffect(() => {
     chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
   }, [chatHistory, isGenerating]);
 
   useEffect(() => {
-    if (prefillPrompt) {
+    if (prefillPrompt && !prefillSent.current) {
+      prefillSent.current = true;
       handleSend(prefillPrompt);
       setInputText("");
     }
@@ -66,16 +69,21 @@ export function BuilderScreen() {
             : result.unsupported.message;
           throw new Error(full);
         }
-        throw new Error(result.error ?? "Failed to generate app manifest.");
+        throw new Error(result.error ?? "Failed to generate tool manifest.");
       }
 
       const parsedManifest = result.manifest;
       setManifest(parsedManifest);
 
+      const patchSummary =
+        Array.isArray(result.patch) && result.patch.length > 0
+          ? result.patch.map((op: any) => `${op.op} ${op.path}`).join("; ")
+          : "";
+
       const assistantMsg: ChatMessage = {
         role: "assistant",
         content: currentManifest
-          ? `Updated "${parsedManifest.name}". Check preview above.`
+          ? `Updated "${parsedManifest.name}". ${patchSummary || "Applied changes."}`
           : `Built "${parsedManifest.name}". Save it or ask me to change something.`,
       };
       setChatHistory(prev => [...prev, assistantMsg]);
@@ -128,11 +136,18 @@ export function BuilderScreen() {
           ← back
         </button>
 
+        <button
+          onClick={() => resetBuilder()}
+          className="px-2 py-0.5 text-[10px] uppercase tracking-wider text-n-text3 hover:text-white border border-n-border rounded-sm transition-colors"
+        >
+          NEW
+        </button>
+
         <div className="flex-1">
           <p className="text-n-text2 text-[11px] uppercase tracking-wider">
             {editingAppId
-              ? `editing · ${currentManifest?.name ?? "app"}`
-              : "new app"}
+              ? `editing · ${currentManifest?.name ?? "tool"}`
+              : "new tool"}
           </p>
         </div>
 
@@ -186,7 +201,7 @@ export function BuilderScreen() {
                   </svg>
                 </div>
                 <p className="text-n-text3 text-[10px] uppercase tracking-wider text-center">
-                  canvas · describe your app below
+                  canvas · describe your tool below
                 </p>
               </>
             )}
@@ -234,6 +249,37 @@ export function BuilderScreen() {
           </div>
         )}
 
+        {import.meta.env.DEV && (
+          <details className="mx-4 mb-2 border border-n-border bg-n-surface text-[10px] text-n-text3 rounded-sm">
+            <summary className="px-3 py-1.5 cursor-pointer font-mono select-none uppercase tracking-wider text-n-text2 hover:text-white">
+              LLM TRACE ({getGenerationLog().length})
+            </summary>
+            <div className="p-3 max-h-40 overflow-y-auto space-y-2 font-mono">
+              {getGenerationLog().length === 0 ? (
+                <p className="text-n-text3">No generation logs recorded.</p>
+              ) : (
+                getGenerationLog().map((entry, idx) => (
+                  <div key={idx} className="border-b border-n-border/50 pb-1.5 last:border-none">
+                    <div className="flex justify-between text-n-text2">
+                      <span>[{entry.tier ?? "unknown"}] {entry.ok ? "✓ OK" : "✗ FAILED"}</span>
+                      <span>{entry.latencyMs}ms · {new Date(entry.time).toLocaleTimeString()}</span>
+                    </div>
+                    <div className="truncate text-white/80">"{entry.userPrompt}"</div>
+                    <div className="text-n-text3">
+                      manifest: {entry.existingManifestBytes} bytes
+                      {entry.repairAttempts !== undefined && ` · repairs: ${entry.repairAttempts}`}
+                    </div>
+                    {entry.error && <div className="text-red-400">Error: {entry.error}</div>}
+                    {entry.validationErrors && entry.validationErrors.length > 0 && (
+                      <div className="text-amber-400">Validation: {entry.validationErrors.join(", ")}</div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </details>
+        )}
+
         {/* Input bar */}
         <div className="px-4 py-3 border-t border-n-border flex gap-2">
           <input
@@ -242,7 +288,7 @@ export function BuilderScreen() {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder={currentManifest ? "change x / add y..." : "describe your app..."}
+            placeholder={currentManifest ? "change x / add y..." : "describe your tool..."}
             disabled={isGenerating}
             className="flex-1 bg-n-surface border border-n-border px-4 py-3
                        text-xs text-white placeholder:text-n-text3 outline-none
@@ -281,7 +327,7 @@ export function BuilderScreen() {
                 id="save-consent-title"
                 className="font-mono text-sm font-semibold tracking-wide text-n-text uppercase"
               >
-                Review App Capabilities Before Saving
+                Review Tool Capabilities Before Saving
               </h2>
               <p className="text-xs text-n-muted leading-relaxed">
                 <span className="text-n-text font-medium">{currentManifest.name}</span> requests
@@ -372,7 +418,7 @@ export function BuilderScreen() {
 
             {consentSummary.hasHighRiskTools && (
               <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200 leading-relaxed">
-                This app includes high-risk external actions. Running those tools will require an
+                This tool includes high-risk external actions. Running those tools will require an
                 extra confirmation tap each time.
               </p>
             )}

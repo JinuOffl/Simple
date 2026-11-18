@@ -25,7 +25,7 @@ const ConnectorSchema = z
 const CollectionFieldSchema = z
   .object({
     name: z.string().min(1),
-    type: z.enum(["string", "number", "boolean", "date", "json"]),
+    type: z.enum(["string", "number", "boolean", "date", "json", "image_ref"]),
     required: z.boolean().optional(),
   })
   .strict();
@@ -33,6 +33,7 @@ const CollectionFieldSchema = z
 const CollectionSchema = z
   .object({
     name: z.string().min(1),
+    shared: z.boolean().optional(),
     fields: z.array(CollectionFieldSchema),
   })
   .strict();
@@ -102,6 +103,23 @@ const MultiplayerSchema = z
   })
   .strict();
 
+const ToolSizeSchema = z.enum(["1x1", "2x1", "2x2", "4x2"]);
+
+const ToolRequirementSchema = z
+  .object({
+    key_id: z.string().min(1),
+    label: z.string().min(1),
+    help_url: z.string().optional(),
+  })
+  .strict();
+
+const ToolSchema = z
+  .object({
+    size: ToolSizeSchema.default("2x1"),
+    requires: z.array(ToolRequirementSchema).optional(),
+  })
+  .strict();
+
 export const DenoManifestV2Schema = z
   .object({
     schema_version: z.literal(2),
@@ -119,6 +137,7 @@ export const DenoManifestV2Schema = z
     screens: z.array(ScreenSchema).min(1),
     actions: z.array(ActionSchema),
     multiplayer: MultiplayerSchema.optional(),
+    tool: ToolSchema.optional(),
   })
   .strict();
 
