@@ -7,6 +7,8 @@ import { getManifestConsentSummary } from "@/lib/manifestConsent";
 import { generateAppWithFallback } from "@/lib/generationClient";
 import { getGenerationLog } from "@/lib/generationLog";
 import { getToolStatus } from "@/lib/toolStatus";
+import { listConnections } from "@/lib/connectionsApi";
+import { NeedsKeyCard } from "@/components/NeedsKeyCard";
 
 const PREVIEW_SIZE_CLASSES: Record<string, string> = {
   "1x1": "max-w-[220px]",
@@ -34,9 +36,31 @@ export function BuilderScreen() {
   const [isSaving, setIsSaving]       = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
+  const [savedKeyIds, setSavedKeyIds] = useState<Set<string>>(new Set());
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const inputRef      = useRef<HTMLInputElement>(null);
   const prefillSent   = useRef(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    listConnections()
+      .then((connections) => {
+        if (!isMounted) return;
+        const ids = new Set<string>();
+        for (const c of connections) {
+          if (c.connector_id?.startsWith("key:") && c.has_token) {
+            ids.add(c.connector_id.replace(/^key:/, ""));
+          }
+        }
+        setSavedKeyIds(ids);
+      })
+      .catch(() => {
+        // Guest mode or offline: keep empty
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [currentManifest]);
 
   useEffect(() => {
     chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
@@ -110,6 +134,12 @@ export function BuilderScreen() {
   };
 
   const consentSummary = currentManifest ? getManifestConsentSummary(currentManifest) : null;
+  const toolRequires =
+    currentManifest && "tool" in currentManifest && Array.isArray(currentManifest.tool?.requires)
+      ? currentManifest.tool.requires
+      : [];
+  const missingKeys = toolRequires.filter((r) => !savedKeyIds.has(r.key_id));
+  const missingKeyIds = missingKeys.map((r) => r.key_id);
 
   const performSave = async () => {
     if (!currentManifest || isSaving) return;
@@ -227,9 +257,26 @@ export function BuilderScreen() {
       <div className="px-4 py-2 border-b border-n-border flex items-center justify-between text-[11px] font-mono text-n-text2 bg-n-surface/40">
         <span className="text-n-text3 uppercase tracking-wider text-[10px]">Status</span>
         <span className="text-white font-medium" data-testid="tool-status">
-          {getToolStatus(currentManifest)}
+          {getToolStatus(currentManifest, { keysMissing: missingKeyIds })}
         </span>
       </div>
+
+      {/* Missing API keys banner/cards */}
+      {missingKeys.length > 0 && (
+        <div className="px-4 py-2 space-y-2 border-b border-n-border bg-n-surface/20" data-testid="missing-keys-container">
+          {missingKeys.map((req) => (
+            <NeedsKeyCard
+              key={req.key_id}
+              keyId={req.key_id}
+              label={req.label}
+              helpUrl={req.help_url}
+              onSaved={(savedKeyId) => {
+                setSavedKeyIds((prev) => new Set([...prev, savedKeyId]));
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Chat pane */}
       <div className="flex flex-col" style={{ flex: 1 }}>

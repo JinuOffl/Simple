@@ -1,3 +1,5 @@
+import { getCatalogAdapter } from "../catalog.ts";
+
 function findNodeInManifest(manifest: unknown, nodeId: string): Record<string, unknown> | null {
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) return null;
   const m = manifest as Record<string, unknown>;
@@ -99,16 +101,33 @@ export function healManifest(raw: unknown, fallback?: unknown): unknown {
     });
   }
 
-  // 6. Tool meta healing: ensure size is valid and requires is empty or code-derived (never hallucinated by LLM)
+  // 6. Tool meta healing: ensure size is valid and requires is code-derived from catalog
   if (obj.tool && typeof obj.tool === "object" && !Array.isArray(obj.tool)) {
     const toolObj = { ...(obj.tool as Record<string, unknown>) };
     const validSizes = new Set(["1x1", "2x1", "2x2", "4x2"]);
     if (typeof toolObj.size !== "string" || !validSizes.has(toolObj.size)) {
       toolObj.size = "2x1";
     }
-    if (toolObj.requires !== undefined) {
-      toolObj.requires = [];
+
+    const derivedRequires: Array<{ key_id: string; label: string; help_url?: string }> = [];
+    const seenKeys = new Set<string>();
+    if (Array.isArray(obj.actions)) {
+      for (const a of obj.actions as Array<Record<string, unknown>>) {
+        if (a && a.kind === "api_fetch" && typeof a.api === "string") {
+          const adapter = getCatalogAdapter(a.api);
+          if (adapter?.keyId && !seenKeys.has(adapter.keyId)) {
+            seenKeys.add(adapter.keyId);
+            derivedRequires.push({
+              key_id: adapter.keyId,
+              label: adapter.title,
+              ...(adapter.helpUrl ? { help_url: adapter.helpUrl } : {}),
+            });
+          }
+        }
+      }
     }
+
+    toolObj.requires = derivedRequires;
     obj.tool = toolObj;
   }
 

@@ -120,4 +120,82 @@ describe("BuilderScreen Layout and Status Row (Phase 5)", () => {
     const statusEl = screen.getByTestId("tool-status");
     expect(statusEl.textContent).toBe("Needs API key: OpenWeather API Key");
   });
+
+  it("renders NeedsKeyCard for missing key requirement and updates status row to Ready when saved", async () => {
+    const keyManifest: ManifestV2 = {
+      schema_version: 2,
+      app_id: "weather-tool",
+      name: "Live Weather",
+      icon: "🌤️",
+      permissions: [],
+      connectors: [],
+      tool: {
+        size: "2x1",
+        requires: [{ key_id: "openweather", label: "OpenWeather Current" }],
+      },
+      data: { collections: [] },
+      screens: [
+        {
+          id: "main",
+          title: "Main",
+          nodes: [{ id: "n2", type: "text", props: { content: "Weather Forecast" } }],
+        },
+      ],
+      actions: [],
+    };
+
+    const { supabase } = await import("@/lib/supabaseClient");
+    (supabase.functions.invoke as any).mockImplementation((fnName: string, options: any) => {
+      if (fnName === "manage-connection") {
+        if (options?.body?.op === "list") {
+          return Promise.resolve({ data: { connections: [] }, error: null });
+        }
+        if (options?.body?.op === "upsert") {
+          return Promise.resolve({
+            data: {
+              connection: {
+                id: "conn-w",
+                connector_id: "key:openweather",
+                label: "OpenWeather Current",
+                server_url: "https://api.openweathermap.org",
+                allowed_tools: [],
+                status: "active",
+                has_token: true,
+                auth_header_name: "Authorization",
+              },
+            },
+            error: null,
+          });
+        }
+      }
+      return Promise.resolve({ data: {}, error: null });
+    });
+
+    const { fireEvent, waitFor } = await import("@testing-library/react");
+    useAppStore.setState({ currentManifest: keyManifest });
+
+    render(
+      <MemoryRouter>
+        <BuilderScreen />
+      </MemoryRouter>
+    );
+
+    const statusEl = screen.getByTestId("tool-status");
+    expect(statusEl.textContent).toBe("Needs API key: OpenWeather Current");
+
+    // NeedsKeyCard is present
+    const keyCard = screen.getByTestId("needs-key-card");
+    expect(keyCard).toBeTruthy();
+
+    const input = screen.getByPlaceholderText(/Enter OpenWeather Current key.../i);
+    const saveButton = screen.getByRole("button", { name: /Save Key/i });
+
+    fireEvent.change(input, { target: { value: "ow-secret-key-123" } });
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(statusEl.textContent).toBe("Ready");
+      expect(screen.queryByTestId("needs-key-card")).toBeNull();
+    });
+  });
 });

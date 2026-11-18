@@ -147,4 +147,34 @@ describe("healManifest pure deterministic repairs", () => {
     expect(healed.actions[0].kind).toBe("unknown_custom_action");
     expect(healed.screens[0].nodes[0].props.label).toBeUndefined();
   });
+
+  it("heals tool.size and derives tool.requires from catalog adapters", () => {
+    // 1. Invalid size healed to 2x1, hallucinated requires cleared when no keyed adapter
+    const rawNoKey = {
+      schema_version: 2,
+      tool: { size: "invalid_size", requires: [{ key_id: "fake", label: "Fake" }] },
+      actions: [],
+    };
+    const healedNoKey = healManifest(rawNoKey) as any;
+    expect(healedNoKey.tool.size).toBe("2x1");
+    expect(healedNoKey.tool.requires).toEqual([]);
+
+    // 2. Requires derived from catalog when openweather action is present
+    const rawKeyed = {
+      schema_version: 2,
+      tool: { size: "4x2" },
+      actions: [
+        { id: "act_w", kind: "api_fetch", api: "openweather" },
+      ],
+    };
+    const healedKeyed = healManifest(rawKeyed) as any;
+    expect(healedKeyed.tool.size).toBe("4x2");
+    expect(healedKeyed.tool.requires).toEqual([
+      {
+        key_id: "openweather",
+        label: "OpenWeather Current",
+        help_url: "https://home.openweathermap.org/users/sign_up",
+      },
+    ]);
+  });
 });

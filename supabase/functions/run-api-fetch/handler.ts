@@ -1,7 +1,15 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { consumeCreditsRpc } from "../_shared/credits.ts";
-import { UUID_REGEX } from "../_shared/mcpDb.ts";
+import { UUID_REGEX, resolveUserConnectionDb } from "../_shared/mcpDb.ts";
 import { sanitizeToolOutputText } from "../_shared/mcpSecurity.ts";
+import {
+  getCatalogAdapter,
+  buildCatalogUrl,
+  pickJsonPath,
+  type CatalogAdapter,
+  CATALOG_ADAPTERS,
+} from "../_shared/catalog.ts";
+import { validateOutboundMcpUrl, SsrfError } from "../_shared/ssrf.ts";
 
 export type ApiName =
   | "weather"
@@ -19,12 +27,13 @@ export interface ApiResult {
 export interface RunApiFetchDeps {
   getEnv?: (key: string) => string | undefined;
   verifyJwt?: (authHeader: string) => Promise<{ userId: string } | null>;
-  chargeCredits?: (args: { userId: string; api: ApiName; appId?: string }) => Promise<{
+  chargeCredits?: (args: { userId: string; api: string; appId?: string }) => Promise<{
     allowed: boolean;
     remainingCredits?: number;
     monthlyCreditLimit?: number;
   }>;
   baseFetch?: typeof fetch;
+  loadConnectionSecret?: (userId: string, keyId: string) => Promise<string | undefined>;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -298,6 +307,119 @@ async function resolveCallerUserId(
   }
 }
 
+async function loadUserKeySecret(
+  userId: string,
+  keyId: string,
+  getEnv: (k: string) => string | undefined,
+  baseFetch: typeof fetch,
+  deps: RunApiFetchDeps
+): Promise<string | undefined> {
+  if (deps.loadConnectionSecret) {
+    return await deps.loadConnectionSecret(userId, keyId);
+  }
+
+  const supabaseUrl = getEnv("SUPABASE_URL") ?? getEnv("VITE_SUPABASE_URL");
+  const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const encryptionSecret = getEnv("ENCRYPTION_SECRET");
+  const allowEphemeralDevKey =
+    getEnv("MCP_ALLOW_LOCAL_DEV_LOOPBACK") === "true" ||
+    getEnv("API_FETCH_LOCAL_DEV_OPEN") === "true";
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return undefined;
+  }
+
+  const connector = await resolveUserConnectionDb({
+    supabaseUrl,
+    serviceRoleKey,
+    userId,
+    connectorId: `key:${keyId}`,
+    encryptionSecret,
+    allowEphemeralDevKey,
+    fetchFn: baseFetch,
+  });
+
+  return connector?.token;
+}
+
+async function runCatalogAdapter(args: {
+  adapter: CatalogAdapter;
+  params: Record<string, unknown>;
+  userId: string;
+  getEnv: (k: string) => string | undefined;
+  baseFetch: typeof fetch;
+  deps: RunApiFetchDeps;
+}): Promise<Response | ApiResult> {
+  const { adapter, params, userId, getEnv, baseFetch, deps } = args;
+
+  let keyValue: string | undefined;
+  if (adapter.keyId) {
+    keyValue = await loadUserKeySecret(userId, adapter.keyId, getEnv, baseFetch, deps);
+    if (!keyValue || keyValue.trim().length === 0) {
+      return jsonResponse({ error: "missing_key", key_id: adapter.keyId }, 424);
+    }
+  }
+
+  let targetUrlStr: string;
+  try {
+    targetUrlStr = buildCatalogUrl(
+      adapter,
+      params,
+      keyValue ? { keyIn: adapter.keyIn, keyName: adapter.keyName, keyValue } : undefined
+    );
+  } catch (err) {
+    return jsonResponse({ error: (err as Error).message }, 400);
+  }
+
+  const allowLocalDevLoopback =
+    getEnv("MCP_ALLOW_LOCAL_DEV_LOOPBACK") === "true" ||
+    getEnv("API_FETCH_LOCAL_DEV_OPEN") === "true";
+  try {
+    await validateOutboundMcpUrl(targetUrlStr, {
+      allowLocalDevLoopback,
+    });
+  } catch (err) {
+    const msg = err instanceof SsrfError ? err.message : (err as Error).message ?? "SSRF blocked";
+    return jsonResponse({ error: msg }, 403);
+  }
+
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+  if (adapter.keyIn === "header" && adapter.keyName && keyValue) {
+    headers[adapter.keyName] = keyValue;
+  }
+
+  const res = await fetchWithTimeout(targetUrlStr, (url, init) => {
+    return baseFetch(url, {
+      ...init,
+      headers: { ...headers, ...(init?.headers as Record<string, string>) },
+    });
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Upstream API failed (${res.status}): ${errText.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const picked = pickJsonPath(data, adapter.resultPath);
+  const displayVal = picked !== undefined && picked !== null ? String(picked) : "N/A";
+  const formatted = adapter.displayTemplate.replace(/\{\{result\}\}/g, displayVal);
+  const sanitized = sanitizeToolOutputText(formatted);
+
+  const safeRaw = {
+    adapterId: adapter.id,
+    display: sanitized,
+    value: picked,
+  };
+
+  return {
+    result: sanitized,
+    raw: safeRaw,
+  };
+}
+
 export async function handleRunApiFetch(
   req: Request,
   deps: RunApiFetchDeps = {}
@@ -334,10 +456,13 @@ export async function handleRunApiFetch(
       return jsonResponse({ error: "api field is required" }, 400);
     }
 
-    const adapter = ADAPTERS[api as ApiName];
-    if (!adapter) {
+    const catalogAdapter = getCatalogAdapter(api);
+    const legacyAdapter = ADAPTERS[api as ApiName];
+
+    if (!catalogAdapter && !legacyAdapter) {
+      const allowed = [...Object.keys(ADAPTERS), ...CATALOG_ADAPTERS.map((a) => a.id)];
       return jsonResponse(
-        { error: `Unknown API "${api}". Allowed: ${Object.keys(ADAPTERS).join(", ")}` },
+        { error: `Unknown API "${api}". Allowed: ${allowed.join(", ")}` },
         400
       );
     }
@@ -348,7 +473,7 @@ export async function handleRunApiFetch(
     if (deps.chargeCredits) {
       const creditOutcome = await deps.chargeCredits({
         userId: user.userId,
-        api: api as ApiName,
+        api,
         appId,
       });
       if (!creditOutcome.allowed) {
@@ -384,7 +509,22 @@ export async function handleRunApiFetch(
       }
     }
 
-    const result = await adapter(params, baseFetch);
+    if (catalogAdapter) {
+      const outcome = await runCatalogAdapter({
+        adapter: catalogAdapter,
+        params,
+        userId: user.userId,
+        getEnv,
+        baseFetch,
+        deps,
+      });
+      if (outcome instanceof Response) {
+        return outcome;
+      }
+      return jsonResponse(outcome, 200);
+    }
+
+    const result = await legacyAdapter(params, baseFetch);
     return jsonResponse(result, 200);
   } catch (e) {
     const msg = (e as Error).message ?? "Internal error";

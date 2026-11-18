@@ -58,7 +58,10 @@ const ActionSchema = z.object({
   ]).optional(),
 
   // ── api_fetch — server-side allowlisted API call ──────────────────
-  api: z.enum(["weather", "currency", "timezone", "dictionary", "country", "trivia"]).optional(),
+  api: z.enum([
+    "weather", "currency", "timezone", "dictionary", "country", "trivia",
+    "advice", "cat_fact", "openweather", "nasa_api",
+  ]).optional(),
 
   // ── mcp_call ──────────────────────────────────────────────────────
   connector_id: z.string().optional(),

@@ -274,6 +274,22 @@ export const ALLOWLISTED_APIS: Readonly<
     description: "Interesting math/number trivia fact",
     params: ["number", "type"],
   },
+  advice: {
+    description: "Daily advice slip (keyless)",
+    params: [],
+  },
+  cat_fact: {
+    description: "Random cat fact (keyless)",
+    params: [],
+  },
+  openweather: {
+    description: "OpenWeather current weather data (requires key: openweather)",
+    params: ["q", "units"],
+  },
+  nasa_api: {
+    description: "NASA Astronomy Picture of the Day (requires key: nasa_api)",
+    params: ["date"],
+  },
 };
 
 export interface KnownMcpConnectorProfile {

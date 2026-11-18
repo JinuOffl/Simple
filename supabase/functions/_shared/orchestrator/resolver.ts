@@ -1,5 +1,6 @@
 import type { PromptAnalysis, ResolvedPlan, TemplateMatch } from "./types.ts";
 import { REGISTRY_BY_TYPE } from "./registrySpec.ts";
+import { getCatalogAdapter } from "../catalog.ts";
 
 /**
  * Deterministic `RESOLVE` stage:
@@ -85,6 +86,20 @@ export function resolveCapabilities(
     notes.push("Multiplayer requested: enable manifest.multiplayer with default_role");
   }
 
+  const toolRequirements: Array<{ key_id: string; label: string; help_url?: string }> = [];
+  const seenKeyIds = new Set<string>();
+  for (const api of apis) {
+    const adapter = getCatalogAdapter(api);
+    if (adapter?.keyId && !seenKeyIds.has(adapter.keyId)) {
+      seenKeyIds.add(adapter.keyId);
+      toolRequirements.push({
+        key_id: adapter.keyId,
+        label: adapter.title,
+        ...(adapter.helpUrl ? { help_url: adapter.helpUrl } : {}),
+      });
+    }
+  }
+
   return {
     supported: true,
     templateSlug: templateMatch?.slug,
@@ -94,7 +109,7 @@ export function resolveCapabilities(
     apis,
     requiresRuntimeLlm,
     notes,
-    toolRequirements: [],
+    toolRequirements,
   };
 }
 
