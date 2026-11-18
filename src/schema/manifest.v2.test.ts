@@ -16,7 +16,7 @@ import { ManifestSchema, type Manifest } from "./manifest.v1";
 
 describe("Registry completeness", () => {
   it("every entry in COMPONENT_REGISTRY has required metadata and valid examples", () => {
-    expect(COMPONENT_REGISTRY.length).toBe(26);
+    expect(COMPONENT_REGISTRY.length).toBe(27);
 
     for (const entry of COMPONENT_REGISTRY) {
       expect(typeof entry.type).toBe("string");
@@ -43,8 +43,8 @@ describe("Registry completeness", () => {
     }
   });
 
-  it("VALID_COMPONENT_TYPES has exactly 26 entries", () => {
-    expect(VALID_COMPONENT_TYPES.size).toBe(26);
+  it("VALID_COMPONENT_TYPES has exactly 27 entries", () => {
+    expect(VALID_COMPONENT_TYPES.size).toBe(27);
     for (const entry of COMPONENT_REGISTRY) {
       expect(VALID_COMPONENT_TYPES.has(entry.type)).toBe(true);
     }
@@ -58,7 +58,7 @@ describe("Registry completeness", () => {
     const nonStubEntries = COMPONENT_REGISTRY.filter((entry) => !entry.isStub);
     const stubEntries = COMPONENT_REGISTRY.filter((entry) => Boolean(entry.isStub));
 
-    expect(nonStubEntries.length).toBe(26);
+    expect(nonStubEntries.length).toBe(27);
     expect(stubEntries.length).toBe(0);
 
     for (const entry of nonStubEntries) {
@@ -176,9 +176,17 @@ describe("ManifestV2Schema", () => {
   it("rejects manifest with invalid permission value", () => {
     const result = ManifestV2Schema.safeParse({
       ...minimalV2,
-      permissions: ["bluetooth"],
+      permissions: ["invalid_permission"],
     });
     expect(result.success).toBe(false);
+  });
+
+  it("accepts bluetooth as a valid permission", () => {
+    const result = ManifestV2Schema.safeParse({
+      ...minimalV2,
+      permissions: ["bluetooth"],
+    });
+    expect(result.success).toBe(true);
   });
 
   it("rejects manifest with invalid action kind", () => {

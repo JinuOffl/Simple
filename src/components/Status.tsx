@@ -15,25 +15,44 @@ export function Status({
   bindValue,
   ctx,
 }: StatusProps) {
-  // Reads ctx.bindValue if it is a string to override the label
-  const displayLabel =
+  const rawBind =
     typeof ctx?.bindValue === "string"
       ? ctx.bindValue
       : typeof bindValue === "string"
         ? bindValue
-        : label;
+        : undefined;
+
+  // Reads ${save_to}_state (from direct node.bind or from appData) so the label shows "Connected with watch" only when connected
+  const connectionState =
+    rawBind ??
+    (ctx?.appData
+      ? (Object.entries(ctx.appData).find(([k]) => k.endsWith("_state"))?.[1] as string | undefined)
+      : undefined);
+
+  let displayLabel = label;
+  let resolvedState = state;
+
+  if (connectionState === "connected") {
+    displayLabel = "Connected with watch";
+    resolvedState = "ok";
+  } else if (connectionState === "disconnected") {
+    displayLabel = label && label !== "Connected with watch" ? label : "Disconnected";
+    resolvedState = "off";
+  } else if (typeof rawBind === "string") {
+    displayLabel = rawBind;
+  }
 
   return (
     <div
       data-testid="status-badge"
       className="inline-flex items-center gap-2.5 px-3 py-2 bg-n-surface border border-n-border rounded-sm w-full animate-fade-in"
     >
-      {state === "warn" ? (
+      {resolvedState === "warn" ? (
         <AlertTriangle
           data-testid="status-icon-warn"
           className="w-4 h-4 text-amber-400 shrink-0"
         />
-      ) : state === "off" ? (
+      ) : resolvedState === "off" ? (
         <Circle
           data-testid="status-icon-off"
           className="w-4 h-4 text-n-text3 shrink-0"
@@ -50,7 +69,7 @@ export function Status({
       </span>
 
       <span className="text-[8px] uppercase tracking-wider text-n-text3 px-1 py-0.5 border border-n-border rounded-sm shrink-0">
-        {state}
+        {resolvedState}
       </span>
     </div>
   );

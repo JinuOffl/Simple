@@ -65,4 +65,42 @@ describe("Status", () => {
 
     expect(screen.getByText("Static Label Fallback")).toBeTruthy();
   });
+
+  it("reads ${save_to}_state from ctx.bindValue to show 'Connected with watch' when connected", () => {
+    const mockCtx: RegistryRenderContext = {
+      nodeId: "stat_watch",
+      appData: {},
+      bindValue: "connected",
+    };
+
+    render(<Status label="Disconnected" ctx={mockCtx} />);
+
+    expect(screen.getByText("Connected with watch")).toBeTruthy();
+    expect(screen.getByTestId("status-icon-ok")).toBeTruthy();
+  });
+
+  it("reads ${save_to}_state from ctx.appData to show 'Connected with watch' when connected", () => {
+    const mockCtx: RegistryRenderContext = {
+      nodeId: "stat_watch",
+      appData: { bpm_state: "connected" },
+    };
+
+    render(<Status label="Disconnected" ctx={mockCtx} />);
+
+    expect(screen.getByText("Connected with watch")).toBeTruthy();
+    expect(screen.getByTestId("status-icon-ok")).toBeTruthy();
+  });
+
+  it("shows Disconnected and off icon when connection state is disconnected", () => {
+    const mockCtx: RegistryRenderContext = {
+      nodeId: "stat_watch",
+      appData: {},
+      bindValue: "disconnected",
+    };
+
+    render(<Status label="Watch Disconnected" ctx={mockCtx} />);
+
+    expect(screen.getByText("Watch Disconnected")).toBeTruthy();
+    expect(screen.getByTestId("status-icon-off")).toBeTruthy();
+  });
 });

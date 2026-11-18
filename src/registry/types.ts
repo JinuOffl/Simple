@@ -1,7 +1,13 @@
 import type { z } from "zod";
 import type { ComponentType } from "react";
 
-export type Permission = "camera" | "microphone" | "location" | "contacts" | "notifications";
+export type Permission =
+  | "camera"
+  | "microphone"
+  | "location"
+  | "contacts"
+  | "notifications"
+  | "bluetooth";
 
 export interface RegistryRenderContext {
   nodeId: string;

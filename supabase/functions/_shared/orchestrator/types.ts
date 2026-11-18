@@ -22,7 +22,8 @@ export type Permission =
   | "microphone"
   | "location"
   | "contacts"
-  | "notifications";
+  | "notifications"
+  | "bluetooth";
 
 export type ActionKind =
   | "llm_call"

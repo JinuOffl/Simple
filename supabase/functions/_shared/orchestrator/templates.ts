@@ -413,6 +413,62 @@ export const STARTER_TEMPLATES: readonly StarterTemplate[] = [
       ],
     },
   },
+  {
+    id: "tpl-heart-rate-monitor",
+    slug: "heart-rate-monitor",
+    name: "Heart Rate Monitor",
+    description: "Live Bluetooth Low Energy heart rate monitor and pulse graph.",
+    icon: "❤️",
+    category: "health",
+    tags: ["heart rate", "pulse", "smart watch", "noise watch", "ble", "fitness", "health"],
+    keywords: ["heart rate", "pulse", "smart watch", "noise watch"],
+    manifest: {
+      schema_version: 2,
+      app_id: "tpl-heart-rate-monitor",
+      name: "Heart Rate Monitor",
+      icon: "❤️",
+      description: "Live BLE pulse monitor streaming real-time heart rate readings.",
+      permissions: ["bluetooth"],
+      connectors: [],
+      tool: {
+        size: "2x2",
+        requires: [],
+      },
+      data: { collections: [] },
+      screens: [
+        {
+          id: "main",
+          title: "Pulse Monitor",
+          nodes: [
+            {
+              id: "hr_ble",
+              type: "ble_heart_rate",
+              props: { label: "Connect Heart Rate", save_to: "bpm" },
+            },
+            {
+              id: "hr_stat",
+              type: "stat",
+              props: { label: "Current Pulse", unit: "BPM", value: "--" },
+              bind: "bpm",
+            },
+            {
+              id: "hr_chart",
+              type: "chart",
+              props: { title: "Live Pulse Stream", live: true, max_points: 60, chart_type: "line" },
+              bind: "bpm",
+            },
+            {
+              id: "hr_status",
+              type: "status",
+              props: { label: "Disconnected", state: "off" },
+              bind: "bpm_state",
+            },
+          ],
+        },
+      ],
+      actions: [],
+    },
+  },
 ];
 
 function tokenize(text: string): Set<string> {

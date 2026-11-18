@@ -50,6 +50,13 @@ export function getToolStatus(
 
   const permissions = manifest.permissions ?? [];
   if (permissions.length > 0) {
+    if (
+      permissions.includes("bluetooth") &&
+      typeof navigator !== "undefined" &&
+      !("bluetooth" in navigator)
+    ) {
+      return "Not supported in this browser";
+    }
     return `Needs device: ${permissions[0]}`;
   }
 

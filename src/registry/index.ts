@@ -28,6 +28,7 @@ import { chatThreadEntry } from "./entries/chat_thread";
 import { heatmapEntry } from "./entries/heatmap";
 import { statusEntry } from "./entries/status";
 import { iconRowEntry } from "./entries/icon_row";
+import { bleHeartRateEntry } from "./entries/ble_heart_rate";
 
 export type {
   Permission,
@@ -73,6 +74,9 @@ export const COMPONENT_REGISTRY = [
   widenEntry(heatmapEntry),
   widenEntry(statusEntry),
   widenEntry(iconRowEntry),
+
+  // Phase 8 BLE Heart Rate component
+  widenEntry(bleHeartRateEntry),
 ] as const;
 
 export type RegistryComponentType = (typeof COMPONENT_REGISTRY)[number]["type"];

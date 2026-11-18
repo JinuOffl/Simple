@@ -2,7 +2,7 @@ import { z } from "zod";
 import { buildRegistryNodeSchema } from "../registry/index";
 
 // ── Permissions ────────────────────────────────────────────────────────────────
-const PermissionSchema = z.enum(["camera", "microphone", "location", "contacts", "notifications"]);
+const PermissionSchema = z.enum(["camera", "microphone", "location", "contacts", "notifications", "bluetooth"]);
 
 // ── Connector declaration (what this app is allowed to call) ───────────────────
 const ConnectorSchema = z.object({

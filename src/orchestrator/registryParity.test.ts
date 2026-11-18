@@ -9,7 +9,7 @@ import { STARTER_TEMPLATES } from "../../supabase/functions/_shared/orchestrator
 describe("orchestrator metadata & template parity", () => {
   it("REGISTRY_CAPABILITY_META matches COMPONENT_REGISTRY 1:1 (types, permissions, stubs, props)", () => {
     expect(REGISTRY_CAPABILITY_META.length).toBe(COMPONENT_REGISTRY.length);
-    expect(REGISTRY_CAPABILITY_META.length).toBe(26);
+    expect(REGISTRY_CAPABILITY_META.length).toBe(27);
 
     const metaMap = new Map(REGISTRY_CAPABILITY_META.map((e) => [e.type, e] as const));
 
@@ -30,7 +30,7 @@ describe("orchestrator metadata & template parity", () => {
     }
   });
 
-  it("all curated STARTER_TEMPLATES pass canonical 26-component ManifestV2 validation", () => {
+  it("all curated STARTER_TEMPLATES pass canonical 27-component ManifestV2 validation", () => {
     expect(STARTER_TEMPLATES.length).toBeGreaterThanOrEqual(7);
     for (const tpl of STARTER_TEMPLATES) {
       const res = validateManifestV2(tpl.manifest);

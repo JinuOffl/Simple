@@ -241,6 +241,14 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
       ],
     },
   },
+  {
+    type: "ble_heart_rate",
+    requiredPermissions: ["bluetooth"],
+    isStub: false,
+    allowedPropKeys: ["label", "save_to"],
+    summary: "Bluetooth Low Energy Heart Rate monitor connector (`label` string, `save_to` state key, default 'bpm'). Requires `bluetooth` permission.",
+    exampleProps: { label: "Connect Heart Rate", save_to: "bpm" },
+  },
 ];
 
 export const REGISTRY_BY_TYPE = new Map(
@@ -338,6 +346,7 @@ export const VALID_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "location",
   "contacts",
   "notifications",
+  "bluetooth",
 ]);
 
 export const VALID_LOCAL_OPERATIONS: ReadonlySet<string> = new Set([

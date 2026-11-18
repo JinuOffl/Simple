@@ -13,6 +13,7 @@ const PermissionSchema = z.enum([
   "location",
   "contacts",
   "notifications",
+  "bluetooth",
 ]);
 
 const ConnectorSchema = z

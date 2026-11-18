@@ -338,7 +338,7 @@ describe("Orchestrator state machine & bounded repair loop", () => {
     ]);
   });
 
-  it("passes >= 95% (100% expected) on all 36 golden prompts using full 26-component Zod validation", async () => {
+  it("passes >= 95% (100% expected) on all 36 golden prompts using full 27-component Zod validation", async () => {
     const cases = JSON.parse(goldenPromptsRaw) as GoldenPromptCase[];
     expect(cases.length).toBeGreaterThanOrEqual(30);
 

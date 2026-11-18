@@ -24,6 +24,7 @@ import { ChatThread } from "@/components/ChatThread";
 import { Heatmap } from "@/components/Heatmap";
 import { Status } from "@/components/Status";
 import { IconRow, type IconRowItem } from "@/components/IconRow";
+import { BleHeartRate } from "@/components/BleHeartRate";
 import type { RegistryRenderContext } from "./types";
 
 interface AdapterBaseProps {
@@ -594,6 +595,25 @@ export function IconRowAdapter({
       items={items}
       bindValue={bindValue}
       onAction={onAction}
+      ctx={ctx}
+    />
+  );
+}
+
+export function BleHeartRateAdapter({
+  id,
+  label,
+  save_to,
+  ctx,
+}: AdapterBaseProps & {
+  label?: string;
+  save_to?: string;
+}) {
+  return (
+    <BleHeartRate
+      id={id}
+      label={label}
+      save_to={save_to}
       ctx={ctx}
     />
   );

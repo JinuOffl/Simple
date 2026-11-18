@@ -80,6 +80,14 @@ describe("getToolStatus", () => {
     expect(getToolStatus(manifest)).toBe("Needs API key: OpenAI API Key");
   });
 
+  it("returns Not supported in this browser when bluetooth permission is required but navigator.bluetooth is missing", () => {
+    const bluetoothManifest: ManifestV2Like = {
+      permissions: ["bluetooth"],
+      tool: { size: "2x1", requires: [] },
+    };
+    expect(getToolStatus(bluetoothManifest)).toBe("Not supported in this browser");
+  });
+
   it("never returns Connected", () => {
     const manifest: ManifestV2Like = {
       permissions: [],
