@@ -12,6 +12,7 @@ interface ManifestRendererProps {
   appId?: string;
   onDataChange?: (key: string, value: unknown) => void;
   isPreview?: boolean; // In builder preview — some native actions are mocked
+  compact?: boolean;
 }
 
 /**
@@ -34,6 +35,7 @@ export function ManifestRenderer({
   appId,
   onDataChange,
   isPreview = false,
+  compact = false,
 }: ManifestRendererProps) {
   const v2Manifest = useMemo<ManifestV2>(
     () =>
@@ -58,9 +60,9 @@ export function ManifestRenderer({
   const componentLoadingMap = useAppStore((s) => s.componentLoadingMap);
   const setComponentLoading = useAppStore((s) => s.setComponentLoading);
 
-  const activeScreen =
-    v2Manifest.screens.find((s) => s.id === resolvedScreenId) ??
-    v2Manifest.screens[0];
+  const activeScreen = compact
+    ? v2Manifest.screens[0]
+    : (v2Manifest.screens.find((s) => s.id === resolvedScreenId) ?? v2Manifest.screens[0]);
 
   const availableScreenIds = v2Manifest.screens.map((s) => s.id);
   const permissions = v2Manifest.permissions ?? [];
@@ -70,9 +72,9 @@ export function ManifestRenderer({
     actions.find((a) => a.id === id);
 
   return (
-    <div className="space-y-3 p-4 animate-fade-in">
+    <div className={compact ? "space-y-2 p-2 animate-fade-in" : "space-y-3 p-4 animate-fade-in"}>
       {/* App header */}
-      {v2Manifest.name && (
+      {!compact && v2Manifest.name && (
         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/10">
           <span className="text-3xl">{v2Manifest.icon}</span>
           <div>
@@ -87,7 +89,7 @@ export function ManifestRenderer({
       )}
 
       {/* Multi-screen switcher */}
-      {v2Manifest.screens.length > 1 && (
+      {!compact && v2Manifest.screens.length > 1 && (
         <nav aria-label="App screens" className="flex flex-wrap gap-1.5 pb-2 border-b border-white/10">
           {v2Manifest.screens.map((screen) => {
             const isActive = screen.id === resolvedScreenId;

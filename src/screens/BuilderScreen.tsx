@@ -6,6 +6,14 @@ import { isHighRiskMcpTool } from "@/actions/mcpAction";
 import { getManifestConsentSummary } from "@/lib/manifestConsent";
 import { generateAppWithFallback } from "@/lib/generationClient";
 import { getGenerationLog } from "@/lib/generationLog";
+import { getToolStatus } from "@/lib/toolStatus";
+
+const PREVIEW_SIZE_CLASSES: Record<string, string> = {
+  "1x1": "max-w-[220px]",
+  "2x1": "max-w-[360px]",
+  "2x2": "max-w-[360px]",
+  "4x2": "max-w-[560px]",
+};
 
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
@@ -168,13 +176,19 @@ export function BuilderScreen() {
         )}
       </header>
 
-      {/* Canvas — top 50vh */}
+      {/* Canvas / Preview tile container */}
       <div
-        className="overflow-y-auto border-b border-n-border"
-        style={{ flex: "0 0 50vh" }}
+        className="overflow-y-auto border-b border-n-border p-4 flex items-center justify-center bg-n-bg/30"
+        style={{ flex: "0 0 48vh" }}
       >
         {currentManifest ? (
-          <ManifestRenderer manifest={currentManifest} isPreview={true} />
+          <div
+            className={`w-full ${PREVIEW_SIZE_CLASSES[("tool" in currentManifest ? currentManifest.tool?.size : undefined) ?? "2x1"] ?? "max-w-[360px]"} transition-all duration-200`}
+          >
+            <div className="border border-n-border bg-n-surface rounded-sm overflow-hidden shadow-lg">
+              <ManifestRenderer manifest={currentManifest} isPreview={true} />
+            </div>
+          </div>
         ) : (
           <div className="h-full flex flex-col items-center justify-center gap-3 p-8">
             {isGenerating ? (
@@ -207,6 +221,14 @@ export function BuilderScreen() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Hairline status row */}
+      <div className="px-4 py-2 border-b border-n-border flex items-center justify-between text-[11px] font-mono text-n-text2 bg-n-surface/40">
+        <span className="text-n-text3 uppercase tracking-wider text-[10px]">Status</span>
+        <span className="text-white font-medium" data-testid="tool-status">
+          {getToolStatus(currentManifest)}
+        </span>
       </div>
 
       {/* Chat pane */}
@@ -288,12 +310,12 @@ export function BuilderScreen() {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder={currentManifest ? "change x / add y..." : "describe your tool..."}
+            placeholder="describe the tool"
             disabled={isGenerating}
-            className="flex-1 bg-n-surface border border-n-border px-4 py-3
+            className="flex-1 bg-n-surface border border-n-border px-5 py-3
                        text-xs text-white placeholder:text-n-text3 outline-none
                        focus:border-n-border2 transition-colors disabled:opacity-40
-                       rounded-sm"
+                       rounded-full"
           />
           <button
             onClick={() => handleSend()}
@@ -301,7 +323,7 @@ export function BuilderScreen() {
             id="builder-send-button"
             className="w-11 h-11 bg-white flex items-center justify-center
                        transition-all duration-150 active:scale-90
-                       disabled:opacity-30 flex-shrink-0 rounded-sm"
+                       disabled:opacity-30 flex-shrink-0 rounded-full"
           >
             {isGenerating ? (
               <div className="w-3 h-3 border border-n-bg border-t-transparent rounded-full animate-spin" />

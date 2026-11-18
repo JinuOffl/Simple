@@ -2,6 +2,11 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { downloadAppExport, useAppStore } from "@/lib/zustandStore";
 import type { SavedApp } from "@/lib/zustandStore";
+import { ToolTile } from "@/components/ToolTile";
+import { getToolStatus } from "@/lib/toolStatus";
+import { migrateV1toV2, needsMigration } from "@/schema/migrator";
+import type { Manifest } from "@/schema/manifest.v1";
+import type { ManifestV2 } from "@/schema/manifest.v2";
 
 const EXAMPLE_PROMPTS = [
   { emoji: "👗", label: "outfit recommender", prompt: "Create an outfit recommender tool that lets me take a photo of my clothes and get a style recommendation" },
@@ -24,11 +29,13 @@ function AppCard({
   onExport: () => void;
 }) {
   const isSleeping = app.status === "sleeping";
+  const spanClass = (app.manifest as any)?.tool?.size === "1x1" ? "col-span-1 row-span-1" : "col-span-2 row-span-1";
 
   return (
     <div
-      className={`app-icon-card group justify-between !pt-2 !pb-2 ${isSleeping ? "opacity-50" : ""}`}
+      className={`app-icon-card group justify-between !pt-2 !pb-2 ${spanClass} !aspect-auto ${isSleeping ? "opacity-50" : ""}`}
       onClick={onOpen}
+      data-testid="app-card"
     >
       {/* Top action bar */}
       <div className="w-full flex items-center justify-between gap-1 min-h-[18px]">
@@ -104,8 +111,7 @@ function AppCard({
 
 function SkeletonCard() {
   return (
-    <div className="aspect-square bg-n-surface border border-n-border rounded-sm
-                    flex flex-col items-center justify-center gap-2 p-3">
+    <div className="col-span-2 row-span-1 bg-n-surface border border-n-border rounded-sm flex flex-col items-center justify-center gap-2 p-3">
       <div className="skeleton w-8 h-8 rounded-sm" />
       <div className="skeleton w-12 h-2 rounded-sm" />
     </div>
@@ -164,12 +170,12 @@ export function HomeScreen() {
       {/* Header */}
       <header className="px-5 pt-6 pb-4 flex items-end justify-between border-b border-n-border">
         <div>
-          {/* SIMPLE in Doto dot-matrix */}
+          {/* Simple. in Doto dot-matrix */}
           <h1
             className="font-doto text-white tracking-widest leading-none"
             style={{ fontSize: "36px", fontVariationSettings: "'ROND' 0" }}
           >
-            SIMPLE
+            Simple.
           </h1>
           <p className="text-n-text3 text-[9px] uppercase tracking-[0.18em] mt-1.5">
             {apps.length > 0 ? `${apps.length} tool${apps.length !== 1 ? "s" : ""}` : "your mini-tools"}
@@ -241,7 +247,7 @@ export function HomeScreen() {
         )}
 
         {loadingApps ? (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2 auto-rows-[88px] [grid-auto-flow:dense]">
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : apps.length === 0 ? (
@@ -286,18 +292,38 @@ export function HomeScreen() {
             </div>
           </div>
         ) : (
-          /* ── App grid ── */
-          <div className="grid grid-cols-3 gap-2 animate-fade-in">
-            {apps.map((app) => (
-              <AppCard
-                key={app.id}
-                app={app}
-                onOpen={() => handleOpen(app)}
-                onSleep={() => handleSleep(app)}
-                onWake={() => handleWake(app)}
-                onExport={() => handleExport(app)}
-              />
-            ))}
+          /* ── Tool grid ── */
+          <div className="grid grid-cols-4 gap-2 auto-rows-[88px] [grid-auto-flow:dense] animate-fade-in">
+            {apps.map((app) => {
+              const isSleeping = app.status === "sleeping";
+              if (isSleeping) {
+                return (
+                  <AppCard
+                    key={app.id}
+                    app={app}
+                    onOpen={() => handleOpen(app)}
+                    onSleep={() => handleSleep(app)}
+                    onWake={() => handleWake(app)}
+                    onExport={() => handleExport(app)}
+                  />
+                );
+              }
+
+              const v2Manifest = needsMigration(app.manifest)
+                ? migrateV1toV2(app.manifest as Manifest)
+                : (app.manifest as ManifestV2);
+
+              return (
+                <ToolTile
+                  key={app.id}
+                  manifest={v2Manifest}
+                  status={getToolStatus(v2Manifest)}
+                  onOpen={() => handleOpen(app)}
+                  onSleep={() => handleSleep(app)}
+                  onExport={() => handleExport(app)}
+                />
+              );
+            })}
           </div>
         )}
       </main>

@@ -392,4 +392,47 @@ describe("ManifestRenderer", () => {
     expect(screen.getByText("Updated Task X")).toBeTruthy();
     expect(screen.getByText("Updated Task Y")).toBeTruthy();
   });
+
+  it("renders in compact mode by hiding header, navigation, and showing only screen 1", () => {
+    const multiScreenManifest: ManifestV2 = {
+      schema_version: 2,
+      app_id: "multi-screen-tool",
+      name: "Multi-Screen Tool",
+      icon: "🛠️",
+      permissions: ["camera"],
+      connectors: [],
+      data: { collections: [] },
+      screens: [
+        {
+          id: "screen-1",
+          title: "Screen One",
+          nodes: [
+            { id: "text-1", type: "text", props: { content: "Node on Screen One" } },
+          ],
+        },
+        {
+          id: "screen-2",
+          title: "Screen Two",
+          nodes: [
+            { id: "text-2", type: "text", props: { content: "Node on Screen Two" } },
+          ],
+        },
+      ],
+      actions: [],
+    };
+
+    render(<ManifestRenderer manifest={multiScreenManifest} compact={true} />);
+
+    // Header and permissions should NOT be rendered
+    expect(screen.queryByRole("heading", { name: /Multi-Screen Tool/i })).toBeNull();
+    expect(screen.queryByText(/Uses: camera/i)).toBeNull();
+
+    // Multi-screen navigation should NOT be rendered
+    expect(screen.queryByRole("navigation", { name: /App screens/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Screen Two" })).toBeNull();
+
+    // First screen node is rendered, second screen node is not
+    expect(screen.getByText("Node on Screen One")).toBeTruthy();
+    expect(screen.queryByText("Node on Screen Two")).toBeNull();
+  });
 });
