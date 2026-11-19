@@ -190,11 +190,11 @@ export function Heatmap({
   return (
     <div
       data-testid="heatmap-widget"
-      className="w-full bg-n-surface border border-n-border rounded-sm p-4 animate-fade-in space-y-3"
+      className="w-full bg-n-s1 border border-n-line rounded-sm p-4 animate-fade-in space-y-3"
     >
       {title && (
-        <div className="flex items-center justify-between pb-2 border-b border-n-border">
-          <p className="text-n-text3 text-[9px] font-mono uppercase tracking-[0.18em]">
+        <div className="flex items-center justify-between pb-2 border-b border-n-line">
+          <p className="text-n-disabled text-[9px] font-mono uppercase tracking-[0.18em]">
             {title}
           </p>
           <span className="nt-tag text-[8px] px-1.5 py-0.5 leading-none lowercase">
@@ -204,7 +204,7 @@ export function Heatmap({
       )}
 
       {rows.length === 0 ? (
-        <div className="text-xs text-n-text3 text-center py-2">
+        <div className="text-xs text-n-disabled text-center py-2">
           (No rows configured)
         </div>
       ) : (
@@ -219,7 +219,7 @@ export function Heatmap({
                   <span
                     key={idx}
                     className={`text-[8px] font-mono w-4 sm:w-5 text-center shrink-0 ${
-                      isToday ? "text-white font-bold" : "text-n-text3"
+                      isToday ? "text-n-display font-bold" : "text-n-disabled"
                     }`}
                   >
                     {isToday ? "TD" : idx + 1}
@@ -236,7 +236,7 @@ export function Heatmap({
               <div key={row} className="flex items-center gap-2">
                 <span
                   title={row}
-                  className="w-24 shrink-0 text-[10px] font-mono uppercase tracking-wider text-n-text2 truncate"
+                  className="w-24 shrink-0 text-[10px] font-mono uppercase tracking-wider text-n-secondary truncate"
                 >
                   {row}
                 </span>
@@ -255,11 +255,11 @@ export function Heatmap({
                         aria-label={`${row}: day ${dayIdx + 1}${isToday ? " (today)" : ""}`}
                         className={`w-4 h-4 sm:w-5 sm:h-5 rounded-sm transition-all duration-150 shrink-0 cursor-pointer ${
                           isActive
-                            ? "bg-white text-n-bg"
-                            : "bg-n-surface2/60 border border-n-border/80 hover:border-n-border2"
+                            ? "bg-n-btn text-n-btn-text"
+                            : "bg-n-s2 border border-n-line hover:border-n-line3"
                         } ${
                           isToday
-                            ? "ring-1 ring-white ring-offset-1 ring-offset-n-bg"
+                            ? "ring-1 ring-n-display ring-offset-1 ring-offset-n-bg"
                             : ""
                         }`}
                       />

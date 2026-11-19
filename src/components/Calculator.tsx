@@ -97,19 +97,19 @@ export function Calculator() {
   const isFn = (b: CalcButton) => ["C", "+/-", "%"].includes(b);
 
   return (
-    <div className="bg-n-surface border border-n-border rounded-sm overflow-hidden animate-fade-in select-none">
+    <div className="bg-n-s1 border border-n-line rounded-sm overflow-hidden animate-fade-in select-none">
       {/* Display */}
       <div className="px-4 pt-5 pb-4 text-right">
-        <p className="text-n-text3 text-[10px] uppercase tracking-wider h-4 mb-2">
+        <p className="text-n-disabled text-[10px] uppercase tracking-wider h-4 mb-2">
           {state.prev !== null && state.op ? `${state.prev} ${state.op}` : ""}
         </p>
         {/* Doto font for the number display */}
         <p
-          className="font-doto text-white leading-none"
+          className="font-doto text-n-display leading-none"
           style={{
             fontSize: state.display.length > 10 ? "28px" : state.display.length > 7 ? "36px" : "48px",
             fontVariationSettings: "'ROND' 0",
-            color: state.display === "Error" ? "rgba(255,100,100,0.8)" : undefined,
+            color: state.display === "Error" ? "var(--n-red)" : undefined,
           }}
         >
           {state.display}
@@ -117,22 +117,22 @@ export function Calculator() {
       </div>
 
       {/* Keypad */}
-      <div className="grid grid-cols-4 border-t border-n-border">
+      <div className="grid grid-cols-4 border-t border-n-line">
         {BUTTONS.flat().map((btn, i) => (
           <button
             key={i}
             onClick={() => press(btn)}
             className={`
               h-14 text-sm font-mono transition-all duration-75
-              border-r border-b border-n-border last:border-r-0
-              active:scale-95
+              border-r border-b border-n-line last:border-r-0
+              active:scale-95 nt-press cursor-pointer
               ${isEq(btn)
-                ? "bg-white text-n-bg font-bold hover:opacity-90"
+                ? "bg-n-btn text-n-btn-text font-bold hover:opacity-90"
                 : isOp(btn)
-                  ? "bg-n-surface2 text-n-text2 hover:bg-n-surface3 hover:text-white"
+                  ? "bg-n-s2 text-n-primary hover:bg-n-s3 hover:text-n-display"
                   : isFn(btn)
-                    ? "bg-n-surface2 text-n-text3 hover:bg-n-surface3 hover:text-white"
-                    : "bg-n-surface text-n-text2 hover:bg-n-surface2 hover:text-white"
+                    ? "bg-n-s2 text-n-secondary hover:bg-n-s3 hover:text-n-display"
+                    : "bg-n-s1 text-n-primary hover:bg-n-s2 hover:text-n-display"
               }
             `}
           >

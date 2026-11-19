@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface InviteInfo {
   valid: boolean;
@@ -92,10 +93,10 @@ export function InviteJoinScreen() {
 
   if (loading) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-gradient-mesh">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-n-bg">
         <div className="flex flex-col items-center gap-4">
           <p
-            className="font-doto text-n-text3 tracking-widest animate-pulse-slow"
+            className="font-doto text-n-disabled tracking-widest animate-pulse-slow"
             style={{ fontSize: "16px", fontVariationSettings: "'ROND' 0" }}
           >
             VERIFYING INVITE
@@ -111,16 +112,20 @@ export function InviteJoinScreen() {
   }
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-5 bg-gradient-mesh">
-      <div className="w-full max-w-sm bg-n-surface border border-n-border rounded-sm p-6 space-y-5 animate-fade-in text-center">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-5 bg-n-bg relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
+      <div className="w-full max-w-sm bg-n-s1 border border-n-line rounded-sm p-6 space-y-5 animate-fade-in text-center">
         {error ? (
           <div className="space-y-4">
             <span className="text-4xl">⚠️</span>
             <div className="space-y-1">
-              <h2 className="font-mono text-sm font-semibold tracking-wide text-white uppercase">
+              <h2 className="font-mono text-sm font-semibold tracking-wide text-n-display uppercase">
                 Invite Unavailable
               </h2>
-              <p className="text-xs text-n-text2 leading-relaxed">{error}</p>
+              <p className="text-xs text-n-secondary leading-relaxed">{error}</p>
             </div>
             <button
               type="button"
@@ -138,17 +143,17 @@ export function InviteJoinScreen() {
               <span className="nt-tag text-[9px] px-2 py-0.5 uppercase tracking-wider mb-2">
                 Join as {inviteInfo.role}
               </span>
-              <h2 className="font-mono text-base font-semibold tracking-wide text-white">
+              <h2 className="font-mono text-base font-semibold tracking-wide text-n-display">
                 {inviteInfo.app.name}
               </h2>
               {inviteInfo.app.description && (
-                <p className="text-xs text-n-text2 leading-relaxed mt-1">
+                <p className="text-xs text-n-secondary leading-relaxed mt-1">
                   {inviteInfo.app.description}
                 </p>
               )}
             </div>
 
-            <p className="text-[11px] text-n-text3 font-mono leading-relaxed border-t border-n-border pt-3">
+            <p className="text-[11px] text-n-disabled font-mono leading-relaxed border-t border-n-line pt-3">
               You are invited to collaborate on this tool. You will be able to{" "}
               {inviteInfo.role === "editor"
                 ? "use, edit, and contribute to shared collections."

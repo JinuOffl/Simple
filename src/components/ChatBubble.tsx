@@ -12,7 +12,7 @@ export function ChatBubble({ role, content }: ChatBubbleProps) {
     >
       {/* Avatar */}
       {!isUser && (
-        <div className="w-7 h-7 rounded-sm bg-n-surface2 border border-n-border2 flex items-center justify-center flex-shrink-0 mb-1">
+        <div className="w-7 h-7 rounded-sm bg-n-s2 border border-n-line flex items-center justify-center flex-shrink-0 mb-1">
           <span className="text-xs">✨</span>
         </div>
       )}

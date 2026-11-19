@@ -109,8 +109,9 @@ describe("Phase 2 — Auth and abuse protection", () => {
     expect(notice).toBeTruthy();
     expect(notice.textContent).toContain("Guest mode is offline. Sign in with email to build tools.");
 
-    const input = screen.getByPlaceholderText(/Sign in with email to build tools/i) as HTMLInputElement;
-    expect(input.disabled).toBe(true);
+    // Policy change (MVP unauthenticated guest): Guest can build starter tools without login, input is enabled
+    const input = screen.getByPlaceholderText(/describe the tool/i) as HTMLInputElement;
+    expect(input.disabled).toBe(false);
   });
 
   // ── 2.4: Invite flow through pending sessionStorage ───────────────────────

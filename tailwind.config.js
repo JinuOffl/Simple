@@ -14,37 +14,41 @@ export default {
         sans: ["Space Grotesk", "sans-serif"], // override default sans
       },
       colors: {
-        // Nothing OS monochrome palette & 3-layer hierarchy
-        "n-display":   "#FFFFFF",
-        "n-primary":   "rgba(255,255,255,0.90)",
-        "n-secondary": "rgba(255,255,255,0.55)",
-        "n-disabled":  "rgba(255,255,255,0.28)",
+        // Nothing OS monochrome palette & 3-layer hierarchy (adaptive CSS variables)
+        "n-display":   "var(--n-display)",
+        "n-primary":   "var(--n-primary)",
+        "n-secondary": "var(--n-secondary)",
+        "n-disabled":  "var(--n-disabled)",
 
         // Surface layers (depth without blur)
-        "n-bg":        "#000000",
-        "n-s1":        "#0D0D0D",
-        "n-s2":        "#141414",
-        "n-s3":        "#1C1C1C",
+        "n-bg":        "var(--n-bg)",
+        "n-s1":        "var(--n-s1)",
+        "n-s2":        "var(--n-s2)",
+        "n-s3":        "var(--n-s3)",
 
         // Borders (1px only, never shadows)
-        "n-line":      "rgba(255,255,255,0.07)",
-        "n-line2":     "rgba(255,255,255,0.14)",
-        "n-line3":     "rgba(255,255,255,0.28)",
+        "n-line":      "var(--n-line)",
+        "n-line2":     "var(--n-line2)",
+        "n-line3":     "var(--n-line3)",
+
+        // Inverted button tokens (always opposite text/bg)
+        "n-btn":       "var(--n-btn-bg)",
+        "n-btn-text":  "var(--n-btn-text)",
 
         // The ONE accent — Nothing Red
         "n-red":       "#D71921",
-        "n-red-dim":   "rgba(215,25,33,0.15)",
+        "n-red-dim":   "var(--n-red-dim)",
 
-        // Backwards-compatible tokens
-        "n-surface":   "#111111",
-        "n-surface2":  "#1a1a1a",
-        "n-surface3":  "#222222",
-        "n-white":     "#ffffff",
-        "n-text":      "rgba(255,255,255,1)",
-        "n-text2":     "rgba(255,255,255,0.5)",
-        "n-text3":     "rgba(255,255,255,0.2)",
-        "n-border":    "rgba(255,255,255,0.08)",
-        "n-border2":   "rgba(255,255,255,0.2)",
+        // Backwards-compatible tokens mapped to CSS variables
+        "n-surface":   "var(--n-s1)",
+        "n-surface2":  "var(--n-s2)",
+        "n-surface3":  "var(--n-s3)",
+        "n-white":     "var(--n-display)",
+        "n-text":      "var(--n-primary)",
+        "n-text2":     "var(--n-secondary)",
+        "n-text3":     "var(--n-disabled)",
+        "n-border":    "var(--n-line)",
+        "n-border2":   "var(--n-line2)",
         // shadcn/ui tokens
         border:     "hsl(var(--border))",
         input:      "hsl(var(--input))",

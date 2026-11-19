@@ -1,34 +1,38 @@
 import { useNavigate } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function PrivacyScreen() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-mesh text-white p-6 flex flex-col items-center">
+    <div className="min-h-[100dvh] bg-n-bg text-n-primary p-6 flex flex-col items-center">
       <div className="w-full max-w-xl py-12 space-y-8 animate-fade-in">
         {/* Navigation / Header */}
-        <div className="flex items-center justify-between border-b border-n-border pb-4">
+        <div className="flex items-center justify-between border-b border-n-line pb-4">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="text-xs font-mono uppercase tracking-widest text-n-text3 hover:text-white transition-colors cursor-pointer"
+            className="text-xs font-mono uppercase tracking-widest text-n-disabled hover:text-n-display transition-colors cursor-pointer"
           >
             ← BACK
           </button>
-          <span className="font-doto text-sm tracking-widest text-n-text2">
-            SIMPLE // PRIVACY
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="font-doto text-sm tracking-widest text-n-secondary">
+              SIMPLE // PRIVACY
+            </span>
+            <ThemeToggle />
+          </div>
         </div>
 
         {/* Warning banner */}
-        <div className="border border-white/40 bg-n-surface px-4 py-2 text-[10px] font-mono tracking-widest uppercase text-white">
+        <div className="border border-n-line3 bg-n-s1 px-4 py-2 text-[10px] font-mono tracking-widest uppercase text-n-display">
           [EDIT BEFORE LAUNCH] PRE-RELEASE BETA PRIVACY POLICY
         </div>
 
         {/* Body content */}
-        <div className="space-y-6 text-sm text-n-text2 leading-relaxed font-sans">
+        <div className="space-y-6 text-sm text-n-secondary leading-relaxed font-sans">
           <section className="space-y-2">
-            <h2 className="text-white font-mono text-xs uppercase tracking-wider">
+            <h2 className="text-n-display font-mono text-xs uppercase tracking-wider">
               1. Guest Mode & On-Device Storage
             </h2>
             <p>
@@ -39,7 +43,7 @@ export function PrivacyScreen() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-white font-mono text-xs uppercase tracking-wider">
+            <h2 className="text-n-display font-mono text-xs uppercase tracking-wider">
               2. Third-Party LLM Processing
             </h2>
             <p>
@@ -52,7 +56,7 @@ export function PrivacyScreen() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-white font-mono text-xs uppercase tracking-wider">
+            <h2 className="text-n-display font-mono text-xs uppercase tracking-wider">
               3. Connected Services & Credentials
             </h2>
             <p>
@@ -63,7 +67,7 @@ export function PrivacyScreen() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-white font-mono text-xs uppercase tracking-wider">
+            <h2 className="text-n-display font-mono text-xs uppercase tracking-wider">
               4. Contact & Telemetry
             </h2>
             <p>

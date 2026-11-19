@@ -11,6 +11,7 @@ import { getGenerationLog } from "@/lib/generationLog";
 import { getToolStatus } from "@/lib/toolStatus";
 import { listConnections } from "@/lib/connectionsApi";
 import { NeedsKeyCard } from "@/components/NeedsKeyCard";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { ArrowLeft, Wrench, Send, ChevronRight } from "lucide-react";
 
 const PREVIEW_SIZE_CLASSES: Record<string, string> = {
@@ -102,16 +103,6 @@ export function BuilderScreen() {
     const userMsg: ChatMessage = { role: "user", content: userPrompt };
     setChatHistory(prev => [...prev, userMsg]);
     addMessage("user", userPrompt);
-
-    if (isLocalGuest) {
-      const offlineMsg = "Guest mode is offline. Sign in with email to build tools.";
-      setGenerationError(offlineMsg);
-      setChatHistory(prev => [
-        ...prev,
-        { role: "assistant", content: offlineMsg },
-      ]);
-      return;
-    }
 
     setGenerating(true);
 
@@ -215,7 +206,7 @@ export function BuilderScreen() {
           <button
             onClick={() => { resetBuilder(); navigate("/"); }}
             aria-label="Back to home"
-            className="flex items-center gap-1.5 nt-label hover:text-white transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 nt-label hover:text-n-display transition-colors cursor-pointer"
           >
             <ArrowLeft size={13} strokeWidth={1.5} />
             <span>BACK</span>
@@ -223,7 +214,7 @@ export function BuilderScreen() {
 
           <button
             onClick={() => resetBuilder()}
-            className="px-2 py-0.5 nt-label text-n-disabled hover:text-white border border-n-line rounded-sm transition-colors cursor-pointer"
+            className="px-2 py-0.5 nt-label text-n-disabled hover:text-n-display border border-n-line rounded-sm transition-colors cursor-pointer"
           >
             NEW
           </button>
@@ -238,14 +229,16 @@ export function BuilderScreen() {
         </div>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
+
           {currentManifest && (
             <button
               onClick={handleSave}
               disabled={isSaving || saveSuccess}
               className={`px-4 py-1.5 nt-label font-bold border rounded-sm transition-all duration-150 nt-press cursor-pointer
                           ${saveSuccess
-                            ? "border-white/30 text-white"
-                            : "bg-white text-black border-white hover:bg-n-primary"
+                            ? "border-n-line3 text-n-display bg-n-s2"
+                            : "bg-n-btn text-n-btn-text border-n-btn hover:opacity-90"
                           }
                           disabled:opacity-40`}
             >
@@ -293,9 +286,9 @@ export function BuilderScreen() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center gap-2.5 opacity-25">
-                <Wrench size={28} strokeWidth={1.2} className="text-white" />
-                <p className="nt-label tracking-[0.3em] text-white">
+              <div className="flex flex-col items-center justify-center gap-2.5 opacity-40">
+                <Wrench size={28} strokeWidth={1.2} className="text-n-disabled" />
+                <p className="nt-label tracking-[0.3em] text-n-disabled">
                   CANVAS · DESCRIBE YOUR TOOL BELOW
                 </p>
               </div>
@@ -307,7 +300,7 @@ export function BuilderScreen() {
       {/* Hairline status row */}
       <div className="px-4 py-2 border-b border-n-line flex items-center justify-between text-[11px] font-mono text-n-secondary bg-n-s1/60">
         <span className="nt-label text-[9px]">Status</span>
-        <span className="text-white font-medium flex items-center gap-1.5" data-testid="tool-status">
+        <span className="text-n-display font-medium flex items-center gap-1.5" data-testid="tool-status">
           <span className={isGenerating ? "nt-dot-amber animate-pulse" : "nt-dot-green"} />
           {getToolStatus(currentManifest, { keysMissing: missingKeyIds })}
         </span>
@@ -365,15 +358,15 @@ export function BuilderScreen() {
         {isLocalGuest && (
           <div
             data-testid="offline-guest-notice"
-            className="mx-4 mb-2 bg-n-surface border border-white/40 rounded-sm px-4 py-3 flex items-center justify-between gap-3 text-xs animate-slide-up"
+            className="mx-4 mb-2 bg-n-s1 border border-n-line rounded-sm px-4 py-3 flex items-center justify-between gap-3 text-xs animate-slide-up"
           >
-            <span className="text-white">
+            <span className="text-n-display">
               Guest mode is offline. Sign in with email to build tools.
             </span>
             <button
               type="button"
               onClick={() => navigate("/auth")}
-              className="text-[10px] font-mono uppercase tracking-wider text-white border border-n-border px-2 py-1 rounded-sm hover:border-white transition-colors cursor-pointer shrink-0"
+              className="text-[10px] font-mono uppercase tracking-wider text-n-display border border-n-line px-2 py-1 rounded-sm hover:border-n-line3 transition-colors cursor-pointer shrink-0"
             >
               SIGN IN →
             </button>
@@ -381,15 +374,15 @@ export function BuilderScreen() {
         )}
 
         {generationError && (
-          <div className="mx-4 mb-2 px-3 py-2 border border-n-border bg-n-surface flex items-center justify-between gap-2 animate-slide-up">
-            <p className="text-[10px] text-red-400 flex-1 leading-relaxed font-mono">
+          <div className="mx-4 mb-2 px-3 py-2 border border-n-line bg-n-s1 flex items-center justify-between gap-2 animate-slide-up">
+            <p className="text-[10px] text-n-red flex-1 leading-relaxed font-mono">
               {generationError}
             </p>
             <button
               type="button"
               onClick={() => setGenerationError(null)}
               aria-label="Dismiss error"
-              className="text-n-text3 hover:text-white text-xs px-1.5 py-0.5 shrink-0"
+              className="text-n-disabled hover:text-n-display text-xs px-1.5 py-0.5 shrink-0"
             >
               ✕
             </button>
@@ -398,7 +391,7 @@ export function BuilderScreen() {
 
         {import.meta.env.DEV && (
           <details className="mx-4 mb-2 border border-n-line bg-n-s1 text-[10px] text-n-disabled rounded-sm">
-            <summary className="px-3 py-1.5 cursor-pointer font-mono select-none uppercase tracking-wider text-n-secondary hover:text-white flex items-center gap-1.5">
+            <summary className="px-3 py-1.5 cursor-pointer font-mono select-none uppercase tracking-wider text-n-secondary hover:text-n-display flex items-center gap-1.5">
               <ChevronRight size={10} strokeWidth={2} />
               <span>LLM TRACE ({getGenerationLog().length})</span>
             </summary>
@@ -412,7 +405,7 @@ export function BuilderScreen() {
                       <span>[{entry.tier ?? "unknown"}] {entry.ok ? "✓ OK" : "✗ FAILED"}</span>
                       <span>{entry.latencyMs}ms · {new Date(entry.time).toLocaleTimeString()}</span>
                     </div>
-                    <div className="truncate text-white/80">"{entry.userPrompt}"</div>
+                    <div className="truncate text-n-primary">"{entry.userPrompt}"</div>
                     <div className="text-n-disabled">
                       manifest: {entry.existingManifestBytes} bytes
                       {entry.repairAttempts !== undefined && ` · repairs: ${entry.repairAttempts}`}
@@ -436,8 +429,8 @@ export function BuilderScreen() {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder={isLocalGuest ? "Sign in with email to build tools" : "describe the tool"}
-            disabled={isGenerating || isLocalGuest}
+            placeholder="describe the tool"
+            disabled={isGenerating}
             aria-label="Tool prompt input"
             className="flex-1 bg-n-s1 border border-n-line px-5 py-3
                        text-xs text-n-primary font-grotesk placeholder:text-n-disabled outline-none
@@ -447,15 +440,15 @@ export function BuilderScreen() {
           <button
             type="button"
             onClick={() => handleSend()}
-            disabled={!inputText.trim() || isGenerating || isLocalGuest}
+            disabled={!inputText.trim() || isGenerating}
             id="builder-send-button"
             aria-label="Send message"
-            className="w-11 h-11 bg-white text-black flex items-center justify-center
+            className="w-11 h-11 bg-n-btn text-n-btn-text flex items-center justify-center
                        transition-all duration-150 active:scale-90
                        disabled:opacity-30 flex-shrink-0 rounded-full nt-press cursor-pointer"
           >
             {isGenerating ? (
-              <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+              <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
             ) : (
               <Send size={15} strokeWidth={2} />
             )}
@@ -584,7 +577,7 @@ export function BuilderScreen() {
                 type="button"
                 onClick={performSave}
                 disabled={isSaving}
-                className="px-4 py-2 rounded-sm bg-white text-n-bg text-xs font-mono font-bold uppercase tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="px-4 py-2 rounded-sm bg-n-btn text-n-btn-text text-xs font-mono font-bold uppercase tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
               >
                 Approve & Save
               </button>

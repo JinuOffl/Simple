@@ -169,14 +169,14 @@ export function Checklist({
               }
             }}
             placeholder={placeholder}
-            className="flex-1 bg-black/40 border border-n-line2 rounded-sm px-3 py-1.5 text-xs text-n-primary font-grotesk placeholder-n-disabled focus:outline-none focus:border-n-line3 transition-colors"
+            className="flex-1 bg-n-s1 border border-n-line2 rounded-sm px-3 py-1.5 text-xs text-n-primary font-grotesk placeholder-n-disabled focus:outline-none focus:border-n-line3 transition-colors"
             aria-label="New task input"
           />
           <button
             type="button"
             onClick={handleAddTask}
             disabled={!newText.trim()}
-            className="px-3 py-1.5 bg-white text-black text-[10px] font-mono font-bold uppercase tracking-wider rounded-sm hover:bg-n-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 active:scale-95 nt-press"
+            className="px-3 py-1.5 bg-n-btn text-n-btn-text text-[10px] font-mono font-bold uppercase tracking-wider rounded-sm hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 active:scale-95 nt-press"
             aria-label="Add task"
           >
             + ADD
@@ -198,7 +198,7 @@ export function Checklist({
               <div
                 key={task.id || i}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors group ${
-                  task.completed ? "bg-white/[0.01]" : "hover:bg-n-s2/50"
+                  task.completed ? "bg-n-s2/20" : "hover:bg-n-s2/50"
                 }`}
               >
                 {/* Nothing-style checkbox */}
@@ -207,11 +207,11 @@ export function Checklist({
                   onClick={() => toggleTask(task.id)}
                   aria-label={task.completed ? `Mark ${task.text} incomplete` : `Mark ${task.text} complete`}
                   className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-colors rounded-sm cursor-pointer nt-press ${
-                    task.completed ? "bg-white border-white" : "border-n-line2 hover:border-n-line3"
+                    task.completed ? "bg-n-btn border-n-btn text-n-btn-text" : "border-n-line2 hover:border-n-line3"
                   }`}
                 >
                   {task.completed && (
-                    <Check size={10} strokeWidth={2.5} className="text-black" />
+                    <Check size={10} strokeWidth={2.5} className="fill-current" />
                   )}
                 </button>
 
@@ -227,13 +227,13 @@ export function Checklist({
                         if (e.key === "Enter") saveEdit();
                         if (e.key === "Escape") cancelEdit();
                       }}
-                      className="flex-1 bg-black/60 border border-n-line3 rounded-sm px-2 py-1 text-xs text-white focus:outline-none font-grotesk"
+                      className="flex-1 bg-n-s2 border border-n-line3 rounded-sm px-2 py-1 text-xs text-n-primary focus:outline-none font-grotesk"
                       aria-label="Edit task input"
                     />
                     <button
                       type="button"
                       onClick={saveEdit}
-                      className="text-[10px] font-mono text-white hover:text-n-primary px-1.5 py-0.5 border border-white/40 rounded uppercase nt-press"
+                      className="text-[10px] font-mono text-n-display hover:opacity-80 px-1.5 py-0.5 border border-n-line3 rounded uppercase nt-press"
                       title="Save"
                     >
                       ✓
@@ -241,7 +241,7 @@ export function Checklist({
                     <button
                       type="button"
                       onClick={cancelEdit}
-                      className="text-[10px] font-mono text-n-disabled hover:text-white px-1.5 py-0.5 border border-n-line rounded uppercase nt-press"
+                      className="text-[10px] font-mono text-n-disabled hover:text-n-display px-1.5 py-0.5 border border-n-line rounded uppercase nt-press"
                       title="Cancel"
                     >
                       ✕
@@ -253,7 +253,7 @@ export function Checklist({
                       onClick={() => allowEdit && startEdit(task)}
                       title={allowEdit ? "Click to edit" : undefined}
                       className={`text-xs font-grotesk transition-colors flex-1 select-none ${
-                        allowEdit ? "cursor-pointer hover:text-white" : ""
+                        allowEdit ? "cursor-pointer hover:text-n-display" : ""
                       } ${task.completed ? "line-through text-n-disabled" : "text-n-primary"}`}
                     >
                       {task.text}
@@ -273,7 +273,7 @@ export function Checklist({
                           type="button"
                           onClick={() => startEdit(task)}
                           aria-label={`Edit ${task.text}`}
-                          className="p-1 text-n-disabled hover:text-white border border-transparent hover:border-n-line rounded transition-colors"
+                          className="p-1 text-n-disabled hover:text-n-display border border-transparent hover:border-n-line rounded transition-colors"
                           title="Edit"
                         >
                           <Pencil size={11} strokeWidth={1.5} />
@@ -304,7 +304,7 @@ export function Checklist({
         <div className="px-4 py-2.5 flex items-center gap-3 border-t border-n-line bg-n-s2">
           <div className="flex-1 h-1 bg-n-line rounded-full overflow-hidden">
             <div
-              className="h-full bg-white transition-all duration-300"
+              className="h-full bg-n-btn transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
             />
           </div>

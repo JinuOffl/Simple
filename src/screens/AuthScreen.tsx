@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppStore } from "@/lib/zustandStore";
 import { isGuestUser, isLocalGuestId, clearLocalGuestSession, loginAsGuest } from "@/lib/guestAuth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const CAPABILITIES = [
   "calculator  →  arithmetic, offline",
@@ -228,12 +229,16 @@ export function AuthScreen() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-n-bg flex flex-col items-center justify-center px-6 pb-16">
+    <div className="min-h-[100dvh] bg-n-bg flex flex-col items-center justify-center px-6 pb-16 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-[360px] space-y-0">
         {/* Wordmark (A1) */}
         <div className="mb-8 flex flex-col items-center text-center animate-slide-up">
           <h1
-            className="font-doto text-white tracking-widest"
+            className="font-doto text-n-display tracking-widest"
             style={{ fontSize: "clamp(48px, 16vw, 72px)", fontVariationSettings: "'ROND' 0", lineHeight: 1 }}
           >
             SIMPLE
@@ -278,15 +283,15 @@ export function AuthScreen() {
                   type="button"
                   onClick={handleGuestLogin}
                   disabled={guestLoading || loading}
-                  className="w-full bg-white text-black font-grotesk font-medium text-sm py-3.5 px-4 tracking-wide
-                             hover:bg-n-primary active:scale-[0.99] transition-all duration-150 flex items-center justify-center gap-2
+                  className="w-full bg-n-btn text-n-btn-text font-grotesk font-medium text-sm py-3.5 px-4 tracking-wide
+                             hover:opacity-90 active:scale-[0.99] transition-all duration-150 flex items-center justify-center gap-2
                              cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed nt-press"
                 >
                   {guestLoading ? (
                     <span className="flex items-center gap-1.5">
-                      <span className="loading-dot !bg-black" />
-                      <span className="loading-dot !bg-black" />
-                      <span className="loading-dot !bg-black" />
+                      <span className="loading-dot !bg-current" />
+                      <span className="loading-dot !bg-current" />
+                      <span className="loading-dot !bg-current" />
                     </span>
                   ) : (
                     <span>CONTINUE AS GUEST</span>
@@ -355,14 +360,14 @@ export function AuthScreen() {
             <div className="bg-n-s1 border border-n-line2 p-6 space-y-4 animate-slide-up">
               <div className="text-center space-y-1">
                 <p
-                  className="font-doto text-white text-2xl tracking-widest"
+                  className="font-doto text-n-display text-2xl tracking-widest"
                   style={{ fontVariationSettings: "'ROND' 50" }}
                 >
                   ENTER CODE
                 </p>
                 <p className="text-n-secondary text-xs leading-relaxed font-grotesk">
                   6-digit code sent to<br />
-                  <span className="text-white font-medium">{email}</span>
+                  <span className="text-n-display font-medium">{email}</span>
                 </p>
               </div>
 
@@ -378,7 +383,7 @@ export function AuthScreen() {
                   placeholder="000000"
                   autoFocus
                   className="w-full bg-transparent border-b border-n-line2 px-4 py-3
-                             text-white text-center text-lg tracking-[0.5em] placeholder:text-n-disabled
+                             text-n-primary text-center text-lg tracking-[0.5em] placeholder:text-n-disabled
                              outline-none focus:border-n-line3 transition-colors font-mono"
                 />
 
@@ -392,14 +397,14 @@ export function AuthScreen() {
                   type="button"
                   onClick={handleVerifyCode}
                   disabled={loading || otpCode.length !== 6}
-                  className="w-full bg-white text-black font-grotesk font-medium text-sm py-3 px-4
-                             hover:bg-n-primary transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed nt-press"
+                  className="w-full bg-n-btn text-n-btn-text font-grotesk font-medium text-sm py-3 px-4
+                             hover:opacity-90 transition-opacity disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed nt-press"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-1.5">
-                      <span className="loading-dot !bg-black" />
-                      <span className="loading-dot !bg-black" />
-                      <span className="loading-dot !bg-black" />
+                      <span className="loading-dot !bg-current" />
+                      <span className="loading-dot !bg-current" />
+                      <span className="loading-dot !bg-current" />
                     </span>
                   ) : (
                     "VERIFY CODE"
@@ -414,7 +419,7 @@ export function AuthScreen() {
                       setError(null);
                       setOtpCode("");
                     }}
-                    className="text-n-disabled hover:text-white transition-colors uppercase tracking-wider cursor-pointer"
+                    className="text-n-disabled hover:text-n-display transition-colors uppercase tracking-wider cursor-pointer"
                   >
                     Use different email
                   </button>
@@ -423,7 +428,7 @@ export function AuthScreen() {
                     type="button"
                     onClick={handleResendCode}
                     disabled={countdown > 0 || loading}
-                    className="text-n-disabled hover:text-white disabled:opacity-40 transition-colors uppercase tracking-wider cursor-pointer disabled:cursor-default"
+                    className="text-n-disabled hover:text-n-display disabled:opacity-40 transition-colors uppercase tracking-wider cursor-pointer disabled:cursor-default"
                   >
                     {countdown > 0 ? `Resend code in ${countdown}s` : "Resend code"}
                   </button>
@@ -434,11 +439,11 @@ export function AuthScreen() {
 
           {/* Footer links to Privacy & Terms */}
           <div className="mt-8 flex items-center justify-center gap-3 text-[10px] font-mono uppercase tracking-widest text-n-disabled">
-            <Link to="/privacy" className="hover:text-white transition-colors">
+            <Link to="/privacy" className="hover:text-n-display transition-colors">
               Privacy
             </Link>
             <span>·</span>
-            <Link to="/terms" className="hover:text-white transition-colors">
+            <Link to="/terms" className="hover:text-n-display transition-colors">
               Terms
             </Link>
           </div>
@@ -447,7 +452,7 @@ export function AuthScreen() {
             <div className="mt-4 text-center">
               <a
                 href="#/mcp-demo"
-                className="text-n-disabled hover:text-white text-[10px] font-mono uppercase tracking-[0.18em] transition-colors"
+                className="text-n-disabled hover:text-n-display text-[10px] font-mono uppercase tracking-[0.18em] transition-colors"
               >
                 open phase 1b mcp demo →
               </a>

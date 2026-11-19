@@ -125,16 +125,16 @@ export function BleHeartRate({
   return (
     <div
       data-testid="ble-heart-rate-card"
-      className="bg-n-surface border border-n-border rounded-sm p-3.5 space-y-3 font-mono"
+      className="bg-n-s1 border border-n-line rounded-sm p-3.5 space-y-3 font-mono"
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Activity
             className={`w-4 h-4 shrink-0 ${
-              isConnected ? "text-red-400 animate-pulse" : "text-n-text3"
+              isConnected ? "text-n-red animate-pulse" : "text-n-disabled"
             }`}
           />
-          <span className="text-white text-xs uppercase tracking-wider font-medium truncate">
+          <span className="text-n-display text-xs uppercase tracking-wider font-medium truncate">
             {label}
           </span>
         </div>
@@ -148,7 +148,7 @@ export function BleHeartRate({
                 ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
                 : isConnecting
                   ? "border-sky-500/40 text-sky-400 bg-sky-500/10"
-                  : "border-n-border text-n-text3"
+                  : "border-n-line text-n-disabled"
           }`}
         >
           {!isBluetoothSupported
@@ -162,7 +162,7 @@ export function BleHeartRate({
       </div>
 
       {!isBluetoothSupported ? (
-        <div className="flex items-start gap-2 p-2 bg-n-bg border border-n-border text-[11px] text-n-text2">
+        <div className="flex items-start gap-2 p-2 bg-n-s2 border border-n-line text-[11px] text-n-secondary">
           <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
           <span>
             Web Bluetooth is not supported in this browser. Standard BLE Heart Rate monitors (0x180D) work on Chrome, Edge, and Android Chrome.
@@ -175,19 +175,19 @@ export function BleHeartRate({
               <div className="flex items-baseline gap-1.5">
                 <span
                   data-testid="live-bpm-value"
-                  className="text-2xl font-bold text-white tracking-tight"
+                  className="text-2xl font-bold text-n-display tracking-tight"
                 >
                   {currentBpm ?? "--"}
                 </span>
-                <span className="text-[10px] text-n-text3 uppercase">bpm</span>
+                <span className="text-[10px] text-n-disabled uppercase">bpm</span>
                 {deviceName && (
-                  <span className="text-[10px] text-n-text3 ml-2 truncate max-w-[140px]">
+                  <span className="text-[10px] text-n-disabled ml-2 truncate max-w-[140px]">
                     ({deviceName})
                   </span>
                 )}
               </div>
             ) : (
-              <span className="text-[11px] text-n-text3">
+              <span className="text-[11px] text-n-disabled">
                 Standard BLE Heart Rate (0x180D)
               </span>
             )}
@@ -200,8 +200,8 @@ export function BleHeartRate({
             disabled={!isBluetoothSupported || isConnecting}
             className={`px-3 py-1.5 text-[10px] uppercase font-bold tracking-wider rounded-sm transition-all flex items-center gap-1.5 shrink-0 ${
               isConnected
-                ? "bg-n-bg border border-n-border hover:border-red-500/40 text-red-400"
-                : "bg-white text-n-bg hover:opacity-90 disabled:opacity-40"
+                ? "bg-n-s2 border border-n-line hover:border-n-red/40 text-n-red"
+                : "bg-n-btn text-n-btn-text hover:opacity-90 disabled:opacity-40"
             }`}
           >
             {isConnected ? (
@@ -220,7 +220,7 @@ export function BleHeartRate({
       )}
 
       {error && (
-        <p className="text-[10px] text-red-400 pt-1" data-testid="ble-error-text">
+        <p className="text-[10px] text-n-red pt-1" data-testid="ble-error-text">
           {error}
         </p>
       )}

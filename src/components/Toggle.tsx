@@ -51,18 +51,18 @@ export function Toggle({
         aria-label={label}
         disabled={isDisabled}
         onClick={handleClick}
-        className={`relative inline-flex h-6 w-11 shrink-0 items-center border transition-all duration-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white ${
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center border transition-all duration-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-n-display ${
           isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer nt-press"
         } ${
           isOn
-            ? "bg-white border-white"
+            ? "bg-n-btn border-n-btn"
             : "bg-transparent border-n-line2"
         }`}
       >
         <span
           className={`inline-block h-4 w-4 transition-transform duration-100 ${
             isOn
-              ? "translate-x-5.5 bg-[#000000]"
+              ? "translate-x-5.5 bg-n-btn-text"
               : "translate-x-0.5 bg-n-line3"
           }`}
         />

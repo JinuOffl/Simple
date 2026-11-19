@@ -8,6 +8,7 @@ import { ManifestRenderer } from "@/renderer/ManifestRenderer";
 import type { Manifest } from "@/schema/manifest.v1";
 import type { ManifestV2 } from "@/schema/manifest.v2";
 import { ShareModal } from "@/components/ShareModal";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function AppRunnerScreen() {
   const { id } = useParams<{ id: string }>();
@@ -192,21 +193,21 @@ export function AppRunnerScreen() {
   const appManifest: Manifest | ManifestV2 = app.manifest;
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-gradient-mesh">
+    <div className="min-h-[100dvh] flex flex-col bg-n-bg">
 
       {/* Top bar */}
-      <header className="px-4 pt-5 pb-3 flex items-center gap-3 border-b border-n-border">
+      <header className="px-4 pt-5 pb-3 flex items-center gap-3 border-b border-n-line bg-n-bg">
         <button
           onClick={() => navigate("/")}
           aria-label="Back"
-          className="text-n-text3 hover:text-white text-[11px] uppercase tracking-wider transition-colors"
+          className="text-n-secondary hover:text-n-display text-[11px] uppercase tracking-wider transition-colors cursor-pointer"
         >
           ←
         </button>
 
         <div className="flex-1 flex items-center gap-2.5">
           <span className="text-xl leading-none">{app.icon}</span>
-          <p className="text-white text-xs uppercase tracking-wider">{app.name}</p>
+          <p className="text-n-display font-grotesk font-medium text-xs uppercase tracking-wider">{app.name}</p>
           {userRole !== "owner" && (
             <span className="nt-tag text-[9px] uppercase tracking-wider px-1.5 py-0.5">
               {userRole}
@@ -214,13 +215,15 @@ export function AppRunnerScreen() {
           )}
         </div>
 
+        <ThemeToggle />
+
         {userRole === "owner" && (
           <button
             type="button"
             onClick={() => setShowShareModal(true)}
-            className="text-n-text3 hover:text-white text-[10px] uppercase tracking-widest
-                       border border-n-border hover:border-n-border2 px-3 py-1.5 rounded-sm
-                       transition-colors"
+            className="text-n-secondary hover:text-n-display text-[10px] uppercase tracking-widest
+                       border border-n-line hover:border-n-line3 px-3 py-1.5 rounded-sm
+                       transition-colors cursor-pointer"
           >
             share
           </button>
@@ -230,9 +233,9 @@ export function AppRunnerScreen() {
           <button
             type="button"
             onClick={handleEdit}
-            className="text-n-text3 hover:text-white text-[10px] uppercase tracking-widest
-                       border border-n-border hover:border-n-border2 px-3 py-1.5 rounded-sm
-                       transition-colors"
+            className="text-n-secondary hover:text-n-display text-[10px] uppercase tracking-widest
+                       border border-n-line hover:border-n-line3 px-3 py-1.5 rounded-sm
+                       transition-colors cursor-pointer"
           >
             edit
           </button>
@@ -243,20 +246,20 @@ export function AppRunnerScreen() {
       <main className="flex-1 overflow-y-auto">
         {app.status === "sleeping" ? (
           <div className="p-6 flex items-center justify-center min-h-[60vh]">
-            <div className="glass max-w-sm w-full p-6 flex flex-col items-center text-center gap-4">
+            <div className="bg-n-s1 border border-n-line rounded-sm max-w-sm w-full p-6 flex flex-col items-center text-center gap-4">
               <span className="text-4xl leading-none">{app.icon}</span>
               <div>
                 <span className="nt-tag mb-2">sleeping</span>
-                <h2 className="text-white text-sm uppercase tracking-wider font-semibold">
+                <h2 className="text-n-display text-sm uppercase tracking-wider font-semibold">
                   {app.name}
                 </h2>
-                <p className="text-n-text2 text-xs mt-1.5 leading-relaxed">
+                <p className="text-n-secondary text-xs mt-1.5 leading-relaxed">
                   This app is sleeping. Wake it up to use it again, or export its manifest as JSON.
                 </p>
               </div>
               <div className="w-full flex flex-col gap-2 pt-2">
                 {wakeError && (
-                  <p className="text-[11px] text-white/90 bg-n-surface border border-white/25 rounded-sm px-3 py-2 text-left leading-relaxed">
+                  <p className="text-[11px] text-n-primary bg-n-s2 border border-n-line rounded-sm px-3 py-2 text-left leading-relaxed">
                     {wakeError}
                   </p>
                 )}

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { supabase, hasValidSupabaseConfig } from "@/lib/supabaseClient";
 import { useAppStore } from "@/lib/zustandStore";
-import { clearLocalGuestSession, getLocalGuestSession } from "@/lib/guestAuth";
+import { clearLocalGuestSession, getLocalGuestSession, createLocalGuestSession } from "@/lib/guestAuth";
 import { AuthScreen } from "@/screens/AuthScreen";
 import { PrivacyScreen } from "@/screens/PrivacyScreen";
 import { TermsScreen } from "@/screens/TermsScreen";
@@ -16,8 +16,18 @@ import { InviteJoinScreen } from "@/screens/InviteJoinScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { session } = useAppStore();
+  const { session, setSession } = useAppStore();
   const location = useLocation();
+
+  useEffect(() => {
+    if (!session) {
+      const inviteMatch = location.pathname.match(/^\/(?:join|invite)\/([a-zA-Z0-9_-]+)/);
+      if (!inviteMatch) {
+        const localGuest = getLocalGuestSession() ?? createLocalGuestSession();
+        setSession(localGuest);
+      }
+    }
+  }, [session, location.pathname, setSession]);
 
   if (!session) {
     const inviteMatch = location.pathname.match(/^\/(?:join|invite)\/([a-zA-Z0-9_-]+)/);
@@ -27,8 +37,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       } catch {
         // ignore
       }
+      return <Navigate to="/auth" replace />;
     }
-    return <Navigate to="/auth" replace />;
+    return <>{children}</>;
   }
   return <>{children}</>;
 }
@@ -71,7 +82,7 @@ export default function App() {
       if (data.session) {
         setSession(data.session);
       } else {
-        const localGuest = getLocalGuestSession();
+        const localGuest = getLocalGuestSession() ?? createLocalGuestSession();
         setSession(localGuest);
       }
     });

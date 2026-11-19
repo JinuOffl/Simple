@@ -228,20 +228,17 @@ export async function generateAppWithFallback(
   // ── 2. Try remote Supabase Edge Function ─────────────────────────────────────
   let remoteNetworkFailed = false;
   if (isLocalGuestId(callerUser?.id)) {
-    return recordAndReturn({
-      ok: false,
-      error: "Sign in with email to generate tools (offline guest)",
-    });
-  }
-
-  try {
-    const { data, error } = await supabase.functions.invoke("generate-app", {
-      body: {
-        user_prompt: userPrompt,
-        existing_manifest: existingManifest ?? undefined,
-        conversation_context: conversationContext,
-      },
-    });
+    // Local guests without cloud session use instant client-side template matching
+    remoteNetworkFailed = true;
+  } else {
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-app", {
+        body: {
+          user_prompt: userPrompt,
+          existing_manifest: existingManifest ?? undefined,
+          conversation_context: conversationContext,
+        },
+      });
 
     if (!error && data) {
       const responseRecord =
@@ -346,6 +343,7 @@ export async function generateAppWithFallback(
   } catch {
     remoteNetworkFailed = true;
   }
+  }
 
   // ── 3. Direct Groq In-Browser Generation (Edit & Custom Apps) ────────────────
   const groqKey = getClientGroqKey();
@@ -431,8 +429,9 @@ export async function generateAppWithFallback(
   if (remoteNetworkFailed && !groqKey) {
     return recordAndReturn({
       ok: false,
-      error:
-        "The Supabase Edge Function is not reachable (check VITE_SUPABASE_URL in .env). To build apps locally, run 'npm run dev:mcp' or enter a Groq API key in the /plan screen.",
+      error: isLocalGuestId(callerUser?.id)
+        ? "Guest mode supports starter tools (calculator, timer, checklist, clock, weather, counter). Sign in with email for open-ended AI generation."
+        : "The Supabase Edge Function is not reachable (check VITE_SUPABASE_URL in .env). To build apps locally, run 'npm run dev:mcp' or enter a Groq API key in the /plan screen.",
       tier: "edge",
     });
   }

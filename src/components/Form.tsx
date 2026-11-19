@@ -81,7 +81,7 @@ export function Form({
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full bg-n-surface border border-n-border rounded-sm p-4 animate-fade-in space-y-3.5"
+      className="w-full bg-n-s1 border border-n-line rounded-sm p-4 animate-fade-in space-y-3.5"
     >
       {fields.map((f) => {
         const hasError = Boolean(errors[f.name]);
@@ -89,11 +89,11 @@ export function Form({
           <div key={f.name} className="space-y-1">
             <label
               htmlFor={`form-field-${f.name}`}
-              className="text-[10px] font-mono uppercase tracking-[0.16em] text-n-text2 flex items-center justify-between"
+              className="text-[10px] font-mono uppercase tracking-[0.16em] text-n-secondary flex items-center justify-between"
             >
               <span>{f.label}</span>
               {f.required && (
-                <span className="text-[9px] text-n-text3 lowercase">required</span>
+                <span className="text-[9px] text-n-disabled lowercase">required</span>
               )}
             </label>
 
@@ -105,10 +105,10 @@ export function Form({
                 rows={3}
                 disabled={loading}
                 onChange={(e) => handleChange(f.name, e.target.value)}
-                className={`w-full bg-n-surface2 border px-3 py-2 text-xs text-white placeholder:text-n-text3 outline-none rounded-sm transition-colors resize-none ${
+                className={`w-full bg-n-s2 border px-3 py-2 text-xs text-n-primary placeholder:text-n-disabled outline-none rounded-sm transition-colors resize-none ${
                   hasError
-                    ? "border-red-500/70 focus:border-red-400"
-                    : "border-n-border focus:border-n-border2"
+                    ? "border-n-red/70 focus:border-n-red"
+                    : "border-n-line focus:border-n-line3"
                 }`}
               />
             ) : (
@@ -119,16 +119,16 @@ export function Form({
                 placeholder={f.placeholder}
                 disabled={loading}
                 onChange={(e) => handleChange(f.name, e.target.value)}
-                className={`w-full bg-n-surface2 border px-3 py-2 text-xs text-white placeholder:text-n-text3 outline-none rounded-sm transition-colors ${
+                className={`w-full bg-n-s2 border px-3 py-2 text-xs text-n-primary placeholder:text-n-disabled outline-none rounded-sm transition-colors ${
                   hasError
-                    ? "border-red-500/70 focus:border-red-400"
-                    : "border-n-border focus:border-n-border2"
+                    ? "border-n-red/70 focus:border-n-red"
+                    : "border-n-line focus:border-n-line3"
                 }`}
               />
             )}
 
             {hasError && (
-              <p className="text-[10px] text-red-400 font-mono mt-0.5">
+              <p className="text-[10px] text-n-red font-mono mt-0.5">
                 {errors[f.name]}
               </p>
             )}
@@ -136,7 +136,7 @@ export function Form({
         );
       })}
 
-      <div className="pt-2 border-t border-n-border flex justify-end">
+      <div className="pt-2 border-t border-n-line flex justify-end">
         <button
           type="submit"
           disabled={loading}

@@ -86,7 +86,7 @@ export function NeedsKeyCard({
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Get ${label} key`}
-            className="nt-label hover:text-white shrink-0 transition-colors"
+            className="nt-label hover:text-n-display shrink-0 transition-colors"
           >
             Get Key ↗
           </a>
@@ -102,7 +102,7 @@ export function NeedsKeyCard({
           placeholder={`Enter ${label} key...`}
           disabled={isSaving || savedSuccess}
           aria-label={`${label} input`}
-          className="flex-1 bg-black/40 border border-n-line2 px-3 py-1.5 text-xs text-n-primary placeholder:text-n-disabled outline-none focus:border-n-line3 rounded-sm font-mono disabled:opacity-50 transition-colors"
+          className="flex-1 bg-n-s2 border border-n-line px-3 py-1.5 text-xs text-n-primary placeholder:text-n-disabled outline-none focus:border-n-line3 rounded-sm font-mono disabled:opacity-50 transition-colors"
         />
 
         <button
@@ -111,8 +111,8 @@ export function NeedsKeyCard({
           disabled={!keyInput.trim() || isSaving || savedSuccess}
           className={`px-3 py-1.5 text-[10px] uppercase font-mono font-bold tracking-widest rounded-sm border transition-all shrink-0 nt-press cursor-pointer ${
             savedSuccess
-              ? "bg-white/10 text-white border-white/40"
-              : "bg-white text-black border-white hover:bg-n-primary disabled:opacity-30 disabled:cursor-not-allowed"
+              ? "bg-n-s2 text-n-secondary border-n-line"
+              : "bg-n-btn text-n-btn-text border-n-btn hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
           }`}
         >
           {savedSuccess ? "Saved ✓" : isSaving ? "..." : "Save Key"}

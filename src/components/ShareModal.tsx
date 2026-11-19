@@ -119,16 +119,16 @@ export function ShareModal({ appId, appName, isOwner, onClose }: ShareModalProps
       aria-modal="true"
       aria-labelledby="share-modal-title"
     >
-      <div className="w-full max-w-md bg-n-surface border border-n-border rounded-sm p-5 space-y-4 shadow-2xl">
-        <div className="flex items-center justify-between pb-2 border-b border-n-border">
+      <div className="w-full max-w-md bg-n-s1 border border-n-line rounded-sm p-5 space-y-4 shadow-2xl">
+        <div className="flex items-center justify-between pb-2 border-b border-n-line">
           <div>
             <h2
               id="share-modal-title"
-              className="font-mono text-xs font-semibold tracking-wide text-white uppercase"
+              className="font-mono text-xs font-semibold tracking-wide text-n-display uppercase"
             >
               Collaborate · {appName}
             </h2>
-            <p className="text-[10px] text-n-text3 mt-0.5">
+            <p className="text-[10px] text-n-disabled mt-0.5">
               Invite friends or partners with real-time sync
             </p>
           </div>
@@ -136,7 +136,7 @@ export function ShareModal({ appId, appName, isOwner, onClose }: ShareModalProps
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="text-n-text3 hover:text-white text-xs px-2 py-1"
+            className="text-n-disabled hover:text-n-display text-xs px-2 py-1"
           >
             ✕
           </button>
@@ -150,20 +150,20 @@ export function ShareModal({ appId, appName, isOwner, onClose }: ShareModalProps
 
         {/* Create Invite Controls (Owner only) */}
         {isOwner && (
-          <div className="space-y-3 bg-n-surface2/40 p-3.5 rounded-sm border border-n-border">
-            <p className="text-[9px] font-mono uppercase tracking-[0.18em] text-n-text3">
+          <div className="space-y-3 bg-n-s2 p-3.5 rounded-sm border border-n-line">
+            <p className="text-[9px] font-mono uppercase tracking-[0.18em] text-n-disabled">
               Generate Invite Link
             </p>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-mono text-n-text2 uppercase block mb-1">
+                <label className="text-[10px] font-mono text-n-secondary uppercase block mb-1">
                   Role
                 </label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as "editor" | "viewer")}
-                  className="w-full bg-n-surface border border-n-border text-white text-xs p-2 rounded-sm outline-none"
+                  className="w-full bg-n-s1 border border-n-line text-n-primary text-xs p-2 rounded-sm outline-none"
                 >
                   <option value="editor">Editor (Can edit)</option>
                   <option value="viewer">Viewer (Read-only)</option>
@@ -171,13 +171,13 @@ export function ShareModal({ appId, appName, isOwner, onClose }: ShareModalProps
               </div>
 
               <div>
-                <label className="text-[10px] font-mono text-n-text2 uppercase block mb-1">
+                <label className="text-[10px] font-mono text-n-secondary uppercase block mb-1">
                   Max Uses
                 </label>
                 <select
                   value={maxUses}
                   onChange={(e) => setMaxUses(Number(e.target.value))}
-                  className="w-full bg-n-surface border border-n-border text-white text-xs p-2 rounded-sm outline-none"
+                  className="w-full bg-n-s1 border border-n-line text-n-primary text-xs p-2 rounded-sm outline-none"
                 >
                   <option value={1}>1 use</option>
                   <option value={5}>5 uses</option>
@@ -197,12 +197,12 @@ export function ShareModal({ appId, appName, isOwner, onClose }: ShareModalProps
             </button>
 
             {inviteLink && (
-              <div className="mt-2 p-2.5 bg-n-surface border border-n-border rounded-sm space-y-2 animate-fade-in">
+              <div className="mt-2 p-2.5 bg-n-s1 border border-n-line rounded-sm space-y-2 animate-fade-in">
                 <input
                   type="text"
                   readOnly
                   value={inviteLink}
-                  className="w-full bg-transparent font-mono text-[11px] text-white/90 outline-none select-all"
+                  className="w-full bg-transparent font-mono text-[11px] text-n-primary outline-none select-all"
                 />
                 <button
                   type="button"
@@ -219,26 +219,26 @@ export function ShareModal({ appId, appName, isOwner, onClose }: ShareModalProps
         {/* Member List */}
         <div className="space-y-2 pt-1">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-n-text3">
+            <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-n-disabled">
               Members ({members.length})
             </span>
           </div>
 
           {loadingMembers ? (
-            <p className="text-xs text-n-text3 py-2 text-center font-mono">Loading…</p>
+            <p className="text-xs text-n-disabled py-2 text-center font-mono">Loading…</p>
           ) : members.length === 0 ? (
-            <p className="text-xs text-n-text3 py-2 text-center font-mono">
+            <p className="text-xs text-n-disabled py-2 text-center font-mono">
               Only you have access to this tool.
             </p>
           ) : (
-            <div className="divide-y divide-n-border border border-n-border rounded-sm overflow-hidden bg-n-surface">
+            <div className="divide-y divide-n-line border border-n-line rounded-sm overflow-hidden bg-n-s1">
               {members.map((m) => (
                 <div
                   key={m.id}
                   className="px-3 py-2 flex items-center justify-between gap-2 text-xs"
                 >
                   <div className="min-w-0 flex-1 flex items-center gap-2">
-                    <span className="font-mono text-[10px] text-white/80 truncate">
+                    <span className="font-mono text-[10px] text-n-primary truncate">
                       {m.user_id.slice(0, 8)}…
                     </span>
                     <span className="nt-tag text-[8px] px-1.5 py-0.5 leading-none lowercase">
@@ -250,7 +250,7 @@ export function ShareModal({ appId, appName, isOwner, onClose }: ShareModalProps
                     <button
                       type="button"
                       onClick={() => handleRemoveMember(m.user_id)}
-                      className="text-n-text3 hover:text-red-400 text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 transition-colors"
+                      className="text-n-disabled hover:text-n-red text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 transition-colors"
                     >
                       Remove
                     </button>

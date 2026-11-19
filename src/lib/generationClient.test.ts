@@ -377,7 +377,10 @@ describe("generationClient", () => {
 
     expect(invokeSpy).not.toHaveBeenCalled();
     expect(res.ok).toBe(false);
-    expect(res.error).toBe("Sign in with email to generate tools (offline guest)");
+    // Policy change (MVP unauthenticated guest): Unmatched prompts inform guest of supported starter tools
+    expect(res.error).toBe(
+      "Guest mode supports starter tools (calculator, timer, checklist, clock, weather, counter). Sign in with email for open-ended AI generation."
+    );
   });
 
   it("3.2: does NOT fall back to template when edge returns ok: true but manifest fails Zod", async () => {

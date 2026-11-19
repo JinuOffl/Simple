@@ -44,17 +44,17 @@ export function Slider({
   };
 
   return (
-    <div className="w-full bg-n-surface border border-n-border rounded-sm p-4 animate-fade-in space-y-3">
+    <div className="w-full bg-n-s1 border border-n-line rounded-sm p-4 animate-fade-in space-y-3">
       <div className="flex items-center justify-between gap-2">
         <label
           htmlFor={inputId}
-          className="text-white text-xs font-medium tracking-wide"
+          className="text-n-display text-xs font-medium tracking-wide"
         >
           {label}
         </label>
-        <span className="font-mono text-xs text-n-text2">
+        <span className="font-mono text-xs text-n-secondary">
           {currentVal}
-          <span className="text-n-text3 text-[10px]"> / {max}</span>
+          <span className="text-n-disabled text-[10px]"> / {max}</span>
         </span>
       </div>
 
@@ -72,16 +72,16 @@ export function Slider({
           aria-valuemin={min}
           aria-valuemax={max}
           aria-valuenow={currentVal}
-          className="w-full h-2 bg-n-surface2 rounded-none appearance-none cursor-pointer outline-none
-                     accent-white disabled:opacity-40 disabled:cursor-not-allowed
-                     focus-visible:ring-1 focus-visible:ring-white"
+          className="w-full h-2 rounded-none appearance-none cursor-pointer outline-none
+                     accent-n-primary disabled:opacity-40 disabled:cursor-not-allowed
+                     focus-visible:ring-1 focus-visible:ring-n-primary"
           style={{
-            background: `linear-gradient(to right, #ffffff ${percentage}%, #1a1a1a ${percentage}%)`,
+            background: `linear-gradient(to right, var(--n-btn-bg) ${percentage}%, var(--n-line) ${percentage}%)`,
           }}
         />
       </div>
 
-      <div className="flex justify-between text-[9px] font-mono text-n-text3 uppercase tracking-wider">
+      <div className="flex justify-between text-[9px] font-mono text-n-disabled uppercase tracking-wider">
         <span>{min}</span>
         <span>{max}</span>
       </div>

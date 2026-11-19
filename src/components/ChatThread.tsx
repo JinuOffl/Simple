@@ -91,10 +91,10 @@ export function ChatThread({
   };
 
   return (
-    <div className="w-full bg-n-surface border border-n-border rounded-sm overflow-hidden flex flex-col animate-fade-in">
+    <div className="w-full bg-n-s1 border border-n-line rounded-sm overflow-hidden flex flex-col animate-fade-in">
       {/* Header bar */}
-      <div className="px-4 py-2.5 border-b border-n-border bg-n-surface2/30 flex items-center justify-between">
-        <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-n-text3">
+      <div className="px-4 py-2.5 border-b border-n-line bg-n-s2 flex items-center justify-between">
+        <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-n-secondary">
           Assistant
         </span>
         <span className="nt-tag text-[8px] px-1.5 py-0.5 leading-none">
@@ -109,7 +109,7 @@ export function ChatThread({
         style={{ minHeight: "180px", maxHeight: "320px" }}
       >
         {messages.length === 0 && (
-          <div className="py-8 text-center text-n-text3 text-xs">
+          <div className="py-8 text-center text-n-disabled text-xs">
             Start a conversation below.
           </div>
         )}
@@ -130,7 +130,7 @@ export function ChatThread({
       </div>
 
       {/* Input row */}
-      <div className="p-2.5 border-t border-n-border flex gap-2 bg-n-surface">
+      <div className="p-2.5 border-t border-n-line flex gap-2 bg-n-s1">
         <input
           type="text"
           value={input}
@@ -138,13 +138,13 @@ export function ChatThread({
           disabled={isLoading}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          className="flex-1 bg-n-surface2 border border-n-border px-3 py-2 text-xs text-white placeholder:text-n-text3 outline-none rounded-sm focus:border-n-border2 transition-colors"
+          className="flex-1 bg-n-s2 border border-n-line px-3 py-2 text-xs text-n-primary placeholder:text-n-disabled outline-none rounded-sm focus:border-n-line3 transition-colors"
         />
         <button
           type="button"
           disabled={!input.trim() || isLoading}
           onClick={handleSend}
-          className="px-3 py-2 bg-white text-n-bg font-bold text-[10px] uppercase tracking-wider rounded-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-30"
+          className="px-3 py-2 bg-n-btn text-n-btn-text font-bold text-[10px] uppercase tracking-wider rounded-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-30 nt-press cursor-pointer"
         >
           Send
         </button>

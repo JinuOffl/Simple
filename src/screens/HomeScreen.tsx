@@ -13,6 +13,7 @@ import { PLANS } from "@/config/plans";
 import { STARTER_TEMPLATES } from "../../supabase/functions/_shared/orchestrator/templates.ts";
 import type { StarterTemplate } from "../../supabase/functions/_shared/orchestrator/types.ts";
 import { TemplateIcon } from "@/lib/toolIcon";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { User, Plug, BarChart2, LogOut, Plus } from "lucide-react";
 
 const DEMO_TEMPLATE_SLUGS = [
@@ -58,8 +59,8 @@ function TemplateCard({
       <div className="space-y-1.5 w-full">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <TemplateIcon template={template} size={15} className="text-n-secondary group-hover:text-white transition-colors" />
-            <span className="font-grotesk text-xs uppercase tracking-wider text-n-primary group-hover:text-white transition-colors font-medium">
+            <TemplateIcon template={template} size={15} className="text-n-secondary group-hover:text-n-display transition-colors" />
+            <span className="font-grotesk text-xs uppercase tracking-wider text-n-primary group-hover:text-n-display transition-colors font-medium">
               {template.name}
             </span>
           </div>
@@ -72,7 +73,7 @@ function TemplateCard({
         </p>
       </div>
 
-      <div className="pt-2 border-t border-n-line/60 flex items-center justify-between text-[9px] font-mono text-n-disabled group-hover:text-white transition-colors">
+      <div className="pt-2 border-t border-n-line/60 flex items-center justify-between text-[9px] font-mono text-n-disabled group-hover:text-n-display transition-colors">
         <span className="uppercase tracking-widest">Instant Demo</span>
         <span>{isCloning ? "CLONING..." : "USE TEMPLATE →"}</span>
       </div>
@@ -389,7 +390,7 @@ export function HomeScreen() {
         <div className="shrink-0 min-w-0">
           {/* Simple. in Doto dot-matrix */}
           <h1
-            className="font-doto text-white tracking-widest leading-none text-2xl sm:text-3xl"
+            className="font-doto text-n-display tracking-widest leading-none text-2xl sm:text-3xl"
             style={{ fontVariationSettings: "'ROND' 0" }}
           >
             Simple.
@@ -401,11 +402,13 @@ export function HomeScreen() {
 
         {/* Plan & Account dropdown */}
         <div className="flex items-center gap-2 shrink-0">
+          <ThemeToggle />
+
           {apps.length > 0 && (
             <button
               type="button"
               onClick={() => setShowTemplatesModal(true)}
-              className="font-mono text-[9px] uppercase tracking-widest text-n-secondary border border-n-line px-2.5 py-1 rounded-sm hover:border-n-line3 hover:text-white transition-colors cursor-pointer"
+              className="font-mono text-[9px] uppercase tracking-widest text-n-secondary border border-n-line px-2.5 py-1 rounded-sm hover:border-n-line3 hover:text-n-display transition-colors cursor-pointer"
             >
               templates
             </button>
@@ -414,7 +417,7 @@ export function HomeScreen() {
           <button
             type="button"
             onClick={() => navigate("/plan")}
-            className="font-mono text-[9px] uppercase tracking-wider text-n-disabled border border-n-line px-2 py-1 rounded-sm hover:border-n-line3 hover:text-white transition-colors cursor-pointer"
+            className="font-mono text-[9px] uppercase tracking-wider text-n-disabled border border-n-line px-2 py-1 rounded-sm hover:border-n-line3 hover:text-n-display transition-colors cursor-pointer"
           >
             {activeCount}/{activeLimit} · {entitlement?.plan ?? "free"}
           </button>
@@ -425,7 +428,7 @@ export function HomeScreen() {
               onClick={() => setAccountMenuOpen((prev) => !prev)}
               aria-label="Account menu"
               aria-expanded={accountMenuOpen}
-              className="w-8 h-8 border border-n-line hover:border-n-line3 text-n-secondary hover:text-white rounded-sm flex items-center justify-center transition-colors cursor-pointer"
+              className="w-8 h-8 border border-n-line hover:border-n-line3 text-n-secondary hover:text-n-display rounded-sm flex items-center justify-center transition-colors cursor-pointer"
             >
               <User size={14} strokeWidth={1.5} />
             </button>
@@ -433,7 +436,7 @@ export function HomeScreen() {
             {accountMenuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-full mt-1.5 w-44 bg-n-s2 border border-n-line2 rounded-sm shadow-2xl z-30 py-1 text-xs animate-fade-in font-grotesk"
+                className="absolute right-0 top-full mt-1.5 w-44 bg-n-s1 border border-n-line2 rounded-sm shadow-2xl z-30 py-1 text-xs animate-fade-in font-grotesk"
               >
                 <div className="px-3 py-1.5 border-b border-n-line">
                   <span className="nt-label text-[8px]">{accountLabel}</span>
@@ -445,7 +448,7 @@ export function HomeScreen() {
                     setAccountMenuOpen(false);
                     navigate("/connections");
                   }}
-                  className="w-full text-left px-3 py-2 text-n-secondary hover:text-white hover:bg-n-s3 flex items-center gap-2 text-xs transition-colors"
+                  className="w-full text-left px-3 py-2 text-n-secondary hover:text-n-display hover:bg-n-s2 flex items-center gap-2 text-xs transition-colors"
                 >
                   <Plug size={12} strokeWidth={1.5} />
                   Connections
@@ -457,7 +460,7 @@ export function HomeScreen() {
                     setAccountMenuOpen(false);
                     navigate("/plan");
                   }}
-                  className="w-full text-left px-3 py-2 text-n-secondary hover:text-white hover:bg-n-s3 flex items-center gap-2 text-xs transition-colors"
+                  className="w-full text-left px-3 py-2 text-n-secondary hover:text-n-display hover:bg-n-s2 flex items-center gap-2 text-xs transition-colors"
                 >
                   <BarChart2 size={12} strokeWidth={1.5} />
                   Plan & usage
@@ -470,7 +473,7 @@ export function HomeScreen() {
                     setAccountMenuOpen(false);
                     void signOut();
                   }}
-                  className="w-full text-left px-3 py-2 text-n-red hover:text-red-300 hover:bg-n-s3 flex items-center gap-2 text-xs transition-colors"
+                  className="w-full text-left px-3 py-2 text-n-red hover:text-red-400 hover:bg-n-s2 flex items-center gap-2 text-xs transition-colors"
                 >
                   <LogOut size={12} strokeWidth={1.5} />
                   Sign out
@@ -660,7 +663,7 @@ export function HomeScreen() {
           onClick={() => handleStartBuilder()}
           id="create-app-fab"
           aria-label="Create tool"
-          className="h-12 px-5 bg-white text-black font-grotesk font-medium text-xs tracking-wider rounded-full flex items-center gap-2 shadow-lg nt-press hover:bg-n-primary transition-all cursor-pointer"
+          className="h-12 px-5 bg-n-btn text-n-btn-text font-grotesk font-medium text-xs tracking-wider rounded-full flex items-center gap-2 shadow-lg nt-press hover:opacity-90 transition-all cursor-pointer"
         >
           <Plus size={14} strokeWidth={2} />
           <span>NEW TOOL</span>
@@ -675,18 +678,18 @@ export function HomeScreen() {
           aria-labelledby="templates-modal-title"
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
         >
-          <div className="w-full max-w-2xl bg-n-surface border border-n-border rounded-sm max-h-[85dvh] flex flex-col shadow-2xl">
+          <div className="w-full max-w-2xl bg-n-s1 border border-n-line rounded-sm max-h-[85dvh] flex flex-col shadow-2xl">
             {/* Modal header */}
-            <div className="px-5 py-4 border-b border-n-border flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-n-line flex items-center justify-between">
               <div>
                 <h2
                   id="templates-modal-title"
-                  className="font-doto text-white tracking-widest text-sm uppercase"
+                  className="font-doto text-n-display tracking-widest text-sm uppercase"
                   style={{ fontVariationSettings: "'ROND' 0" }}
                 >
                   STARTER TEMPLATES
                 </h2>
-                <p className="text-n-text3 text-[9px] uppercase tracking-wider mt-0.5">
+                <p className="text-n-disabled text-[9px] uppercase tracking-wider mt-0.5">
                   Clone an instant mini-tool · no credits used
                 </p>
               </div>
@@ -694,7 +697,7 @@ export function HomeScreen() {
                 type="button"
                 onClick={() => setShowTemplatesModal(false)}
                 aria-label="Close dialog"
-                className="w-7 h-7 flex items-center justify-center border border-n-border hover:border-white text-n-text3 hover:text-white rounded-sm text-xs transition-colors cursor-pointer"
+                className="w-7 h-7 flex items-center justify-center border border-n-line hover:border-n-line3 text-n-disabled hover:text-n-display rounded-sm text-xs transition-colors cursor-pointer"
               >
                 ✕
               </button>

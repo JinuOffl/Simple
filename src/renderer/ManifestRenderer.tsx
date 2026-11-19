@@ -76,12 +76,12 @@ export function ManifestRenderer({
     <div className={compact ? "space-y-2 p-2 animate-fade-in" : "space-y-3 p-4 animate-fade-in"}>
       {/* App header */}
       {!compact && v2Manifest.name && (
-        <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/10">
+        <div className="flex items-center gap-3 mb-4 pb-4 border-b border-n-line">
           <span className="text-3xl">{v2Manifest.icon}</span>
           <div>
-            <h2 className="text-white font-semibold text-base">{v2Manifest.name}</h2>
+            <h2 className="text-n-display font-grotesk font-semibold text-base">{v2Manifest.name}</h2>
             {permissions.length > 0 && (
-              <p className="text-white/40 text-xs mt-0.5">
+              <p className="text-n-disabled text-xs mt-0.5">
                 Uses: {permissions.join(", ")}
               </p>
             )}
@@ -91,7 +91,7 @@ export function ManifestRenderer({
 
       {/* Multi-screen switcher */}
       {!compact && v2Manifest.screens.length > 1 && (
-        <nav aria-label="App screens" className="flex flex-wrap gap-1.5 pb-2 border-b border-white/10">
+        <nav aria-label="App screens" className="flex flex-wrap gap-1.5 pb-2 border-b border-n-line">
           {v2Manifest.screens.map((screen) => {
             const isActive = screen.id === resolvedScreenId;
             return (
@@ -102,8 +102,8 @@ export function ManifestRenderer({
                 aria-current={isActive ? "page" : undefined}
                 className={`px-3 py-1.5 text-[10px] uppercase tracking-wider rounded-sm border transition-colors ${
                   isActive
-                    ? "bg-white text-n-bg border-white font-bold"
-                    : "bg-n-surface text-n-text2 border-n-border hover:border-n-border2 hover:text-white"
+                    ? "bg-n-btn text-n-btn-text border-n-btn font-bold"
+                    : "bg-n-s1 text-n-secondary border-n-line hover:border-n-line3 hover:text-n-display"
                 }`}
               >
                 {screen.title}
@@ -118,7 +118,7 @@ export function ManifestRenderer({
         const entry = getRegistryEntry(node.type);
         if (!entry) {
           return (
-            <div key={node.id} className="glass rounded-xl p-3 text-white/40 text-xs">
+            <div key={node.id} className="bg-n-s1 border border-n-line rounded-sm p-3 text-n-disabled text-xs">
               Unknown component type: {node.type}
             </div>
           );

@@ -6,7 +6,7 @@ interface TextProps {
 export function Text({ content, className = "" }: TextProps) {
   return (
     <p
-      className={`text-white/80 text-sm leading-relaxed whitespace-pre-wrap ${className}`}
+      className={`text-n-primary font-grotesk text-sm leading-relaxed whitespace-pre-wrap ${className}`}
     >
       {content}
     </p>

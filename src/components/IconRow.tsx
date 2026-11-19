@@ -27,17 +27,17 @@ export interface IconRowProps {
 function renderIcon(icon: IconRowIconType) {
   switch (icon) {
     case "camera":
-      return <Camera className="w-5 h-5 text-white shrink-0" />;
+      return <Camera className="w-5 h-5 text-n-display shrink-0" />;
     case "bulb":
-      return <Lightbulb className="w-5 h-5 text-white shrink-0" />;
+      return <Lightbulb className="w-5 h-5 text-n-display shrink-0" />;
     case "layers":
-      return <Layers className="w-5 h-5 text-white shrink-0" />;
+      return <Layers className="w-5 h-5 text-n-display shrink-0" />;
     case "moon":
-      return <Moon className="w-5 h-5 text-white shrink-0" />;
+      return <Moon className="w-5 h-5 text-n-display shrink-0" />;
     case "mic":
-      return <Mic className="w-5 h-5 text-white shrink-0" />;
+      return <Mic className="w-5 h-5 text-n-display shrink-0" />;
     case "timer":
-      return <Timer className="w-5 h-5 text-white shrink-0" />;
+      return <Timer className="w-5 h-5 text-n-display shrink-0" />;
     default:
       return null;
   }
@@ -72,11 +72,11 @@ export function IconRow({
           onClick={() => handleItemClick(item)}
           data-testid={`icon-row-item-${item.icon}`}
           aria-label={item.label || item.icon}
-          className="flex-1 flex flex-col items-center justify-center p-2.5 bg-n-surface border border-n-border hover:border-n-border2 hover:bg-n-surface2 active:scale-95 rounded-sm transition-all cursor-pointer min-h-[58px] gap-1"
+          className="flex-1 flex flex-col items-center justify-center p-2.5 bg-n-s1 border border-n-line hover:border-n-line3 hover:bg-n-s2 active:scale-95 rounded-sm transition-all cursor-pointer min-h-[58px] gap-1"
         >
           {renderIcon(item.icon)}
           {item.label && (
-            <span className="text-[9px] uppercase tracking-wider text-n-text3 truncate max-w-full">
+            <span className="text-[9px] uppercase tracking-wider text-n-disabled truncate max-w-full">
               {item.label}
             </span>
           )}

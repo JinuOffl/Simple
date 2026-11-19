@@ -90,7 +90,7 @@ export function Timer({
             isCompleted
               ? "border-n-red text-n-red bg-n-red-dim"
               : isRunning
-                ? "border-white text-white"
+                ? "border-n-display text-n-display"
                 : "border-n-line text-n-disabled"
           }`}
         >
@@ -118,7 +118,7 @@ export function Timer({
           className={`px-4 py-1.5 nt-label font-bold rounded-sm border transition-all nt-press cursor-pointer ${
             isRunning
               ? "border-n-line bg-n-s2 hover:border-n-line3 text-n-primary"
-              : "bg-white text-black border-white hover:bg-n-primary"
+              : "bg-n-btn text-n-btn-text border-n-btn hover:opacity-90"
           }`}
         >
           {isCompleted ? "Restart" : isRunning ? "Pause" : "Start"}

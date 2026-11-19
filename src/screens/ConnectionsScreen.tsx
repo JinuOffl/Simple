@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   deleteConnection,
   discoverConnectionTools,
@@ -187,39 +188,42 @@ export function ConnectionsScreen() {
   const selectedToolSet = parseToolsSet();
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-gradient-mesh">
-      <header className="px-5 pt-5 pb-3 flex items-center justify-between border-b border-n-border">
+    <div className="min-h-[100dvh] flex flex-col bg-n-bg">
+      <header className="px-5 pt-5 pb-3 flex items-center justify-between border-b border-n-line bg-n-bg">
         <button
           type="button"
           onClick={() => navigate("/")}
-          className="text-n-text3 hover:text-white text-[11px] uppercase tracking-wider transition-colors"
+          className="text-n-secondary hover:text-n-display text-[11px] uppercase tracking-wider transition-colors cursor-pointer"
         >
           ← back
         </button>
 
         <h1
-          className="font-doto text-white tracking-widest uppercase"
+          className="font-doto text-n-display tracking-widest uppercase"
           style={{ fontSize: "16px", fontVariationSettings: "'ROND' 0" }}
         >
           CONNECTIONS
         </h1>
 
-        <span className="nt-tag">mcp · https</span>
+        <div className="flex items-center gap-3">
+          <span className="nt-tag">mcp · https</span>
+          <ThemeToggle />
+        </div>
       </header>
 
       <main className="flex-1 max-w-lg w-full mx-auto px-5 py-6 space-y-6">
         {/* ADR 005 & SSRF policy notice */}
-        <section className="glass p-4 space-y-2">
+        <section className="bg-n-s1 border border-n-line rounded-sm p-4 space-y-2">
           <div className="flex items-center justify-between">
             <span className="nt-tag">auth policy · adr-005</span>
-            <span className="text-[10px] font-mono text-n-text3">API KEY / BEARER TOKEN ONLY</span>
+            <span className="text-[10px] font-mono text-n-disabled">API KEY / BEARER TOKEN ONLY</span>
           </div>
-          <p className="text-xs text-n-text2 leading-relaxed">
+          <p className="text-xs text-n-secondary leading-relaxed">
             Connect remote Streamable HTTP MCP servers authenticated via static Bearer Token or
             API Key header. OAuth connectors are deferred. Secrets are sealed server-side and never
             returned to the browser.
           </p>
-          <p className="text-[11px] text-n-text3 leading-relaxed">
+          <p className="text-[11px] text-n-disabled leading-relaxed">
             Home Assistant requires your public HTTPS URL (Nabu Casa or Cloudflare/Tailscale HTTPS
             tunnel). Plain HTTP and private/LAN IPs are blocked by the server-side SSRF guard.
           </p>
@@ -228,38 +232,38 @@ export function ConnectionsScreen() {
         {error && (
           <div
             role="alert"
-            className="bg-n-surface border border-white/30 rounded-sm px-4 py-3 text-xs text-white"
+            className="bg-n-s1 border border-n-red/40 rounded-sm px-4 py-3 text-xs text-n-red"
           >
             {error}
           </div>
         )}
 
         {statusMessage && (
-          <div className="bg-n-surface border border-n-border2 rounded-sm px-4 py-3 text-xs text-n-text2">
+          <div className="bg-n-s1 border border-n-line2 rounded-sm px-4 py-3 text-xs text-n-secondary">
             {statusMessage}
           </div>
         )}
 
         {/* Saved connections */}
         <section className="space-y-3">
-          <h2 className="text-n-text2 text-[10px] uppercase tracking-[0.16em]">
+          <h2 className="text-n-secondary text-[10px] uppercase tracking-[0.16em]">
             your saved connections
           </h2>
 
           {loading ? (
-            <div className="glass p-4 text-xs text-n-text3">Loading connections…</div>
+            <div className="bg-n-s1 border border-n-line rounded-sm p-4 text-xs text-n-disabled">Loading connections…</div>
           ) : connections.length === 0 ? (
-            <div className="glass p-4 text-xs text-n-text3">
+            <div className="bg-n-s1 border border-n-line rounded-sm p-4 text-xs text-n-disabled">
               No external MCP connections saved yet. Add one below.
             </div>
           ) : (
             <div className="space-y-3">
               {connections.map((conn) => (
-                <div key={conn.id} className="glass p-4 space-y-2.5">
+                <div key={conn.id} className="bg-n-s1 border border-n-line rounded-sm p-4 space-y-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-white text-xs font-medium truncate">{conn.label}</p>
-                      <p className="text-[10px] font-mono text-n-text3 truncate">
+                      <p className="text-n-display text-xs font-medium truncate">{conn.label}</p>
+                      <p className="text-[10px] font-mono text-n-disabled truncate">
                         {conn.connector_id} · {conn.server_url}
                       </p>
                     </div>
@@ -273,7 +277,7 @@ export function ConnectionsScreen() {
                     {conn.allowed_tools.map((tool) => (
                       <span
                         key={tool}
-                        className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-n-surface border border-n-border text-n-text2"
+                        className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-n-s2 border border-n-line text-n-secondary"
                       >
                         {tool}
                         {isHighRiskMcpTool(tool) ? " · confirm" : ""}
@@ -300,7 +304,7 @@ export function ConnectionsScreen() {
                     <button
                       type="button"
                       onClick={() => void handleDelete(conn)}
-                      className="btn-ghost text-[10px] py-1.5 px-3 text-n-text3 hover:text-white"
+                      className="btn-ghost text-[10px] py-1.5 px-3 text-n-disabled hover:text-n-display"
                     >
                       Delete
                     </button>
@@ -312,15 +316,15 @@ export function ConnectionsScreen() {
         </section>
 
         {/* Add / Update Connection Form */}
-        <section className="glass p-4 space-y-4">
+        <section className="bg-n-s1 border border-n-line rounded-sm p-4 space-y-4">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-white text-xs uppercase tracking-wider font-medium">
+            <h2 className="text-n-display text-xs uppercase tracking-wider font-medium">
               {editingId ? "Edit Connection" : "Add MCP Connection"}
             </h2>
             <button
               type="button"
               onClick={handlePresetHomeAssistant}
-              className="nt-tag hover:border-n-border2 hover:text-white cursor-pointer"
+              className="nt-tag hover:border-n-line3 hover:text-n-display cursor-pointer"
             >
               Preset: Home Assistant
             </button>
@@ -329,7 +333,7 @@ export function ConnectionsScreen() {
           <form onSubmit={(e) => void handleSave(e)} className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block space-y-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-n-text3">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-n-disabled">
                   Connector ID
                 </span>
                 <input
@@ -338,12 +342,12 @@ export function ConnectionsScreen() {
                   value={connectorId}
                   onChange={(e) => setConnectorId(e.target.value)}
                   placeholder="home_assistant"
-                  className="w-full bg-n-surface border border-n-border rounded-sm px-3 py-2 text-xs text-white outline-none focus:border-n-border2"
+                  className="w-full bg-n-s2 border border-n-line rounded-sm px-3 py-2 text-xs text-n-primary outline-none focus:border-n-line3"
                 />
               </label>
 
               <label className="block space-y-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-n-text3">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-n-disabled">
                   Display Label
                 </span>
                 <input
@@ -352,13 +356,13 @@ export function ConnectionsScreen() {
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
                   placeholder="Home Assistant"
-                  className="w-full bg-n-surface border border-n-border rounded-sm px-3 py-2 text-xs text-white outline-none focus:border-n-border2"
+                  className="w-full bg-n-s2 border border-n-line rounded-sm px-3 py-2 text-xs text-n-primary outline-none focus:border-n-line3"
                 />
               </label>
             </div>
 
             <label className="block space-y-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-n-text3">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-n-disabled">
                 HTTPS Server URL
               </span>
               <input
@@ -367,13 +371,13 @@ export function ConnectionsScreen() {
                 value={serverUrl}
                 onChange={(e) => setServerUrl(e.target.value)}
                 placeholder="https://your-instance.ui.nabu.casa/mcp_server/sse"
-                className="w-full bg-n-surface border border-n-border rounded-sm px-3 py-2 text-xs text-white outline-none focus:border-n-border2"
+                className="w-full bg-n-s2 border border-n-line rounded-sm px-3 py-2 text-xs text-n-primary outline-none focus:border-n-line3"
               />
             </label>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <label className="block space-y-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-n-text3">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-n-disabled">
                   Auth Header Name
                 </span>
                 <input
@@ -381,12 +385,12 @@ export function ConnectionsScreen() {
                   value={authHeaderName}
                   onChange={(e) => setAuthHeaderName(e.target.value)}
                   placeholder="Authorization"
-                  className="w-full bg-n-surface border border-n-border rounded-sm px-3 py-2 text-xs text-white outline-none focus:border-n-border2"
+                  className="w-full bg-n-s2 border border-n-line rounded-sm px-3 py-2 text-xs text-n-primary outline-none focus:border-n-line3"
                 />
               </label>
 
               <label className="block space-y-1 sm:col-span-2">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-n-text3">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-n-disabled">
                   Bearer Token / API Key
                 </span>
                 <input
@@ -395,7 +399,7 @@ export function ConnectionsScreen() {
                   onChange={(e) => setToken(e.target.value)}
                   placeholder={editingId ? "Leave blank to keep saved secret" : "Paste static token"}
                   autoComplete="off"
-                  className="w-full bg-n-surface border border-n-border rounded-sm px-3 py-2 text-xs text-white outline-none focus:border-n-border2"
+                  className="w-full bg-n-s2 border border-n-line rounded-sm px-3 py-2 text-xs text-n-primary outline-none focus:border-n-line3"
                 />
               </label>
             </div>
@@ -412,8 +416,8 @@ export function ConnectionsScreen() {
             </div>
 
             {discoveredTools.length > 0 && (
-              <div className="space-y-2 border border-n-border bg-n-surface p-3 rounded-sm">
-                <p className="text-[10px] font-mono uppercase tracking-wider text-n-text2">
+              <div className="space-y-2 border border-n-line bg-n-s2 p-3 rounded-sm">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-n-secondary">
                   Discovered Tools (Consent Allowlist)
                 </p>
                 <div className="space-y-1.5">
@@ -423,7 +427,7 @@ export function ConnectionsScreen() {
                     return (
                       <label
                         key={tool.name}
-                        className="flex items-start gap-2 text-xs text-n-text2 cursor-pointer"
+                        className="flex items-start gap-2 text-xs text-n-secondary cursor-pointer"
                       >
                         <input
                           type="checkbox"
@@ -432,12 +436,12 @@ export function ConnectionsScreen() {
                           className="mt-0.5"
                         />
                         <span>
-                          <span className="font-mono text-white">{tool.name}</span>
+                          <span className="font-mono text-n-display">{tool.name}</span>
                           {highRisk && (
                             <span className="ml-1.5 nt-tag text-[9px]">high-risk confirm</span>
                           )}
                           {tool.description && (
-                            <span className="block text-[10px] text-n-text3">
+                            <span className="block text-[10px] text-n-disabled">
                               {tool.description}
                             </span>
                           )}
@@ -450,7 +454,7 @@ export function ConnectionsScreen() {
             )}
 
             <label className="block space-y-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-n-text3">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-n-disabled">
                 Allowed Tools (Comma-Separated Consented Allowlist)
               </span>
               <input
@@ -458,7 +462,7 @@ export function ConnectionsScreen() {
                 value={allowedToolsText}
                 onChange={(e) => setAllowedToolsText(e.target.value)}
                 placeholder="light.toggle, light.get_state"
-                className="w-full bg-n-surface border border-n-border rounded-sm px-3 py-2 text-xs font-mono text-white outline-none focus:border-n-border2"
+                className="w-full bg-n-s2 border border-n-line rounded-sm px-3 py-2 text-xs font-mono text-n-primary outline-none focus:border-n-line3"
               />
             </label>
 
