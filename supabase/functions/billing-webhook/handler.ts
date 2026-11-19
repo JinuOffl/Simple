@@ -1,4 +1,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
+import { checkProductionGuard } from "../_shared/prodGuard.ts";
+import { PLAN_LIMITS } from "../_shared/plans.ts";
+export { PLAN_LIMITS };
 
 export type BillingEvent =
   | "subscription.created"
@@ -50,14 +53,7 @@ export interface BillingWebhookDeps {
   db?: BillingDb;
 }
 
-export const PLAN_LIMITS: Record<
-  "free" | "pro" | "group",
-  { activeAppLimit: number; monthlyCreditLimit: number }
-> = {
-  free: { activeAppLimit: 3, monthlyCreditLimit: 100 },
-  pro: { activeAppLimit: 25, monthlyCreditLimit: 2000 },
-  group: { activeAppLimit: 50, monthlyCreditLimit: 5000 },
-};
+
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -156,6 +152,9 @@ export async function handleBillingWebhook(
   }
 
   const getEnv = deps.getEnv ?? ((k: string) => Deno.env.get(k));
+  const misconfigured = checkProductionGuard(getEnv);
+  if (misconfigured) return misconfigured;
+
   const baseFetch = deps.baseFetch ?? fetch;
 
   // ── Secret Verification ───────────────────────────────────────────────────

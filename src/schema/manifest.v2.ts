@@ -59,7 +59,7 @@ const ActionSchema = z.object({
 
   // ── api_fetch — server-side allowlisted API call ──────────────────
   api: z.enum([
-    "weather", "currency", "timezone", "dictionary", "country", "trivia",
+    "weather", "currency", "timezone", "dictionary", "country",
     "advice", "cat_fact", "openweather", "nasa_api",
   ]).optional(),
 

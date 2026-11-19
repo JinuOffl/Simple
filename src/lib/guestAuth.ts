@@ -13,6 +13,14 @@ export function isGuestUser(user: User | null | undefined): boolean {
   );
 }
 
+export function isLocalGuestSession(session: Session | null | undefined): boolean {
+  if (!session) return false;
+  return Boolean(
+    session.access_token?.startsWith("guest-token-") ||
+    session.user?.id?.startsWith("guest-")
+  );
+}
+
 export function getLocalGuestSession(): Session | null {
   try {
     const raw = localStorage.getItem(GUEST_SESSION_KEY);
@@ -75,10 +83,13 @@ export function clearLocalGuestSession(): void {
   }
 }
 
-export async function loginAsGuest(): Promise<{ session: Session; isLocal: boolean }> {
+export async function loginAsGuest(options?: { captchaToken?: string }): Promise<{ session: Session; isLocal: boolean }> {
   try {
     // 1. Attempt native Supabase anonymous sign-in first
-    const { data, error } = await supabase.auth.signInAnonymously();
+    const credentials = options?.captchaToken
+      ? { options: { captchaToken: options.captchaToken } }
+      : undefined;
+    const { data, error } = await supabase.auth.signInAnonymously(credentials);
     if (!error && data?.session) {
       clearLocalGuestSession();
       return { session: data.session, isLocal: false };

@@ -469,6 +469,171 @@ export const STARTER_TEMPLATES: readonly StarterTemplate[] = [
       actions: [],
     },
   },
+  {
+    id: "tpl-habit-heatmap",
+    slug: "habit-heatmap",
+    name: "Habit Heatmap",
+    description: "Track consistency across your daily habits.",
+    icon: "🔥",
+    category: "productivity",
+    tags: ["habit heatmap", "habits grid", "streak grid", "consistency"],
+    keywords: ["habit heatmap", "habit grid", "streak grid", "consistency matrix"],
+    manifest: {
+      schema_version: 2,
+      app_id: "tpl-habit-heatmap",
+      name: "Habit Heatmap",
+      icon: "🔥",
+      description: "Daily habit tracking grid over the last 14 days.",
+      permissions: [],
+      connectors: [],
+      tool: {
+        size: "2x1",
+        requires: [],
+      },
+      data: { collections: [] },
+      screens: [
+        {
+          id: "main",
+          title: "Habit Grid",
+          nodes: [
+            {
+              id: "habit_grid",
+              type: "heatmap",
+              props: {
+                title: "Daily Habits",
+                rows: ["Workout", "Reading", "Water"],
+                days: 14,
+                save_to: "habits_grid",
+              },
+              bind: "habits_grid",
+            },
+          ],
+        },
+      ],
+      actions: [],
+    },
+  },
+  {
+    id: "tpl-pomodoro",
+    slug: "pomodoro",
+    name: "Pomodoro Timer",
+    description: "25-minute focus session countdown timer.",
+    icon: "⏱️",
+    category: "productivity",
+    tags: ["pomodoro", "focus timer", "deep work", "interval timer"],
+    keywords: ["pomodoro", "pomodoro timer", "focus timer", "25 minute timer"],
+    manifest: {
+      schema_version: 2,
+      app_id: "tpl-pomodoro",
+      name: "Pomodoro Timer",
+      icon: "⏱️",
+      description: "25-minute focus session timer with note.",
+      permissions: [],
+      connectors: [],
+      tool: {
+        size: "2x1",
+        requires: [],
+      },
+      data: { collections: [] },
+      screens: [
+        {
+          id: "main",
+          title: "Focus Session",
+          nodes: [
+            {
+              id: "pomo_timer",
+              type: "timer",
+              props: {
+                duration_seconds: 1500,
+                label: "Focus",
+                auto_start: false,
+              },
+            },
+            {
+              id: "pomo_note",
+              type: "text",
+              props: {
+                content: "25 min focus interval · 5 min rest",
+              },
+            },
+          ],
+        },
+      ],
+      actions: [],
+    },
+  },
+  {
+    id: "tpl-counter",
+    slug: "counter",
+    name: "Tally Counter",
+    description: "Minimalist tally counter with slider and reset control.",
+    icon: "🔢",
+    category: "utilities",
+    tags: ["counter", "tally", "clicker", "tally counter"],
+    keywords: ["tally counter", "clicker counter", "tally", "count tracker"],
+    manifest: {
+      schema_version: 2,
+      app_id: "tpl-counter",
+      name: "Tally Counter",
+      icon: "🔢",
+      description: "Minimalist counter with live value slider and zero reset.",
+      permissions: [],
+      connectors: [],
+      tool: {
+        size: "2x1",
+        requires: [],
+      },
+      data: { collections: [] },
+      screens: [
+        {
+          id: "main",
+          title: "Counter",
+          nodes: [
+            {
+              id: "count",
+              type: "stat",
+              props: {
+                label: "Count",
+                value: 0,
+              },
+              bind: "count",
+            },
+            {
+              id: "count_slider",
+              type: "slider",
+              props: {
+                label: "Adjust Count",
+                min: 0,
+                max: 100,
+                step: 1,
+                default_value: 0,
+                save_to: "count",
+              },
+            },
+            {
+              id: "reset_btn",
+              type: "button",
+              props: {
+                label: "Reset",
+                variant: "ghost",
+              },
+              on_click: "a_reset",
+            },
+          ],
+        },
+      ],
+      actions: [
+        {
+          id: "a_reset",
+          kind: "local_compute",
+          operation: "subtract",
+          input_from: ["count", "count"],
+          render_result_into: "count",
+          credit_cost_class: "runtime_llm",
+        },
+      ],
+    },
+  },
 ];
 
 function tokenize(text: string): Set<string> {

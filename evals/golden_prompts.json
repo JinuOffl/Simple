@@ -66,10 +66,10 @@
     "expect": { "ok": true, "requiredApis": ["country"] }
   },
   {
-    "id": "api-06-trivia",
+    "id": "api-06-advice",
     "category": "api_fetch",
-    "prompt": "Daily interesting number trivia fun fact button",
-    "expect": { "ok": true, "requiredApis": ["trivia"] }
+    "prompt": "Daily life advice slip and inspirational tip button",
+    "expect": { "ok": true, "requiredApis": ["advice"] }
   },
   {
     "id": "dev-01-receipt-camera",

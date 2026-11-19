@@ -6,6 +6,8 @@ import { validateManifestDeno } from "../_shared/manifestValidator.ts";
 import { resolveLlmRuntimeConfig } from "../_shared/orchestrator/llmConfig.ts";
 import { runGenerateOrchestrator } from "../_shared/orchestrator/stateMachine.ts";
 import { fetchUserByokKey } from "../_shared/byokHelper.ts";
+import { checkProductionGuard } from "../_shared/prodGuard.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 import type {
   ConversationTurn,
   GenerationResult,
@@ -134,6 +136,17 @@ export async function handleGenerateApp(
 
   const getEnv = deps.getEnv ?? ((k: string) => Deno.env.get(k));
   const baseFetch = deps.baseFetch ?? fetch;
+
+  const prodGuardResponse = checkProductionGuard(getEnv);
+  if (prodGuardResponse) return prodGuardResponse;
+
+  if (getEnv("GENERATION_DISABLED") === "true") {
+    return jsonResponse(
+      { error: "Generation is temporarily disabled. Please try again later." },
+      503
+    );
+  }
+
   const authHeader = req.headers.get("authorization") ?? "";
 
   let userId = "local-dev-user";
@@ -191,6 +204,21 @@ export async function handleGenerateApp(
     encryptionSecret,
     fetchFn: baseFetch,
   });
+
+  if (enforceSupabaseCredits && supabaseUrl && serviceRoleKey) {
+    const withinRateLimit = await checkRateLimit({
+      supabaseUrl,
+      serviceRoleKey,
+      userId,
+      target: "generate_app",
+      limit: 6,
+      fetchFn: baseFetch,
+      now: deps.now ? deps.now() : undefined,
+    });
+    if (!withinRateLimit) {
+      return jsonResponse({ error: "Too many requests. Wait a minute." }, 429);
+    }
+  }
 
   if (enforceSupabaseCredits && supabaseUrl && serviceRoleKey && !byok.hasByok) {
     try {

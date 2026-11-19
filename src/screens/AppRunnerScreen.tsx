@@ -131,7 +131,7 @@ export function AppRunnerScreen() {
   };
 
   const handleEdit = () => {
-    if (userRole === "viewer") return;
+    if (userRole !== "owner") return;
     if (app) { startEditing(app); navigate("/build"); }
   };
 
@@ -158,7 +158,7 @@ export function AppRunnerScreen() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-mesh">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-gradient-mesh">
         <div className="flex flex-col items-center gap-4">
           <p
             className="font-doto text-n-text3 tracking-widest animate-pulse-slow"
@@ -178,7 +178,7 @@ export function AppRunnerScreen() {
 
   if (error || !app) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 bg-gradient-mesh">
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4 p-8 bg-gradient-mesh">
         <p className="font-doto text-n-text3 tracking-widest text-xl"
            style={{ fontVariationSettings: "'ROND' 0" }}>
           NOT FOUND
@@ -191,12 +191,13 @@ export function AppRunnerScreen() {
   const appManifest: Manifest | ManifestV2 = app.manifest;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-mesh">
+    <div className="min-h-[100dvh] flex flex-col bg-gradient-mesh">
 
       {/* Top bar */}
       <header className="px-4 pt-5 pb-3 flex items-center gap-3 border-b border-n-border">
         <button
           onClick={() => navigate("/")}
+          aria-label="Back"
           className="text-n-text3 hover:text-white text-[11px] uppercase tracking-wider transition-colors"
         >
           ←
@@ -224,7 +225,7 @@ export function AppRunnerScreen() {
           </button>
         )}
 
-        {userRole !== "viewer" && (
+        {userRole === "owner" && (
           <button
             type="button"
             onClick={handleEdit}

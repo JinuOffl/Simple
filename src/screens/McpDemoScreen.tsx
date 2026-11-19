@@ -16,7 +16,7 @@ export function McpDemoScreen() {
   const usingLocalProxy = Boolean(import.meta.env.DEV && import.meta.env.VITE_LOCAL_MCP_ACTION_URL);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-mesh">
+    <div className="min-h-[100dvh] flex flex-col bg-gradient-mesh">
       <header className="px-4 py-4 flex items-center justify-between border-b border-n-border">
         <button
           type="button"

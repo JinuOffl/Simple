@@ -104,8 +104,8 @@ export function analyzePrompt(
   if (/\b(country|capital of|population of|flag of)\b/i.test(lower)) {
     suggestedApis.push("country");
   }
-  if (/\b(trivia|number fact|fun fact)\b/i.test(lower)) {
-    suggestedApis.push("trivia");
+  if (/\b(advice|tip of the day|life advice)\b/i.test(lower)) {
+    suggestedApis.push("advice");
   }
 
   const suggestedConnectors: Array<{ connectorId: string; tools: string[] }> = [];

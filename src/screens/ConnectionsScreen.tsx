@@ -187,7 +187,7 @@ export function ConnectionsScreen() {
   const selectedToolSet = parseToolsSet();
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-mesh">
+    <div className="min-h-[100dvh] flex flex-col bg-gradient-mesh">
       <header className="px-5 pt-5 pb-3 flex items-center justify-between border-b border-n-border">
         <button
           type="button"

@@ -145,7 +145,7 @@ Every UI element in the app corresponds to a predefined, typed React component:
 Actions define what happens when a user interacts with a component:
 - `llm_call`: Injects `{{variables}}` from `app_data` into `prompt_template`, calls Groq, renders into `render_result_into`.
 - `local_compute`: Instant deterministic math/string ops (`add`, `subtract`, `multiply`, `divide`, `concat`, `count`, `get_current_time`, `format_date`) — 0 network, 0 tokens.
-- `api_fetch`: Server-side proxy calling allowlisted public APIs (`weather`, `currency`, `timezone`, `dictionary`, `country`, `trivia`).
+- `api_fetch`: Server-side proxy calling allowlisted public APIs (`weather`, `currency`, `timezone`, `dictionary`, `country`).
 - `navigate`: Client-side route changes.
 - `save_data`: Persists local variables into the `app_data` table.
 - `conversation_loop`: Hands off multi-turn chat handling to the conversational runner.

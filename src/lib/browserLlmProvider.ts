@@ -6,7 +6,7 @@ import type {
 import { DEFAULT_LLM_CONFIG } from "../../supabase/functions/_shared/orchestrator/llmConfig.ts";
 
 export function extractJsonFromText(rawText: string): unknown {
-  let cleaned = rawText.trim();
+  let cleaned = rawText.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
   }

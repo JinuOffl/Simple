@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 interface MemberItem {
@@ -20,6 +20,15 @@ interface ShareModalProps {
  * Collaboration & invite management modal styled with Nothing-OS design tokens.
  */
 export function ShareModal({ appId, appName, isOwner, onClose }: ShareModalProps) {
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    previousActiveElement.current = document.activeElement as HTMLElement | null;
+    return () => {
+      previousActiveElement.current?.focus?.();
+    };
+  }, []);
+
   const [role, setRole] = useState<"editor" | "viewer">("editor");
   const [maxUses, setMaxUses] = useState(10);
   const [generating, setGenerating] = useState(false);
@@ -110,7 +119,7 @@ export function ShareModal({ appId, appName, isOwner, onClose }: ShareModalProps
       aria-modal="true"
       aria-labelledby="share-modal-title"
     >
-      <div className="w-full max-w-md bg-n-surface border border-n-border rounded-card p-5 space-y-4 shadow-2xl">
+      <div className="w-full max-w-md bg-n-surface border border-n-border rounded-sm p-5 space-y-4 shadow-2xl">
         <div className="flex items-center justify-between pb-2 border-b border-n-border">
           <div>
             <h2
@@ -126,6 +135,7 @@ export function ShareModal({ appId, appName, isOwner, onClose }: ShareModalProps
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-n-text3 hover:text-white text-xs px-2 py-1"
           >
             ✕

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppStore } from "@/lib/zustandStore";
 
@@ -14,13 +14,20 @@ const CAPABILITIES = [
 
 export function AuthScreen() {
   const navigate = useNavigate();
-  const { session, signInAsGuest } = useAppStore();
+  const { session, setSession, signInAsGuest } = useAppStore();
 
+  const [step, setStep] = useState<"email" | "otp">("email");
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(0);
+
+  // Cloudflare Turnstile state
+  const sitekey = import.meta.env.VITE_CAPTCHA_SITEKEY;
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (session) {
@@ -28,10 +35,69 @@ export function AuthScreen() {
     }
   }, [session, navigate]);
 
+  // Load Turnstile script if sitekey is configured
+  useEffect(() => {
+    if (!sitekey) return;
+    if (document.getElementById("turnstile-script")) return;
+
+    const script = document.createElement("script");
+    script.id = "turnstile-script";
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+  }, [sitekey]);
+
+  // Render Turnstile widget when script is ready
+  useEffect(() => {
+    if (!sitekey) return;
+    let widgetId: string | undefined;
+
+    const checkInterval = setInterval(() => {
+      const turnstile = (window as unknown as { turnstile?: { render: (el: HTMLElement, opts: unknown) => string; remove: (id: string) => void } }).turnstile;
+      if (turnstile && turnstileRef.current) {
+        clearInterval(checkInterval);
+        try {
+          widgetId = turnstile.render(turnstileRef.current, {
+            sitekey,
+            theme: "dark",
+            callback: (token: string) => setCaptchaToken(token),
+            "expired-callback": () => setCaptchaToken(null),
+            "error-callback": () => setCaptchaToken(null),
+          });
+        } catch {
+          // ignore duplicate render in strict mode
+        }
+      }
+    }, 100);
+
+    return () => {
+      clearInterval(checkInterval);
+      if (widgetId) {
+        const turnstile = (window as unknown as { turnstile?: { remove: (id: string) => void } }).turnstile;
+        try {
+          turnstile?.remove(widgetId);
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, [sitekey]);
+
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    if (step === "otp" && countdown > 0) {
+      const timer = setTimeout(() => {
+        setCountdown((c) => c - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, countdown]);
+
   const handleGuestLogin = async () => {
     setGuestLoading(true);
     setError(null);
-    const res = await signInAsGuest();
+    const res = await signInAsGuest(captchaToken ? { captchaToken } : undefined);
     if (res.ok) {
       navigate("/", { replace: true });
     } else {
@@ -40,24 +106,72 @@ export function AuthScreen() {
     }
   };
 
-  const handleSend = async () => {
+  const handleSendCode = async () => {
     if (!email.trim()) return;
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error: otpError } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: window.location.origin },
+      options: { shouldCreateUser: true },
     });
 
-    if (error) setError(error.message);
-    else setSent(true);
+    if (otpError) {
+      setError(otpError.message);
+    } else {
+      setStep("otp");
+      setCountdown(30);
+      setOtpCode("");
+    }
+    setLoading(false);
+  };
+
+  const handleVerifyCode = async () => {
+    if (!otpCode.trim() || otpCode.trim().length !== 6) {
+      setError("Please enter the 6-digit verification code");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: otpCode.trim(),
+      type: "email",
+    });
+
+    if (verifyError) {
+      setError(verifyError.message || "Invalid or expired verification code");
+      setLoading(false);
+    } else if (data?.session) {
+      setSession(data.session);
+      navigate("/", { replace: true });
+    } else {
+      setError("Verification failed. Please try again.");
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (countdown > 0 || loading) return;
+    setLoading(true);
+    setError(null);
+
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { shouldCreateUser: true },
+    });
+
+    if (otpError) {
+      setError(otpError.message);
+    } else {
+      setCountdown(30);
+    }
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-mesh flex flex-col items-center justify-center p-6">
-
+    <div className="min-h-[100dvh] bg-gradient-mesh flex flex-col items-center justify-center p-6">
       {/* Wordmark */}
       <div className="mb-12 flex flex-col items-center gap-3 animate-slide-up">
         <h1
@@ -90,7 +204,7 @@ export function AuthScreen() {
 
       {/* Auth */}
       <div className="w-full max-w-xs animate-slide-up">
-        {!sent ? (
+        {step === "email" ? (
           <div className="space-y-4">
             {/* Primary Guest Login */}
             <div className="space-y-2">
@@ -115,6 +229,16 @@ export function AuthScreen() {
                   </>
                 )}
               </button>
+
+              {/* Turnstile widget container when sitekey is configured */}
+              {Boolean(sitekey) && (
+                <div
+                  ref={turnstileRef}
+                  className="flex justify-center my-2 min-h-[65px]"
+                  data-testid="turnstile-container"
+                />
+              )}
+
               <p className="text-center text-[10px] text-n-text3 font-mono tracking-wider">
                 instant access · no email required
               </p>
@@ -136,7 +260,7 @@ export function AuthScreen() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                onKeyDown={(e) => e.key === "Enter" && handleSendCode()}
                 placeholder="you@example.com"
                 autoComplete="email"
                 className="w-full bg-n-surface border border-n-border rounded-sm px-4 py-3
@@ -144,13 +268,13 @@ export function AuthScreen() {
                            focus:border-n-border2 transition-colors font-mono"
               />
               {error && (
-                <p className="text-[11px] font-mono" style={{ color: "rgba(255,100,100,0.8)" }}>
+                <p className="text-[11px] font-mono text-red-400" role="alert">
                   {error}
                 </p>
               )}
               <button
                 type="button"
-                onClick={handleSend}
+                onClick={handleSendCode}
                 disabled={loading || guestLoading || !email.trim()}
                 className="btn-ghost w-full py-3 text-xs uppercase tracking-widest cursor-pointer"
               >
@@ -161,28 +285,106 @@ export function AuthScreen() {
                     <span className="loading-dot" />
                   </span>
                 ) : (
-                  "SEND MAGIC LINK"
+                  "SEND CODE"
                 )}
               </button>
             </div>
           </div>
         ) : (
-          <div className="glass-strong p-6 text-center space-y-4 animate-slide-up">
-            <p className="font-doto text-white text-3xl tracking-widest"
-               style={{ fontVariationSettings: "'ROND' 50" }}>
-              SENT
-            </p>
-            <p className="text-n-text2 text-xs leading-relaxed">
-              Magic link sent to<br />
-              <span className="text-white">{email}</span>
-            </p>
-            <button onClick={() => setSent(false)} className="btn-ghost w-full text-[10px]">
-              USE DIFFERENT EMAIL
-            </button>
+          /* Step 2: 6-digit numeric OTP code input */
+          <div className="glass-strong p-6 space-y-4 animate-slide-up">
+            <div className="text-center space-y-1">
+              <p
+                className="font-doto text-white text-2xl tracking-widest"
+                style={{ fontVariationSettings: "'ROND' 50" }}
+              >
+                ENTER CODE
+              </p>
+              <p className="text-n-text2 text-xs leading-relaxed font-mono">
+                6-digit code sent to<br />
+                <span className="text-white font-medium">{email}</span>
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onKeyDown={(e) => e.key === "Enter" && otpCode.length === 6 && handleVerifyCode()}
+                placeholder="000000"
+                autoFocus
+                className="w-full bg-n-surface border border-n-border rounded-sm px-4 py-3
+                           text-white text-center text-lg tracking-[0.5em] placeholder:text-n-text3
+                           outline-none focus:border-n-border2 transition-colors font-mono"
+              />
+
+              {error && (
+                <p className="text-[11px] font-mono text-red-400 text-center" role="alert">
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleVerifyCode}
+                disabled={loading || otpCode.length !== 6}
+                className="w-full bg-white text-n-bg font-mono font-bold text-xs uppercase tracking-widest py-3 px-4 rounded-sm
+                           hover:bg-n-text transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <span className="loading-dot !bg-n-bg" />
+                    <span className="loading-dot !bg-n-bg" />
+                    <span className="loading-dot !bg-n-bg" />
+                  </span>
+                ) : (
+                  "VERIFY CODE"
+                )}
+              </button>
+
+              <div className="flex items-center justify-between pt-2 text-[10px] font-mono">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep("email");
+                    setError(null);
+                    setOtpCode("");
+                  }}
+                  className="text-n-text3 hover:text-white transition-colors uppercase tracking-wider cursor-pointer"
+                >
+                  Use different email
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={countdown > 0 || loading}
+                  className="text-n-text3 hover:text-white disabled:opacity-40 transition-colors uppercase tracking-wider cursor-pointer disabled:cursor-default"
+                >
+                  {countdown > 0 ? `Resend code in ${countdown}s` : "Resend code"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Footer links to Privacy & Terms (2.6) */}
+        <div className="mt-8 flex items-center justify-center gap-3 text-[10px] font-mono uppercase tracking-widest text-n-text3">
+          <Link to="/privacy" className="hover:text-white transition-colors">
+            Privacy
+          </Link>
+          <span>·</span>
+          <Link to="/terms" className="hover:text-white transition-colors">
+            Terms
+          </Link>
+        </div>
+
         {import.meta.env.DEV && (
-          <div className="mt-6 text-center">
+          <div className="mt-4 text-center">
             <a
               href="#/mcp-demo"
               className="text-n-text3 hover:text-white text-[10px] font-mono uppercase tracking-[0.18em] transition-colors"

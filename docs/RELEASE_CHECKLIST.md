@@ -1,8 +1,24 @@
 # Simple v2 — Release Readiness Checklist
 
 > **Version:** 2.0.0 (Web-First Release)  
-> **Date Verified:** 2026-11-12  
-> **Status:** ALL CHECKS PASSED (Ready for Deployment)
+> **Date Verified:** 2026-11-19  
+> **Status:** CODE HARDENED & VERIFIED — PENDING INFRASTRUCTURE DEPLOYMENT
+
+---
+
+## Deployment Status (Pending Launch Operations)
+
+The codebase and local verification gates are green. Production launch requires the following infrastructure tasks to be executed:
+
+- [ ] Migrations applied (001 through 006 on target Supabase project)
+- [ ] Functions deployed (`generate-app`, `run-mcp-action`, `run-api-fetch`, `invites`, `billing-webhook`, `manage-connection`, `manage-byok`, `run-llm-action`)
+- [ ] Secrets set (`CONNECTION_ENCRYPTION_KEY`, `GROQ_API_KEY`, `BILLING_WEBHOOK_SECRET`)
+- [ ] SMTP configured (Custom SMTP provider configured in Supabase auth for OTP deliverability)
+- [ ] Auth URLs set (Site URL and Redirect URLs configured for production domain)
+- [ ] Anonymous sign-in enabled (Supabase Auth toggle: Enable Anonymous Sign-ins)
+- [ ] Realtime enabled for app_data (`supabase_realtime` publication includes `app_data` and `collection_records`)
+- [ ] Groq spend cap (Usage limits and budget alerts configured in Groq Cloud Console)
+- [ ] Live evals run (Run against production Groq endpoints to benchmark real-world latency)
 
 ---
 

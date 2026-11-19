@@ -62,7 +62,7 @@ function selectTemperature(endpoint: ResolvedProviderEndpoint, role: LlmRole): n
  * stripping optional markdown code fences cleanly without mutating inner keys.
  */
 export function extractJsonFromText(rawText: string): unknown {
-  let cleaned = rawText.trim();
+  let cleaned = rawText.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();

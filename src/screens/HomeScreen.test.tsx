@@ -70,23 +70,27 @@ const mockApps: SavedApp[] = [
   },
 ];
 
-vi.mock("@/lib/supabaseClient", () => ({
-  supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnThis(),
-      order: vi.fn().mockResolvedValue({ data: [], error: null }),
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-    })),
-    functions: {
-      invoke: vi.fn(),
+vi.mock("@/lib/supabaseClient", () => {
+  const mockIn = vi.fn().mockResolvedValue({ data: [], error: null });
+  return {
+    supabase: {
+      from: vi.fn(() => ({
+        select: vi.fn().mockReturnThis(),
+        order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        eq: vi.fn().mockReturnThis(),
+        in: mockIn,
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      })),
+      functions: {
+        invoke: vi.fn(),
+      },
+      auth: {
+        getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+        signOut: vi.fn().mockResolvedValue({ error: null }),
+      },
     },
-    auth: {
-      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
-      signOut: vi.fn().mockResolvedValue({ error: null }),
-    },
-  },
-}));
+  };
+});
 
 import { useAppStore } from "@/lib/zustandStore";
 import { HomeScreen } from "./HomeScreen";
@@ -187,5 +191,32 @@ describe("HomeScreen", () => {
 
     expect(screen.getByText("NO TOOLS YET")).toBeTruthy();
     expect(screen.getByText(/tap a prompt below to start/i)).toBeTruthy();
+  });
+
+  it("loads stored app_data and shows stored value inside ToolTile", async () => {
+    localStorage.setItem("simple_guest_data_app-active-1", JSON.stringify({ n1: "Dynamic Live Note" }));
+
+    useAppStore.setState({
+      apps: [mockApps[0]],
+      loadingApps: false,
+      session: {
+        user: { id: "guest-test", is_anonymous: true, app_metadata: {}, user_metadata: { is_guest: true }, aud: "authenticated", created_at: "" },
+        access_token: "guest",
+        refresh_token: "guest",
+        expires_in: 3600,
+        token_type: "bearer",
+      },
+      fetchApps: vi.fn().mockResolvedValue(undefined),
+      fetchEntitlementAndUsage: vi.fn().mockResolvedValue(undefined),
+    });
+
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>
+    );
+
+    // Initial render is loading-safe, then effect loads stored value
+    expect(await screen.findByText("Dynamic Live Note")).toBeTruthy();
   });
 });

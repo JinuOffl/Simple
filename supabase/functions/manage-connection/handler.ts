@@ -16,6 +16,7 @@ import {
   type MaskedConnectionSummary,
 } from "../_shared/mcpDb.ts";
 import { normalizeAuthHeaderName, sanitizeToolOutputText } from "../_shared/mcpSecurity.ts";
+import { checkProductionGuard } from "../_shared/prodGuard.ts";
 
 export interface DiscoveredToolInfo {
   name: string;
@@ -207,6 +208,9 @@ export async function handleManageConnection(
 
   const getEnv = deps.getEnv ?? ((k: string) => Deno.env.get(k));
   const baseFetch = deps.baseFetch ?? fetch;
+
+  const prodMisconfig = checkProductionGuard(getEnv);
+  if (prodMisconfig) return prodMisconfig;
   const allowLocalDevLoopback = getEnv("MCP_ALLOW_LOCAL_DEV_LOOPBACK") === "true";
 
   const authHeader = req.headers.get("authorization") ?? "";
@@ -312,7 +316,7 @@ export async function handleManageConnection(
         ? [...new Set(body.allowed_tools.map((t) => String(t).trim()).filter(Boolean))]
         : [];
 
-      if (!connectorId || !/^[a-z0-9][a-z0-9_-]{1,63}$/i.test(connectorId)) {
+      if (!connectorId || !/^(key:)?[a-z0-9][a-z0-9_-]{1,63}$/i.test(connectorId)) {
         return jsonResponse(
           { error: "connector_id must be 2-64 alphanumeric, underscore, or hyphen characters." },
           400

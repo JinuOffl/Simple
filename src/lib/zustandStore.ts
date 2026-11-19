@@ -36,7 +36,7 @@ interface AuthSlice {
   user: User | null;
   session: Session | null;
   setSession: (session: Session | null) => void;
-  signInAsGuest: () => Promise<{ ok: boolean; error?: string }>;
+  signInAsGuest: (options?: { captchaToken?: string }) => Promise<{ ok: boolean; error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -145,9 +145,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setSession: (session) =>
     set({ session, user: session?.user ?? null }),
 
-  signInAsGuest: async () => {
+  signInAsGuest: async (options) => {
     try {
-      const { session } = await loginAsGuest();
+      const { session } = await loginAsGuest(options);
       set({ session, user: session.user });
       return { ok: true };
     } catch (err) {

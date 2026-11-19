@@ -92,7 +92,7 @@ export function PlanUsageScreen() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-mesh">
+    <div className="min-h-[100dvh] flex flex-col bg-gradient-mesh">
       <header className="px-4 py-4 flex items-center justify-between border-b border-n-border">
         <button
           type="button"
@@ -159,7 +159,7 @@ export function PlanUsageScreen() {
             </div>
             {sleepingApps.length > 0 && (
               <p className="text-n-text3 text-[10px] font-mono">
-                {sleepingApps.length} sleeping tool${sleepingApps.length !== 1 ? "s" : ""} (never deleted — exportable anytime)
+                {sleepingApps.length} sleeping tool{sleepingApps.length !== 1 ? "s" : ""} (never deleted — exportable anytime)
               </p>
             )}
           </div>

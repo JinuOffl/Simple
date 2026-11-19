@@ -207,7 +207,7 @@ export class OpenUiSpecAdapter implements UiSpecAdapter {
           const renderMatch = rawArgs.match(/render_result_into="([^"]+)"/);
           if (renderMatch) actionObj.render_result_into = renderMatch[1];
           const apiMatch = rawArgs.match(/api="([^"]+)"/);
-          if (apiMatch && ["weather", "currency", "timezone", "dictionary", "country", "trivia"].includes(apiMatch[1])) {
+          if (apiMatch && ["weather", "currency", "timezone", "dictionary", "country"].includes(apiMatch[1])) {
             actionObj.api = apiMatch[1] as ManifestV2Action["api"];
           }
 

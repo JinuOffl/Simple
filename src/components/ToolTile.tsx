@@ -51,7 +51,7 @@ export function ToolTile({
             {manifest.name || "Tool"}
           </span>
           {status && (
-            <span className="text-[8px] uppercase tracking-wider text-n-text3 px-1 py-0.2 border border-n-border rounded-sm shrink-0">
+            <span className="text-[8px] uppercase tracking-wider text-n-text3 px-1 py-0.5 border border-n-border rounded-sm shrink-0">
               {status}
             </span>
           )}
@@ -67,7 +67,7 @@ export function ToolTile({
               }}
               title="Export JSON"
               aria-label={`Export ${manifest.name}`}
-              className="px-1 py-0.5 text-[9px] text-n-text3 hover:text-white transition-all duration-150 opacity-60 sm:opacity-0 sm:group-hover:opacity-100"
+              className="px-1 py-0.5 text-[9px] text-n-text3 hover:text-white transition-opacity duration-150 opacity-60 hover:opacity-100"
             >
               ↓
             </button>
@@ -82,7 +82,7 @@ export function ToolTile({
               }}
               title="Put tool to sleep"
               aria-label={`Sleep ${manifest.name}`}
-              className="px-1 py-0.5 text-[9px] text-n-text3 hover:text-white transition-all duration-150 opacity-60 sm:opacity-0 sm:group-hover:opacity-100"
+              className="px-1 py-0.5 text-[9px] text-n-text3 hover:text-white transition-opacity duration-150 opacity-60 hover:opacity-100"
             >
               ☾
             </button>
@@ -96,7 +96,7 @@ export function ToolTile({
             }}
             title="Open tool"
             aria-label={`Open ${manifest.name}`}
-            className="px-1 py-0.5 text-[9px] text-n-text3 hover:text-white transition-colors"
+            className="min-w-[32px] min-h-[32px] flex items-center justify-center -my-1 -mr-1 text-[11px] text-n-text3 hover:text-white transition-colors"
           >
             ↗
           </button>

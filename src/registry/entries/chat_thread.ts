@@ -16,8 +16,7 @@ export const chatThreadEntry: RegistryEntry<Props, "chat_thread"> = {
   type: "chat_thread",
   propsSchema,
   component: ChatThreadAdapter,
-  llmDescription: `Use \`chat_thread\` for a persistent multi-turn AI chat with message history stored in the database.
-Unlike \`conversation_loop\` which is stateless per session, chat_thread persists history.
+  llmDescription: `Use \`chat_thread\` for a multi-turn AI chat. History is kept for the current session only (not stored).
 Props:
 - persona_prompt (string, optional): System prompt defining the AI persona.
 - initial_message (string, optional): First assistant message shown on load.

@@ -69,7 +69,7 @@ input, textarea, button {
   background-color: var(--bg);
   background-image: radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px);
   background-size: 22px 22px;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ─── Surface / panels  ─────────────────────────────────────────────────────── */
@@ -269,3 +269,15 @@ input, textarea, button {
   background: var(--n-border);
   margin: 0;
 }
+
+/* ─── Keyboard Accessibility Focus Rings ───────────────────────────────────── */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px #ffffff;
+}
+

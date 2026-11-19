@@ -92,7 +92,7 @@ export function InviteJoinScreen() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-mesh">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-gradient-mesh">
         <div className="flex flex-col items-center gap-4">
           <p
             className="font-doto text-n-text3 tracking-widest animate-pulse-slow"
@@ -111,8 +111,8 @@ export function InviteJoinScreen() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-5 bg-gradient-mesh">
-      <div className="w-full max-w-sm bg-n-surface border border-n-border rounded-card p-6 space-y-5 animate-fade-in text-center">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-5 bg-gradient-mesh">
+      <div className="w-full max-w-sm bg-n-surface border border-n-border rounded-sm p-6 space-y-5 animate-fade-in text-center">
         {error ? (
           <div className="space-y-4">
             <span className="text-4xl">⚠️</span>

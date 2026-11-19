@@ -1,4 +1,5 @@
 import { corsHeaders } from "../_shared/cors.ts";
+import { checkProductionGuard } from "../_shared/prodGuard.ts";
 import { consumeCreditsRpc } from "../_shared/credits.ts";
 import { UUID_REGEX, resolveUserConnectionDb } from "../_shared/mcpDb.ts";
 import { sanitizeToolOutputText } from "../_shared/mcpSecurity.ts";
@@ -16,8 +17,7 @@ export type ApiName =
   | "currency"
   | "timezone"
   | "dictionary"
-  | "country"
-  | "trivia";
+  | "country";
 
 export interface ApiResult {
   result: string;
@@ -240,20 +240,6 @@ async function countryAdapter(
   };
 }
 
-async function triviaAdapter(
-  params: Record<string, unknown>,
-  fetchFn: typeof fetch
-): Promise<ApiResult> {
-  const num =
-    params.number !== undefined ? Math.floor(Number(params.number)) : Math.floor(Math.random() * 1000);
-  const safeNum = Number.isFinite(num) ? num : 42;
-  const rawType = String(params.type ?? "trivia");
-  const type = ["trivia", "math", "date", "year"].includes(rawType) ? rawType : "trivia";
-  const res = await fetchWithTimeout(`http://numbersapi.com/${safeNum}/${type}`, fetchFn);
-  const text = await res.text();
-  return { result: sanitizeToolOutputText(`💡 ${text}`), raw: { number: safeNum, type, fact: text } };
-}
-
 const ADAPTERS: Record<
   ApiName,
   (params: Record<string, unknown>, fetchFn: typeof fetch) => Promise<ApiResult>
@@ -263,7 +249,6 @@ const ADAPTERS: Record<
   timezone: (params) => timezoneAdapter(params),
   dictionary: dictionaryAdapter,
   country: countryAdapter,
-  trivia: triviaAdapter,
 };
 
 async function resolveCallerUserId(
@@ -320,7 +305,7 @@ async function loadUserKeySecret(
 
   const supabaseUrl = getEnv("SUPABASE_URL") ?? getEnv("VITE_SUPABASE_URL");
   const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
-  const encryptionSecret = getEnv("ENCRYPTION_SECRET");
+  const encryptionSecret = getEnv("CONNECTION_ENCRYPTION_KEY");
   const allowEphemeralDevKey =
     getEnv("MCP_ALLOW_LOCAL_DEV_LOOPBACK") === "true" ||
     getEnv("API_FETCH_LOCAL_DEV_OPEN") === "true";
@@ -433,6 +418,9 @@ export async function handleRunApiFetch(
   }
 
   const getEnv = deps.getEnv ?? ((k: string) => Deno.env.get(k));
+  const misconfigured = checkProductionGuard(getEnv);
+  if (misconfigured) return misconfigured;
+
   const baseFetch = deps.baseFetch ?? fetch;
   const authHeader = req.headers.get("authorization") ?? "";
 

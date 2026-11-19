@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppStore } from "@/lib/zustandStore";
+import { isLocalGuestSession } from "@/lib/guestAuth";
+import { mapBuilderErrorMessage } from "@/lib/builderError";
 import { ManifestRenderer } from "@/renderer/ManifestRenderer";
 import { isHighRiskMcpTool } from "@/actions/mcpAction";
 import { getManifestConsentSummary } from "@/lib/manifestConsent";
@@ -26,10 +28,12 @@ export function BuilderScreen() {
 
   const {
     currentManifest, conversationContext, isGenerating,
-    generationError, editingAppId,
+    generationError, editingAppId, session,
     setManifest, setGenerating, setGenerationError,
     addMessage, resetBuilder, saveApp,
   } = useAppStore();
+
+  const isLocalGuest = isLocalGuestSession(session);
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [inputText, setInputText]     = useState(prefillPrompt);
@@ -40,6 +44,16 @@ export function BuilderScreen() {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const inputRef      = useRef<HTMLInputElement>(null);
   const prefillSent   = useRef(false);
+  const previousConsentFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (showConsentModal) {
+      previousConsentFocusRef.current = document.activeElement as HTMLElement | null;
+    } else if (previousConsentFocusRef.current) {
+      previousConsentFocusRef.current.focus?.();
+      previousConsentFocusRef.current = null;
+    }
+  }, [showConsentModal]);
 
   useEffect(() => {
     let isMounted = true;
@@ -63,7 +77,9 @@ export function BuilderScreen() {
   }, [currentManifest]);
 
   useEffect(() => {
-    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
+    if (typeof chatScrollRef.current?.scrollTo === "function") {
+      chatScrollRef.current.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
+    }
   }, [chatHistory, isGenerating]);
 
   useEffect(() => {
@@ -85,6 +101,17 @@ export function BuilderScreen() {
     const userMsg: ChatMessage = { role: "user", content: userPrompt };
     setChatHistory(prev => [...prev, userMsg]);
     addMessage("user", userPrompt);
+
+    if (isLocalGuest) {
+      const offlineMsg = "Guest mode is offline. Sign in with email to build tools.";
+      setGenerationError(offlineMsg);
+      setChatHistory(prev => [
+        ...prev,
+        { role: "assistant", content: offlineMsg },
+      ]);
+      return;
+    }
+
     setGenerating(true);
 
     try {
@@ -122,10 +149,11 @@ export function BuilderScreen() {
       addMessage("assistant", assistantMsg.content);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Generation failed";
-      setGenerationError(msg);
+      const friendly = mapBuilderErrorMessage(msg);
+      setGenerationError(friendly);
       setChatHistory(prev => [
         ...prev,
-        { role: "assistant", content: `Error: ${msg}. Try rephrasing.` },
+        { role: "assistant", content: friendly },
       ]);
     } finally {
       setGenerating(false);
@@ -163,12 +191,13 @@ export function BuilderScreen() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-mesh">
+    <div className="min-h-[100dvh] flex flex-col bg-gradient-mesh">
 
       {/* Header */}
       <header className="px-4 pt-5 pb-3 flex items-center gap-3 border-b border-n-border">
         <button
           onClick={() => { resetBuilder(); navigate("/"); }}
+          aria-label="Back to home"
           className="text-n-text3 hover:text-white text-[11px] uppercase tracking-wider transition-colors"
         >
           ← back
@@ -209,7 +238,7 @@ export function BuilderScreen() {
       {/* Canvas / Preview tile container */}
       <div
         className="overflow-y-auto border-b border-n-border p-4 flex items-center justify-center bg-n-bg/30"
-        style={{ flex: "0 0 48vh" }}
+        style={{ flex: "0 0 48dvh" }}
       >
         {currentManifest ? (
           <div
@@ -222,18 +251,26 @@ export function BuilderScreen() {
         ) : (
           <div className="h-full flex flex-col items-center justify-center gap-3 p-8">
             {isGenerating ? (
-              /* Dot-matrix generating animation */
-              <div className="flex flex-col items-center gap-4">
-                <p
-                  className="font-doto text-n-text3 tracking-widest animate-pulse-slow"
-                  style={{ fontSize: "18px", fontVariationSettings: "'ROND' 0" }}
-                >
-                  GENERATING
-                </p>
-                <div className="flex gap-1.5">
-                  <span className="loading-dot" />
-                  <span className="loading-dot" />
-                  <span className="loading-dot" />
+              <div
+                data-testid="builder-skeleton"
+                className="w-full max-w-[340px] bg-n-surface border border-n-border rounded-sm p-4 space-y-3"
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-n-border">
+                  <div className="skeleton w-20 h-3 rounded-sm" />
+                  <div className="skeleton w-8 h-3 rounded-sm" />
+                </div>
+                <div className="skeleton w-full h-24 rounded-sm" />
+                <div className="flex gap-2 pt-1">
+                  <div className="skeleton flex-1 h-8 rounded-sm" />
+                  <div className="skeleton w-16 h-8 rounded-sm" />
+                </div>
+                <div className="text-center pt-2">
+                  <span
+                    className="font-doto text-n-text3 text-[11px] tracking-widest uppercase animate-pulse-slow"
+                    style={{ fontVariationSettings: "'ROND' 0" }}
+                  >
+                    GENERATING TOOL ···
+                  </span>
                 </div>
               </div>
             ) : (
@@ -310,11 +347,37 @@ export function BuilderScreen() {
           )}
         </div>
 
+        {isLocalGuest && (
+          <div
+            data-testid="offline-guest-notice"
+            className="mx-4 mb-2 bg-n-surface border border-white/40 rounded-sm px-4 py-3 flex items-center justify-between gap-3 text-xs animate-slide-up"
+          >
+            <span className="text-white">
+              Guest mode is offline. Sign in with email to build tools.
+            </span>
+            <button
+              type="button"
+              onClick={() => navigate("/auth")}
+              className="text-[10px] font-mono uppercase tracking-wider text-white border border-n-border px-2 py-1 rounded-sm hover:border-white transition-colors cursor-pointer shrink-0"
+            >
+              SIGN IN →
+            </button>
+          </div>
+        )}
+
         {generationError && (
-          <div className="mx-4 mb-2 px-3 py-2 border border-n-border bg-n-surface">
-            <p className="text-[10px]" style={{ color: "rgba(255,100,100,0.7)" }}>
+          <div className="mx-4 mb-2 px-3 py-2 border border-n-border bg-n-surface flex items-center justify-between gap-2 animate-slide-up">
+            <p className="text-[10px] text-red-400 flex-1 leading-relaxed font-mono">
               {generationError}
             </p>
+            <button
+              type="button"
+              onClick={() => setGenerationError(null)}
+              aria-label="Dismiss error"
+              className="text-n-text3 hover:text-white text-xs px-1.5 py-0.5 shrink-0"
+            >
+              ✕
+            </button>
           </div>
         )}
 
@@ -350,24 +413,27 @@ export function BuilderScreen() {
         )}
 
         {/* Input bar */}
-        <div className="px-4 py-3 border-t border-n-border flex gap-2">
+        <div className="px-4 py-3 border-t border-n-border flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <input
             ref={inputRef}
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="describe the tool"
-            disabled={isGenerating}
+            placeholder={isLocalGuest ? "Sign in with email to build tools" : "describe the tool"}
+            disabled={isGenerating || isLocalGuest}
+            aria-label="Tool prompt input"
             className="flex-1 bg-n-surface border border-n-border px-5 py-3
                        text-xs text-white placeholder:text-n-text3 outline-none
                        focus:border-n-border2 transition-colors disabled:opacity-40
                        rounded-full"
           />
           <button
+            type="button"
             onClick={() => handleSend()}
-            disabled={!inputText.trim() || isGenerating}
+            disabled={!inputText.trim() || isGenerating || isLocalGuest}
             id="builder-send-button"
+            aria-label="Send message"
             className="w-11 h-11 bg-white flex items-center justify-center
                        transition-all duration-150 active:scale-90
                        disabled:opacity-30 flex-shrink-0 rounded-full"
@@ -385,12 +451,12 @@ export function BuilderScreen() {
 
       {showConsentModal && consentSummary && currentManifest && (
         <div
-          className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4 animate-fade-in"
           role="dialog"
           aria-modal="true"
           aria-labelledby="save-consent-title"
         >
-          <div className="w-full max-w-md bg-n-surface border border-n-border rounded-card p-5 space-y-4 shadow-xl">
+          <div className="w-full max-w-md bg-n-surface border border-n-border rounded-sm p-5 space-y-4 shadow-xl">
             <div className="space-y-1">
               <h2
                 id="save-consent-title"
@@ -398,7 +464,7 @@ export function BuilderScreen() {
               >
                 Review Tool Capabilities Before Saving
               </h2>
-              <p className="text-xs text-n-muted leading-relaxed">
+              <p className="text-xs text-n-text2 leading-relaxed">
                 <span className="text-n-text font-medium">{currentManifest.name}</span> requests
                 access to the capabilities below. External connectors run strictly using your own
                 saved account tokens.
@@ -407,14 +473,14 @@ export function BuilderScreen() {
 
             {consentSummary.permissions.length > 0 && (
               <div className="space-y-1.5">
-                <div className="font-mono text-[11px] uppercase tracking-wider text-n-muted">
+                <div className="font-mono text-[11px] uppercase tracking-wider text-n-text2">
                   Device Permissions
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {consentSummary.permissions.map((perm) => (
                     <span
                       key={perm}
-                      className="px-2.5 py-0.5 rounded-pill border border-n-border bg-n-bg font-mono text-xs text-n-text"
+                      className="px-2.5 py-0.5 rounded-sm border border-n-border bg-n-bg font-mono text-xs text-n-text"
                     >
                       {perm}
                     </span>
@@ -425,14 +491,14 @@ export function BuilderScreen() {
 
             {consentSummary.connectors.length > 0 && (
               <div className="space-y-2">
-                <div className="font-mono text-[11px] uppercase tracking-wider text-n-muted">
+                <div className="font-mono text-[11px] uppercase tracking-wider text-n-text2">
                   MCP Connectors & Tools
                 </div>
                 <div className="space-y-2">
                   {consentSummary.connectors.map((connector) => (
                     <div
                       key={connector.connectorId}
-                      className="rounded-lg border border-n-border bg-n-bg p-3 space-y-1.5"
+                      className="rounded-sm border border-n-border bg-n-bg p-3 space-y-1.5"
                     >
                       <div className="font-mono text-xs font-semibold text-n-text">
                         {connector.connectorId}
@@ -444,11 +510,11 @@ export function BuilderScreen() {
                             return (
                               <li
                                 key={tool}
-                                className="flex items-center justify-between gap-2 font-mono text-xs text-n-muted"
+                                className="flex items-center justify-between gap-2 font-mono text-xs text-n-text2"
                               >
                                 <span className="text-n-text">{tool}</span>
                                 {highRisk && (
-                                  <span className="px-2 py-0.5 rounded-pill border border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-300 uppercase">
+                                  <span className="px-2 py-0.5 rounded-sm border border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-300 uppercase">
                                     High Risk · Extra Confirm
                                   </span>
                                 )}
@@ -457,7 +523,7 @@ export function BuilderScreen() {
                           })}
                         </ul>
                       ) : (
-                        <div className="font-mono text-[11px] text-n-muted">
+                        <div className="font-mono text-[11px] text-n-text2">
                           No specific tools declared
                         </div>
                       )}
@@ -469,14 +535,14 @@ export function BuilderScreen() {
 
             {consentSummary.apis.length > 0 && (
               <div className="space-y-1.5">
-                <div className="font-mono text-[11px] uppercase tracking-wider text-n-muted">
+                <div className="font-mono text-[11px] uppercase tracking-wider text-n-text2">
                   External APIs
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {consentSummary.apis.map((apiName) => (
                     <span
                       key={apiName}
-                      className="px-2.5 py-0.5 rounded-pill border border-n-border bg-n-bg font-mono text-xs text-n-text"
+                      className="px-2.5 py-0.5 rounded-sm border border-n-border bg-n-bg font-mono text-xs text-n-text"
                     >
                       {apiName}
                     </span>
@@ -486,7 +552,7 @@ export function BuilderScreen() {
             )}
 
             {consentSummary.hasHighRiskTools && (
-              <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200 leading-relaxed">
+              <p className="rounded-sm border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200 leading-relaxed font-mono">
                 This tool includes high-risk external actions. Running those tools will require an
                 extra confirmation tap each time.
               </p>
@@ -496,7 +562,7 @@ export function BuilderScreen() {
               <button
                 type="button"
                 onClick={() => setShowConsentModal(false)}
-                className="px-3.5 py-2 rounded-pill border border-n-border text-xs font-mono text-n-muted hover:text-n-text transition-colors"
+                className="px-3.5 py-2 rounded-sm border border-n-border text-xs font-mono text-n-text2 hover:text-n-text transition-colors"
               >
                 Cancel
               </button>
@@ -504,7 +570,7 @@ export function BuilderScreen() {
                 type="button"
                 onClick={performSave}
                 disabled={isSaving}
-                className="px-4 py-2 rounded-pill bg-n-accent text-white text-xs font-mono font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="px-4 py-2 rounded-sm bg-white text-n-bg text-xs font-mono font-bold uppercase tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 Approve & Save
               </button>

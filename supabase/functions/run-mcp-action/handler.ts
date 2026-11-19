@@ -1,5 +1,6 @@
 import { Client, StreamableHTTPClientTransport } from "npm:@modelcontextprotocol/client@2.4.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { checkProductionGuard } from "../_shared/prodGuard.ts";
 import { consumeCreditsRpc } from "../_shared/credits.ts";
 import {
   buildStaticAuthHeaders,
@@ -271,6 +272,9 @@ export async function handleRunMcpAction(req: Request, deps: RunMcpDeps = {}): P
   }
 
   const getEnv = deps.getEnv ?? ((k: string) => Deno.env.get(k));
+  const misconfigured = checkProductionGuard(getEnv);
+  if (misconfigured) return misconfigured;
+
   const baseFetch = deps.baseFetch ?? fetch;
   const allowLocalDevLoopback = getEnv("MCP_ALLOW_LOCAL_DEV_LOOPBACK") === "true";
 

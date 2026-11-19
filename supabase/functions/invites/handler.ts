@@ -1,4 +1,5 @@
 import { corsHeaders } from "../_shared/cors.ts";
+import { checkProductionGuard } from "../_shared/prodGuard.ts";
 
 export interface InvitesPayload {
   op?: "create" | "accept" | "get_info" | "list_members" | "remove_member";
@@ -252,6 +253,9 @@ export async function handleInvites(
   }
 
   const getEnv = deps.getEnv ?? ((k: string) => Deno.env.get(k));
+  const misconfigured = checkProductionGuard(getEnv);
+  if (misconfigured) return misconfigured;
+
   const baseFetch = deps.baseFetch ?? fetch;
   const authHeader = req.headers.get("authorization") ?? "";
 

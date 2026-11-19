@@ -35,9 +35,9 @@ export function Checklist({
     if (!ctx?.isPreview) {
       try {
         const saved = localStorage.getItem(storageKey);
-        if (saved) {
+        if (saved !== null) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             return parsed.map((item, idx) =>
               typeof item === "string"
                 ? { id: `item-${idx}`, text: item, completed: false }
@@ -69,19 +69,6 @@ export function Checklist({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const editInputRef = useRef<HTMLInputElement>(null);
-
-  // Sync if props.items change and local list is empty
-  useEffect(() => {
-    if (tasks.length === 0 && items && items.length > 0) {
-      setTasks(
-        items.map((text, idx) => ({
-          id: `item-${idx}`,
-          text: String(text),
-          completed: false,
-        }))
-      );
-    }
-  }, [items, tasks.length]);
 
   // Focus edit input when editing starts
   useEffect(() => {

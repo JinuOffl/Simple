@@ -155,43 +155,43 @@ function buildSimulatedManifest(userPrompt: string, isRepair: boolean): Manifest
     };
   }
 
-  if (lower.includes("trivia") && !lower.includes("quiz")) {
+  if (lower.includes("advice")) {
     return {
       schema_version: 2,
-      app_id: "sim-number-trivia",
-      name: "Number Trivia",
+      app_id: "sim-daily-advice",
+      name: "Daily Advice",
       icon: "💡",
-      description: "Discover surprising number facts.",
+      description: "Discover helpful daily advice.",
       permissions: [],
       connectors: [],
       data: { collections: [] },
       screens: [
         {
           id: "main",
-          title: "Number Trivia",
+          title: "Daily Advice",
           nodes: [
             {
-              id: "trivia_card",
+              id: "advice_card",
               type: "card",
-              props: { title: "Fun Fact", body: "Tap Get Fact for trivia." },
-              bind: "trivia_card",
+              props: { title: "Daily Advice", body: "Tap Get Advice for an inspirational tip." },
+              bind: "advice_card",
             },
             {
-              id: "trivia_btn",
+              id: "advice_btn",
               type: "button",
-              props: { label: "Get Fact", variant: "primary" },
-              on_click: "a_trivia",
+              props: { label: "Get Advice", variant: "primary" },
+              on_click: "a_advice",
             },
           ],
         },
       ],
       actions: [
         {
-          id: "a_trivia",
+          id: "a_advice",
           kind: "api_fetch",
-          api: "trivia",
-          params: { number: 42, type: "trivia" },
-          render_result_into: "trivia_card",
+          api: "advice",
+          params: {},
+          render_result_into: "advice_card",
           credit_cost_class: "api_fetch",
         },
       ],

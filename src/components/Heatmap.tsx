@@ -187,7 +187,7 @@ export function Heatmap({
                         data-today={isToday ? "true" : undefined}
                         data-active={isActive ? "true" : "false"}
                         aria-label={`${row}: day ${dayIdx + 1}${isToday ? " (today)" : ""}`}
-                        className={`w-4 h-4 sm:w-5 sm:h-5 rounded-xs transition-all duration-150 shrink-0 cursor-pointer ${
+                        className={`w-4 h-4 sm:w-5 sm:h-5 rounded-sm transition-all duration-150 shrink-0 cursor-pointer ${
                           isActive
                             ? "bg-white text-n-bg"
                             : "bg-n-surface2/60 border border-n-border/80 hover:border-n-border2"

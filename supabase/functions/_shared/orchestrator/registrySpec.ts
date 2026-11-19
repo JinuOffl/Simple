@@ -208,7 +208,7 @@ export const REGISTRY_CAPABILITY_META: readonly RegistryCapabilityMeta[] = [
     requiredPermissions: [],
     isStub: false,
     allowedPropKeys: ["persona_prompt", "initial_message", "placeholder"],
-    summary: "Persistent multi-turn chat thread (`persona_prompt`, `initial_message`, `placeholder`).",
+    summary: "Multi-turn chat thread for current session only (not stored) (`persona_prompt`, `initial_message`, `placeholder`).",
     exampleProps: { persona_prompt: "You are helpful.", initial_message: "Hi!" },
   },
   // Phase 6 sketch components
@@ -277,10 +277,6 @@ export const ALLOWLISTED_APIS: Readonly<
   country: {
     description: "Country capital, population, currencies, languages",
     params: ["name"],
-  },
-  trivia: {
-    description: "Interesting math/number trivia fact",
-    params: ["number", "type"],
   },
   advice: {
     description: "Daily advice slip (keyless)",
@@ -401,7 +397,7 @@ export const ACTION_CONTRACT: readonly ActionContractSpec[] = [
     requiredFields: ["id", "kind", "api", "params", "render_result_into"],
     optionalFields: ["output_key", "credit_cost_class"],
     summary:
-      "Call an allowlisted server API (weather, currency, timezone, dictionary, country, trivia) with params; render_result_into targets a node id.",
+      "Call an allowlisted server API (weather, currency, timezone, dictionary, country) with params; render_result_into targets a node id.",
     example: {
       id: "a_fetch_weather",
       kind: "api_fetch",

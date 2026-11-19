@@ -99,4 +99,39 @@ describe("Checklist Component CRUD", () => {
     expect(screen.getByText("0/1")).toBeTruthy();
     expect(onDataChange).toHaveBeenCalledWith("chk1", ["Task B"]);
   });
+
+  it("does not reseed from props.items after the user empties the list (delete all -> stays empty after rerender)", () => {
+    const { rerender } = render(
+      <Checklist
+        id="chk-empty-test"
+        items={["Initial Task 1", "Initial Task 2"]}
+      />
+    );
+
+    expect(screen.getByText("Initial Task 1")).toBeTruthy();
+    expect(screen.getByText("Initial Task 2")).toBeTruthy();
+
+    // Delete both tasks
+    const deleteBtn1 = screen.getByLabelText("Delete Initial Task 1");
+    fireEvent.click(deleteBtn1);
+    const deleteBtn2 = screen.getByLabelText("Delete Initial Task 2");
+    fireEvent.click(deleteBtn2);
+
+    expect(screen.queryByText("Initial Task 1")).toBeNull();
+    expect(screen.queryByText("Initial Task 2")).toBeNull();
+    expect(screen.getByText("(No tasks yet. Add one above)")).toBeTruthy();
+
+    // Rerender with the same props.items
+    rerender(
+      <Checklist
+        id="chk-empty-test"
+        items={["Initial Task 1", "Initial Task 2"]}
+      />
+    );
+
+    // Should NOT reseed from props.items
+    expect(screen.queryByText("Initial Task 1")).toBeNull();
+    expect(screen.queryByText("Initial Task 2")).toBeNull();
+    expect(screen.getByText("(No tasks yet. Add one above)")).toBeTruthy();
+  });
 });

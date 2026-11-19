@@ -25,6 +25,7 @@ import { Heatmap } from "@/components/Heatmap";
 import { Status } from "@/components/Status";
 import { IconRow, type IconRowItem } from "@/components/IconRow";
 import { BleHeartRate } from "@/components/BleHeartRate";
+import { downscaleImage } from "@/lib/imageUtils";
 import type { RegistryRenderContext } from "./types";
 
 interface AdapterBaseProps {
@@ -161,10 +162,19 @@ export function ImageCaptureAdapter({
     <ImageCapture
       label={label ?? "Take Photo"}
       save_to={save_to}
-      onCapture={(base64, key) => {
-        if (key) ctx?.onDataChange?.(key, base64);
+      onCapture={async (base64, key) => {
+        const targetKey = key ?? save_to;
+        const downscaled = await downscaleImage(base64, 800, 0.7);
+        if (targetKey && ctx?.onDataChange) {
+          const existing = ctx.appData?.[targetKey];
+          const list: string[] = Array.isArray(existing)
+            ? [...existing, downscaled]
+            : [downscaled];
+          const trimmed = list.slice(-12);
+          ctx.onDataChange(targetKey, trimmed);
+        }
         if (ctx?.onAction) {
-          void ctx.onAction({ [key ?? "image"]: base64 });
+          void ctx.onAction({ [targetKey ?? "image"]: downscaled });
         } else if (onAction) {
           void onAction();
         }
@@ -441,11 +451,20 @@ export function TableAdapter({
   bindValue,
   ctx,
 }: AdapterBaseProps & { columns?: string[]; rows?: string[][] }) {
-  const resolvedRows = Array.isArray(ctx?.bindValue)
-    ? (ctx.bindValue as string[][])
-    : Array.isArray(bindValue)
-      ? (bindValue as string[][])
-      : rows ?? [];
+  const rawRows = ctx?.bindValue ?? bindValue ?? rows ?? [];
+  let resolvedRows: string[][] = [];
+  if (Array.isArray(rawRows)) {
+    resolvedRows = rawRows.map((r) => {
+      if (Array.isArray(r)) return r.map((c) => String(c ?? ""));
+      if (r && typeof r === "object") {
+        if (columns && columns.length > 0) {
+          return columns.map((col) => String((r as Record<string, unknown>)[col] ?? (r as Record<string, unknown>)[col.toLowerCase()] ?? ""));
+        }
+        return Object.values(r as Record<string, unknown>).map((c) => String(c ?? ""));
+      }
+      return [String(r ?? "")];
+    });
+  }
   return <Table columns={columns} rows={resolvedRows} />;
 }
 

@@ -57,7 +57,6 @@ export const ActionSchema = z.object({
     "timezone",   // WorldTimeAPI: params { timezone }
     "dictionary", // DictionaryAPI: params { word }
     "country",    // RestCountries: params { name }
-    "trivia",     // Numbers API: params { number?, type? }
   ]).optional(),
   params: z.record(z.string(), z.unknown()).optional(),
 

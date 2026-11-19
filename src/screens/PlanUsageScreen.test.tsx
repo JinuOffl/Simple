@@ -178,7 +178,7 @@ describe("PlanUsageScreen", () => {
 
     expect(screen.getByText("3 / 3")).toBeTruthy();
     expect(screen.getByText(/88 left/i)).toBeTruthy();
-    expect(screen.getByText(/1 sleeping (app|tool)/i)).toBeTruthy();
+    expect(screen.getByText("1 sleeping tool (never deleted — exportable anytime)")).toBeTruthy();
     expect(screen.getByText("Quiz")).toBeTruthy();
     expect(screen.getByText("server-verified")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /upgrade/i })).toBeNull();
