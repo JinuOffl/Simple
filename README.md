@@ -24,9 +24,13 @@ Copy `.env.example` to `.env`:
 # Frontend (.env)
 VITE_SUPABASE_URL=https://<project-ref>.supabase.co
 VITE_SUPABASE_ANON_KEY=<anon-key>
-VITE_GROQ_API_KEY=<optional-client-groq-key>
 VITE_CAPTCHA_SITEKEY=<optional-cloudflare-turnstile-sitekey>
-VITE_LOCAL_MCP_ACTION_URL=http://localhost:54321/functions/v1/run-mcp-action
+VITE_ERROR_ENDPOINT=<optional-telemetry-endpoint>
+
+# Build Environment Validation
+# Production builds enforce that VITE_SUPABASE_URL (https://) and VITE_SUPABASE_ANON_KEY are present.
+# Secret keys (GROQ_API_KEY, SUPABASE_SERVICE_ROLE_KEY) are prohibited in frontend build environments.
+# To bypass environment validation in CI or offline test builds, pass: CI_SKIP_ENV_CHECK=1
 
 # Backend Edge Functions (Supabase Secrets / .env)
 GROQ_API_KEY=<groq-api-key>

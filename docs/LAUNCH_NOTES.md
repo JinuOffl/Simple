@@ -155,3 +155,55 @@ Follow these steps in a standard Chromium browser (Chrome or Edge) against the d
 - **Real Live-LLM Token Evals:** The scripted evaluation suite (`npm run evals`) validates schema conformances, deterministic heuristics, repair chains, and template matching using mocked and local synthetic fixtures. Real Groq production API inference latency and token quality depend on live provider availability and should be smoke-tested post-deployment using step 7 above.
 - **Payment Gateway Webhooks:** Webhook processing (`billing-webhook`) is unit- and integration-tested with synthetic Stripe/LemonSqueezy payloads. Live payment gateway endpoints should be verified during staging before enabling paid tier upgrades.
 - **Production Supabase Migrations:** Database migrations `001_initial_schema.sql` through `006_realtime.sql` have been verified on local PostgreSQL/PGlite environments; target production database execution remains an operational deployment step as detailed in [RELEASE_CHECKLIST.md](file:///d:/Documents/Projects/Simple%20Project/Simple/simple-app/docs/RELEASE_CHECKLIST.md).
+
+---
+
+## 5. Deployment Instructions (Cloudflare Pages & Vercel)
+
+Simple is an SPA powered by `HashRouter`, requiring no custom server-side routing rules. Deploy the static build to Cloudflare Pages or Vercel.
+
+### A. Hosting Option 1: Vercel (Recommended)
+1. Push repository changes to GitHub (`main` branch).
+2. Go to **[https://vercel.com](https://vercel.com)** and sign in via GitHub.
+3. Click **Add New...** → **Project**, and import the repository `Simple`.
+4. In Project Settings:
+   - **Framework Preset:** Vite
+   - **Root Directory:** `./` (or `simple-app` if deploying from monorepo root)
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+   - **Node.js Version:** `22.x` (under Project Settings → General)
+5. **Environment Variables:**
+   - `VITE_SUPABASE_URL`: `https://<your-project-id>.supabase.co`
+   - `VITE_SUPABASE_ANON_KEY`: `<your-supabase-anon-key>`
+   - `VITE_CAPTCHA_SITEKEY`: *(Optional)* Cloudflare Turnstile site key
+   - `VITE_ERROR_ENDPOINT`: *(Optional)* Telemetry error beacon endpoint
+   - *(Note: Do NOT set `GROQ_API_KEY` or any backend secret in Vercel).*
+6. Click **Deploy**. Vercel will assign a production URL (e.g., `https://simple-app.vercel.app`).
+
+### B. Hosting Option 2: Cloudflare Pages
+1. Push repository changes to GitHub.
+2. Log into Cloudflare Dashboard → **Workers & Pages** → **Create application** → **Pages** → **Connect to Git**.
+3. Select your repository and branch (`main`).
+4. Build configuration:
+   - **Framework Preset:** None / Vite
+   - **Build Command:** `npm run build`
+   - **Build Output Directory:** `dist`
+5. **Environment Variables (Production):**
+   - `NODE_VERSION`: `22`
+   - `VITE_SUPABASE_URL`: `https://<your-project-id>.supabase.co`
+   - `VITE_SUPABASE_ANON_KEY`: `<your-supabase-anon-key>`
+   - `VITE_CAPTCHA_SITEKEY`: *(Optional)*
+6. Click **Save and Deploy**. Cloudflare assigns `https://<project-name>.pages.dev`.
+
+### C. Required Supabase Dashboard Settings
+Before public usage, configure the Supabase project dashboard:
+1. **Authentication → Providers → Anonymous sign-ins:** Toggle to **ON**. (Enables guest mode to build and run tools immediately without sign-in).
+2. **Authentication → URL Configuration:**
+   - **Site URL:** Set to your live hosting URL (e.g. `https://simple-app.vercel.app` or `https://simple-app.pages.dev`).
+   - **Redirect URLs:** Add your live URL and `http://localhost:5173`.
+3. **Authentication → SMTP Settings:** Add custom SMTP provider (Resend, SendGrid, or Brevo) for reliable production OTP delivery.
+4. **Authentication → Email Templates → Magic Link / OTP:** Ensure the template includes `{{ .Token }}` for 6-digit numeric verification.
+5. **Database → Replication:** Ensure `app_data` table has Realtime enabled if collaborative tools are utilized.
+6. **Authentication → Attack Protection → CAPTCHA:** Enable Cloudflare Turnstile if using `VITE_CAPTCHA_SITEKEY`.
+7. **Supabase Secrets:** Ensure production secrets (`GROQ_API_KEY`, `CONNECTION_ENCRYPTION_KEY`, `BILLING_WEBHOOK_SECRET`) are configured and no `*_LOCAL_DEV_OPEN` flags are set.
+

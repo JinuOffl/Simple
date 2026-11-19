@@ -38,14 +38,14 @@ export function BuilderScreen() {
   const isLocalGuest = isLocalGuestSession(session);
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [inputText, setInputText]     = useState(prefillPrompt);
-  const [isSaving, setIsSaving]       = useState(false);
+  const [inputText, setInputText] = useState(prefillPrompt);
+  const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [savedKeyIds, setSavedKeyIds] = useState<Set<string>>(new Set());
   const chatScrollRef = useRef<HTMLDivElement>(null);
-  const inputRef      = useRef<HTMLInputElement>(null);
-  const prefillSent   = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const prefillSent = useRef(false);
   const previousConsentFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -136,9 +136,8 @@ export function BuilderScreen() {
           : "";
 
       if (result.usedTemplateFallback) {
-        const fallbackText = `AI is unreachable - loaded the closest starter template: ${
-          result.templateName ?? parsedManifest.name
-        }`;
+        const fallbackText = `AI is unreachable - loaded the closest starter template: ${result.templateName ?? parsedManifest.name
+          }`;
         const assistantMsg: ChatMessage = {
           role: "assistant",
           content: fallbackText,

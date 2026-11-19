@@ -1,6 +1,6 @@
 // Service Worker for Simple Web App Shell & Assets
 // Note: shouldCacheRequest logic must remain in 1:1 parity with src/lib/swHelper.ts
-const CACHE_VERSION = "simple-v2";
+const CACHE_VERSION = "simple-v3";
 const CACHE_NAME = `simple-cache-${CACHE_VERSION}`;
 
 function shouldCacheRequest(request) {

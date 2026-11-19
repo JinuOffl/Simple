@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "dev:mcp": "node scripts/dev-mcp.mjs",
+    "prebuild": "node scripts/check-env.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",

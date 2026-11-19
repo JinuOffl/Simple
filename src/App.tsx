@@ -131,85 +131,85 @@ export default function App() {
     <ErrorBoundary fallbackMessage="Something went wrong in Simple">
       <HashRouter>
         <Routes>
-        {/* Public */}
-        <Route path="/auth" element={<AuthScreen />} />
-        <Route path="/privacy" element={<PrivacyScreen />} />
-        <Route path="/terms" element={<TermsScreen />} />
+          {/* Public */}
+          <Route path="/auth" element={<AuthScreen />} />
+          <Route path="/privacy" element={<PrivacyScreen />} />
+          <Route path="/terms" element={<TermsScreen />} />
 
-        {/* Protected */}
-        <Route
-          path="/"
-          element={
-            <AuthGuard>
-              <HomeScreen />
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/build"
-          element={
-            <AuthGuard>
-              <BuilderScreen />
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/app/:id"
-          element={
-            <AuthGuard>
-              <AppRunnerScreen />
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/plan"
-          element={
-            <AuthGuard>
-              <PlanUsageScreen />
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/connections"
-          element={
-            <AuthGuard>
-              <ConnectionsScreen />
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/join/:code"
-          element={
-            <AuthGuard>
-              <InviteJoinScreen />
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/invite/:code"
-          element={
-            <AuthGuard>
-              <InviteJoinScreen />
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/mcp-demo"
-          element={
-            import.meta.env.DEV ? (
-              <McpDemoScreen />
-            ) : (
+          {/* Protected */}
+          <Route
+            path="/"
+            element={
               <AuthGuard>
-                <McpDemoScreen />
+                <HomeScreen />
               </AuthGuard>
-            )
-          }
-        />
+            }
+          />
+          <Route
+            path="/build"
+            element={
+              <AuthGuard>
+                <BuilderScreen />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/app/:id"
+            element={
+              <AuthGuard>
+                <AppRunnerScreen />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/plan"
+            element={
+              <AuthGuard>
+                <PlanUsageScreen />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/connections"
+            element={
+              <AuthGuard>
+                <ConnectionsScreen />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/join/:code"
+            element={
+              <AuthGuard>
+                <InviteJoinScreen />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/invite/:code"
+            element={
+              <AuthGuard>
+                <InviteJoinScreen />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/mcp-demo"
+            element={
+              import.meta.env.DEV ? (
+                <McpDemoScreen />
+              ) : (
+                <AuthGuard>
+                  <McpDemoScreen />
+                </AuthGuard>
+              )
+            }
+          />
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </HashRouter>
-  </ErrorBoundary>
-);
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </HashRouter>
+    </ErrorBoundary>
+  );
 }
