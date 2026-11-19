@@ -39,10 +39,12 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists apps_updated_at on apps;
 create trigger apps_updated_at
   before update on apps
   for each row execute function handle_updated_at();
 
+drop trigger if exists app_data_updated_at on app_data;
 create trigger app_data_updated_at
   before update on app_data
   for each row execute function handle_updated_at();
@@ -54,16 +56,19 @@ alter table app_data enable row level security;
 alter table profile enable row level security;
 
 -- Users can only see/edit their own apps
+drop policy if exists "own apps only" on apps;
 create policy "own apps only" on apps
   for all using (auth.uid() = user_id);
 
 -- Users can only see/edit app_data for their own apps
+drop policy if exists "own app data only" on app_data;
 create policy "own app data only" on app_data
   for all using (
     app_id in (select id from apps where user_id = auth.uid())
   );
 
 -- Users can only see/edit their own profile
+drop policy if exists "own profile only" on profile;
 create policy "own profile only" on profile
   for all using (auth.uid() = user_id);
 
@@ -79,6 +84,7 @@ begin
 end;
 $$ language plpgsql security definer;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_user();

@@ -236,9 +236,9 @@ export function BuilderScreen() {
               disabled={isSaving || saveSuccess}
               className={`px-4 py-1.5 nt-label font-bold border rounded-sm transition-all duration-150 nt-press cursor-pointer
                           ${saveSuccess
-                            ? "border-n-line3 text-n-display bg-n-s2"
-                            : "bg-n-btn text-n-btn-text border-n-btn hover:opacity-90"
-                          }
+                  ? "border-n-line3 text-n-display bg-n-s2"
+                  : "bg-n-btn text-n-btn-text border-n-btn hover:opacity-90"
+                }
                           disabled:opacity-40`}
             >
               {saveSuccess ? "SAVED ✓" : isSaving ? "..." : editingAppId ? "UPDATE" : "SAVE"}
