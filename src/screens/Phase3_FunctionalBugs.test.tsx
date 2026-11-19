@@ -162,7 +162,7 @@ describe("Phase 3 — Functional Bugs & Hardening", () => {
         const [key, storedArray] = onDataChange.mock.calls[0];
         expect(key).toBe("captured_photos");
         expect(Array.isArray(storedArray)).toBe(true);
-        expect(storedArray.length).toBe(12); // capped at 12
+        expect(storedArray.length).toBe(6); // Phase 4 policy: capped at 6 images
         expect(storedArray[storedArray.length - 1]).toBe("data:image/jpeg;base64,downscaled-data");
 
         // Now render ImageGalleryAdapter with the stored photos
@@ -182,9 +182,9 @@ describe("Phase 3 — Functional Bugs & Hardening", () => {
           />
         );
 
-        // Images are rendered in the gallery
+        // Images are rendered in the gallery (capped at 6)
         const renderedImgs = screen.getAllByRole("button");
-        expect(renderedImgs.length).toBeGreaterThanOrEqual(12);
+        expect(renderedImgs.length).toBeGreaterThanOrEqual(6);
         unmount();
       } finally {
         window.FileReader = originalFileReader;

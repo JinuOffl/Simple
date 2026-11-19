@@ -229,6 +229,19 @@ export async function handleManageByok(
           return jsonResponse({ error: "apiKey is required" }, 400);
         }
 
+        // Validate key against primary endpoint
+        const baseUrl = (getEnv("LLM_PRIMARY_BASE_URL") ?? "https://api.groq.com/openai/v1").replace(/\/+$/, "");
+        try {
+          const checkRes = await baseFetch(`${baseUrl}/models`, {
+            headers: { Authorization: `Bearer ${rawKey}` },
+          });
+          if (checkRes.status === 401 || checkRes.status === 403) {
+            return jsonResponse({ error: "Invalid API key" }, 400);
+          }
+        } catch {
+          // Non-blocking if endpoint network failure in test/offline
+        }
+
         const provider = (payload.provider?.trim().toLowerCase() || "groq");
 
         const encrypted = await encryptConnectionSecret(rawKey, encryptionSecret, {

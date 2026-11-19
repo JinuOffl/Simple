@@ -1,14 +1,20 @@
 // Service Worker for Simple Web App Shell & Assets
-const CACHE_VERSION = "simple-v1";
+// Note: shouldCacheRequest logic must remain in 1:1 parity with src/lib/swHelper.ts
+const CACHE_VERSION = "simple-v2";
 const CACHE_NAME = `simple-cache-${CACHE_VERSION}`;
 
 function shouldCacheRequest(request) {
-  if (request.method !== "GET") return false;
+  if (!request || request.method !== "GET") return false;
 
   let url;
   try {
-    url = new URL(request.url);
+    url = new URL(request.url, self.location.origin);
   } catch {
+    return false;
+  }
+
+  // Only http/https protocols
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
     return false;
   }
 
@@ -56,7 +62,40 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Stale-while-revalidate for same-origin static assets & app shell
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return;
+  }
+
+  const isNavigation =
+    request.mode === "navigate" ||
+    request.destination === "document" ||
+    url.pathname === "/" ||
+    url.pathname.endsWith("/index.html");
+
+  if (isNavigation) {
+    // Network-first for HTML navigations
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cache = await caches.open(CACHE_NAME);
+          const cached = (await cache.match(request)) || (await cache.match("/"));
+          return cached || Response.error();
+        })
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for hashed static assets & images
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
       const cachedResponse = await cache.match(request);
@@ -69,7 +108,8 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cachedResponse);
 
-      return cachedResponse || networkFetch;
+      const response = cachedResponse || (await networkFetch);
+      return response || Response.error();
     })
   );
 });

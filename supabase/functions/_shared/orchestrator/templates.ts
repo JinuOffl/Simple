@@ -487,7 +487,8 @@ export const STARTER_TEMPLATES: readonly StarterTemplate[] = [
       permissions: [],
       connectors: [],
       tool: {
-        size: "2x1",
+        // Fit assumption: 4x2 gives full width (4 cols) and 240px height (2 rows @ 120px) to render 14 days cleanly
+        size: "4x2",
         requires: [],
       },
       data: { collections: [] },
@@ -531,7 +532,8 @@ export const STARTER_TEMPLATES: readonly StarterTemplate[] = [
       permissions: [],
       connectors: [],
       tool: {
-        size: "2x1",
+        // Fit assumption: 2x2 gives 2 cols and 240px height to comfortably fit countdown digits, state, and buttons
+        size: "2x2",
         requires: [],
       },
       data: { collections: [] },
@@ -580,6 +582,7 @@ export const STARTER_TEMPLATES: readonly StarterTemplate[] = [
       permissions: [],
       connectors: [],
       tool: {
+        // Fit assumption: 2x1 gives 2 cols and 120px height, perfectly fitting the stat number and controls
         size: "2x1",
         requires: [],
       },

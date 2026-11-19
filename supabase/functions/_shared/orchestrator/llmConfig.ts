@@ -125,10 +125,11 @@ export function resolveLlmRuntimeConfig(
       runtimeMaxTokens: baseConfig.fallback.runtimeMaxTokens,
       generationTemperature: baseConfig.fallback.generationTemperature,
       runtimeTemperature: baseConfig.fallback.runtimeTemperature,
-      apiKey:
-        nonEmpty("LLM_FALLBACK_API_KEY") ??
-        nonEmpty("OPENAI_API_KEY") ??
-        nonEmpty("FALLBACK_API_KEY"),
+      apiKey: userOverrides?.apiKey
+        ? undefined
+        : (nonEmpty("LLM_FALLBACK_API_KEY") ??
+          nonEmpty("OPENAI_API_KEY") ??
+          nonEmpty("FALLBACK_API_KEY")),
     },
     repair: {
       maxAttempts,

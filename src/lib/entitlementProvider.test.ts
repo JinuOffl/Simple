@@ -74,7 +74,7 @@ describe("EntitlementProvider and BYOK Client", () => {
         error: null,
       });
 
-      const provider = new DevEntitlementProvider();
+      const provider = new DevEntitlementProvider("dev-webhook-secret");
       const res = await provider.cancelPlan("user-123");
 
       expect(res.success).toBe(true);
@@ -97,7 +97,7 @@ describe("EntitlementProvider and BYOK Client", () => {
         error: null,
       });
 
-      const provider = new DevEntitlementProvider();
+      const provider = new DevEntitlementProvider("dev-webhook-secret");
       const res = await provider.grantCredits("user-123", 500);
 
       expect(res.success).toBe(true);

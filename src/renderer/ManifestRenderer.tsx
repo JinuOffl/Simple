@@ -5,6 +5,7 @@ import { migrateV1toV2, needsMigration } from "@/schema/migrator";
 import { getRegistryEntry, type RegistryRenderContext } from "@/registry";
 import { runAction } from "@/actions/actionRunner";
 import { useAppStore } from "@/lib/zustandStore";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface ManifestRendererProps {
   manifest: Manifest | ManifestV2;
@@ -178,14 +179,15 @@ export function ManifestRenderer({
         const EntryComponent = entry.component;
 
         return (
-          <EntryComponent
-            key={`${node.id}:${djb2Hash(JSON.stringify(node.props ?? {}))}`}
-            {...((node.props ?? {}) as Record<string, unknown>)}
-            id={node.id}
-            bindValue={ctx.bindValue}
-            onAction={ctx.onAction ? () => ctx.onAction?.() : undefined}
-            ctx={ctx}
-          />
+          <ErrorBoundary key={`${node.id}:${djb2Hash(JSON.stringify(node.props ?? {}))}`}>
+            <EntryComponent
+              {...((node.props ?? {}) as Record<string, unknown>)}
+              id={node.id}
+              bindValue={ctx.bindValue}
+              onAction={ctx.onAction ? () => ctx.onAction?.() : undefined}
+              ctx={ctx}
+            />
+          </ErrorBoundary>
         );
       })}
     </div>

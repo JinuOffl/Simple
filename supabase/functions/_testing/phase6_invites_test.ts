@@ -142,7 +142,40 @@ Deno.test("invites Edge Function: auth, create, accept, and member management", 
   assertEquals(db.getIsShared(), true);
   const code = createData.invite.code;
   assertEquals(typeof code, "string");
-  assertEquals(code.length, 8);
+  assertEquals(code.length, 10);
+  // Assert code chars only from unambiguous alphabet
+  assertEquals(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{10}$/.test(code), true);
+
+  // 3b. Role and max_uses validation (Phase 1.2)
+  const invalidRoleReq = new Request("http://localhost/invites", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      op: "create",
+      app_id: "app-123",
+      role: "admin",
+    }),
+  });
+  const invalidRoleRes = await handleInvites(invalidRoleReq, {
+    db,
+    verifyJwt: async () => ({ userId: "user-owner" }),
+  });
+  assertEquals(invalidRoleRes.status, 400);
+
+  const invalidMaxUsesReq = new Request("http://localhost/invites", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      op: "create",
+      app_id: "app-123",
+      max_uses: 105,
+    }),
+  });
+  const invalidMaxUsesRes = await handleInvites(invalidMaxUsesReq, {
+    db,
+    verifyJwt: async () => ({ userId: "user-owner" }),
+  });
+  assertEquals(invalidMaxUsesRes.status, 400);
 
   // 4. Non-owner cannot create an invite
   const nonOwnerCreateReq = new Request("http://localhost/invites", {

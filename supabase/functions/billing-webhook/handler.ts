@@ -55,6 +55,21 @@ export interface BillingWebhookDeps {
 
 
 
+function constantTimeEqual(a: string, b: string): boolean {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  const encoder = new TextEncoder();
+  const aBuf = encoder.encode(a);
+  const bBuf = encoder.encode(b);
+  if (aBuf.byteLength !== bBuf.byteLength) {
+    return false;
+  }
+  let c = 0;
+  for (let i = 0; i < aBuf.byteLength; i++) {
+    c |= aBuf[i] ^ bBuf[i];
+  }
+  return c === 0;
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -173,8 +188,8 @@ export async function handleBillingWebhook(
   const providedSecret = secretHeader || providedBearer;
 
   const isAuthorized =
-    Boolean(expectedSecret && providedSecret === expectedSecret) ||
-    (localDevOpen && (!expectedSecret || providedSecret === "dev-webhook-secret"));
+    Boolean(expectedSecret && constantTimeEqual(providedSecret, expectedSecret)) ||
+    Boolean(localDevOpen && (!expectedSecret || constantTimeEqual(providedSecret, "dev-webhook-secret")));
 
   if (!isAuthorized) {
     return jsonResponse({ error: "Unauthorized webhook caller" }, 401);

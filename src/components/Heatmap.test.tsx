@@ -13,6 +13,7 @@ describe("Heatmap", () => {
   afterEach(() => {
     cleanup();
     localStorage.clear();
+    vi.useRealTimers();
   });
 
   it("renders rows, header title, and defaults to 14 days", () => {
@@ -50,7 +51,7 @@ describe("Heatmap", () => {
     expect(day0Cell.getAttribute("data-today")).toBeNull();
   });
 
-  it("toggles cell active state and dispatches onDataChange", () => {
+  it("toggles cell active state and dispatches onDataChange with { start, rows } shape", () => {
     const onDataChange = vi.fn();
     const mockCtx: RegistryRenderContext = {
       nodeId: "hm3",
@@ -76,7 +77,10 @@ describe("Heatmap", () => {
     expect(onDataChange).toHaveBeenCalledWith(
       "run_tracker",
       expect.objectContaining({
-        Run: [false, false, true, false, false, false, false],
+        start: expect.any(String),
+        rows: expect.objectContaining({
+          Run: [false, false, true, false, false, false, false],
+        }),
       })
     );
 
@@ -110,7 +114,7 @@ describe("Heatmap", () => {
     expect(localStorage.getItem("simple_heatmap_hm_prev")).toBeNull();
   });
 
-  it("persists to localStorage in normal (non-preview) mode", () => {
+  it("persists { start, rows } to localStorage in normal (non-preview) mode", () => {
     const mockCtx: RegistryRenderContext = {
       nodeId: "hm_persist",
       appData: {},
@@ -132,6 +136,92 @@ describe("Heatmap", () => {
     const stored = localStorage.getItem("simple_heatmap_hm_persist");
     expect(stored).toBeTruthy();
     const parsed = JSON.parse(stored!);
-    expect(parsed.Guitar[1]).toBe(true);
+    expect(parsed.start).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(parsed.rows.Guitar[1]).toBe(true);
+  });
+
+  it("maintains backward compatibility with legacy Record<string, boolean[]> shape", () => {
+    const legacyState = {
+      Gym: [true, false, true, false, false, false, false],
+    };
+    localStorage.setItem("simple_heatmap_hm_legacy", JSON.stringify(legacyState));
+
+    render(
+      <Heatmap
+        id="hm_legacy"
+        rows={["Gym"]}
+        days={7}
+      />
+    );
+
+    // Day 0 was true in legacy data, today is day 6
+    const cell0 = screen.getByTestId("heatmap-cell-Gym-0");
+    expect(cell0.getAttribute("data-active")).toBe("true");
+
+    const cell2 = screen.getByTestId("heatmap-cell-Gym-2");
+    expect(cell2.getAttribute("data-active")).toBe("true");
+
+    const cell1 = screen.getByTestId("heatmap-cell-Gym-1");
+    expect(cell1.getAttribute("data-active")).toBe("false");
+  });
+
+  it("shifts rows left by elapsed days since start date", () => {
+    vi.useFakeTimers();
+    // System time set to 2 days after start date
+    vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+
+    const storedData = {
+      start: "2026-05-10",
+      rows: {
+        Workout: [true, false, false, true, false, false, true], // 7 days: day 0 was true, day 3 was true, day 6 (old today) was true
+      },
+    };
+    localStorage.setItem("simple_heatmap_hm_shift", JSON.stringify(storedData));
+
+    render(
+      <Heatmap
+        id="hm_shift"
+        rows={["Workout"]}
+        days={7}
+      />
+    );
+
+    // Elapsed is 2 days.
+    // Index 0 was Workout[0] -> shifted out.
+    // Index 1 (Workout[3-2 = 1]) was false.
+    // Index 4 (Workout[6-2 = 4]) should now have old today's value (true)!
+    const cell4 = screen.getByTestId("heatmap-cell-Workout-4");
+    expect(cell4.getAttribute("data-active")).toBe("true");
+
+    // Index 6 (today) must be false
+    const todayCell = screen.getByTestId("heatmap-cell-Workout-6");
+    expect(todayCell.getAttribute("data-active")).toBe("false");
+  });
+
+  it("clears all days if elapsed days >= totalDays", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T10:00:00Z"));
+
+    const storedData = {
+      start: "2026-05-01",
+      rows: {
+        Water: [true, true, true, true, true, true, true],
+      },
+    };
+    localStorage.setItem("simple_heatmap_hm_overflow", JSON.stringify(storedData));
+
+    render(
+      <Heatmap
+        id="hm_overflow"
+        rows={["Water"]}
+        days={7}
+      />
+    );
+
+    // All cells should be false
+    for (let i = 0; i < 7; i++) {
+      const cell = screen.getByTestId(`heatmap-cell-Water-${i}`);
+      expect(cell.getAttribute("data-active")).toBe("false");
+    }
   });
 });

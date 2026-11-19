@@ -281,3 +281,20 @@ a:focus-visible {
   box-shadow: 0 0 0 1px #ffffff;
 }
 
+/* ─── Scrollbar Hide ───────────────────────────────────────────────────────── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Mobile inputs font size (prevent auto-zoom on mobile) ────────────────── */
+@media (max-width: 640px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+

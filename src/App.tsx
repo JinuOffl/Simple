@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, hasValidSupabaseConfig } from "@/lib/supabaseClient";
 import { useAppStore } from "@/lib/zustandStore";
 import { clearLocalGuestSession, getLocalGuestSession } from "@/lib/guestAuth";
 import { AuthScreen } from "@/screens/AuthScreen";
@@ -13,6 +13,7 @@ import { AppRunnerScreen } from "@/screens/AppRunnerScreen";
 import { PlanUsageScreen } from "@/screens/PlanUsageScreen";
 import { ConnectionsScreen } from "@/screens/ConnectionsScreen";
 import { InviteJoinScreen } from "@/screens/InviteJoinScreen";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { session } = useAppStore();
@@ -36,6 +37,8 @@ export default function App() {
   const { session, setSession } = useAppStore();
 
   useEffect(() => {
+    if (!hasValidSupabaseConfig) return;
+
     // 2.5 Guard: Supabase auth hash tokens (#access_token=... or error_description=...)
     const currentHash = typeof window !== "undefined" ? window.location.hash : "";
     if (
@@ -102,9 +105,21 @@ export default function App() {
     }
   }, [session]);
 
+  if (!hasValidSupabaseConfig) {
+    return (
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-n-bg p-6 text-center font-mono space-y-4">
+        <h1 className="text-xl font-doto tracking-widest text-white uppercase">Configuration Required</h1>
+        <p className="text-xs text-n-text2 max-w-md leading-relaxed">
+          Missing Supabase configuration. Please configure <code className="text-white">VITE_SUPABASE_URL</code> and <code className="text-white">VITE_SUPABASE_ANON_KEY</code> in your environment variables.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <HashRouter>
-      <Routes>
+    <ErrorBoundary fallbackMessage="Something went wrong in Simple">
+      <HashRouter>
+        <Routes>
         {/* Public */}
         <Route path="/auth" element={<AuthScreen />} />
         <Route path="/privacy" element={<PrivacyScreen />} />
@@ -184,5 +199,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>
-  );
+  </ErrorBoundary>
+);
 }

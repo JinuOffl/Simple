@@ -14,6 +14,7 @@ import { supabase } from "./supabaseClient";
 import {
   clearLocalGuestSession,
   isGuestUser,
+  isLocalGuestId,
   loginAsGuest,
 } from "./guestAuth";
 
@@ -76,6 +77,28 @@ interface AppCacheSlice {
 }
 
 // ─── Pure Helpers ─────────────────────────────────────────────────────────────
+
+export function clearGuestLocalData(): void {
+  try {
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        (key.startsWith("simple_guest_") ||
+          key.startsWith("simple_checklist_") ||
+          key.startsWith("simple_heatmap_"))
+      ) {
+        toRemove.push(key);
+      }
+    }
+    for (const k of toRemove) {
+      localStorage.removeItem(k);
+    }
+  } catch {
+    // ignore
+  }
+}
 
 function normalizeSavedApp(row: SavedApp): SavedApp {
   return {
@@ -159,6 +182,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   signOut: async () => {
+    const { user } = get();
+    if (user && isLocalGuestId(user.id)) {
+      if (typeof window !== "undefined" && typeof window.confirm === "function") {
+        const ok = window.confirm(
+          "Signing out of guest mode will erase your guest tools and progress. Continue?"
+        );
+        if (!ok) return;
+      }
+      clearGuestLocalData();
+    }
     clearLocalGuestSession();
     try {
       await supabase.auth.signOut();
@@ -231,7 +264,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return;
     }
 
-    if (user.id.startsWith("guest-")) {
+    if (isLocalGuestId(user.id)) {
       try {
         const stored = localStorage.getItem(`simple_guest_apps_${user.id}`);
         const apps: SavedApp[] = stored ? JSON.parse(stored) : [];
@@ -280,7 +313,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return;
     }
 
-    if (user.id.startsWith("guest-")) {
+    if (isLocalGuestId(user.id)) {
       set({
         entitlement: createDefaultEntitlement(user.id),
         usageLedger: [],
@@ -332,7 +365,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       "schema_version" in manifest && manifest.schema_version === 2 ? 2 : 1;
 
     // Handle local guest storage path
-    if (user.id.startsWith("guest-")) {
+    if (isLocalGuestId(user.id)) {
       const existingApps = get().apps;
       const now = new Date().toISOString();
       let result: SavedApp;
@@ -374,7 +407,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
         };
         const nextApps = [result, ...existingApps];
         const limit = entitlement?.active_app_limit ?? PLANS.free.activeAppLimit;
-        const toSleepIds = new Set(selectAppsToSleepOnLimit(nextApps, limit));
+        const ownedApps = nextApps.filter((a) => a.user_id === user.id);
+        const toSleepIds = new Set(selectAppsToSleepOnLimit(ownedApps, limit));
         const processed = nextApps.map((a) =>
           toSleepIds.has(a.id) ? { ...a, status: "sleeping" as const } : a
         );
@@ -458,7 +492,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set((s) => {
         const nextApps = [result!, ...s.apps];
         const limit = entitlement?.active_app_limit ?? PLANS.free.activeAppLimit;
-        const toSleepIds = new Set(selectAppsToSleepOnLimit(nextApps, limit));
+        const ownedApps = nextApps.filter((a) => a.user_id === user.id);
+        const toSleepIds = new Set(selectAppsToSleepOnLimit(ownedApps, limit));
         return {
           apps: nextApps.map((a) =>
             toSleepIds.has(a.id) ? { ...a, status: "sleeping" as const } : a
@@ -472,7 +507,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   sleepApp: async (id) => {
     const { user } = get();
-    if (user?.id.startsWith("guest-")) {
+    if (user && isLocalGuestId(user.id)) {
       set((s) => {
         const next = s.apps.map((a) => (a.id === id ? { ...a, status: "sleeping" as const } : a));
         try {
@@ -485,13 +520,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return;
     }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("apps")
       .update({ status: "sleeping" })
-      .eq("id", id);
+      .eq("id", id)
+      .select();
 
-    if (error) {
-      console.error("sleepApp error:", error);
+    if (error || !data || data.length === 0) {
+      console.error("sleepApp error:", error ?? "No rows updated");
       return;
     }
 
@@ -506,7 +542,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const activeLimit = entitlement?.active_app_limit ?? PLANS.free.activeAppLimit;
     const planLabel = entitlement?.plan ?? "free";
     const otherActiveCount = apps.filter(
-      (a) => a.id !== id && (a.status ?? "active") === "active"
+      (a) => a.id !== id && (a.status ?? "active") === "active" && (!user || a.user_id === user.id)
     ).length;
 
     if (otherActiveCount >= activeLimit) {
@@ -515,7 +551,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return { ok: false, error: msg };
     }
 
-    if (user?.id.startsWith("guest-")) {
+    if (user && isLocalGuestId(user.id)) {
       set((s) => {
         const next = s.apps.map((a) => (a.id === id ? { ...a, status: "active" as const } : a));
         try {
@@ -528,15 +564,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return { ok: true };
     }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("apps")
       .update({ status: "active" })
-      .eq("id", id);
+      .eq("id", id)
+      .select();
 
-    if (error) {
-      const msg = error.message.includes("ACTIVE_APP_LIMIT_REACHED")
+    if (error || !data || data.length === 0) {
+      const msg = error?.message.includes("ACTIVE_APP_LIMIT_REACHED")
         ? `Active tool limit reached (${activeLimit}/${activeLimit}). Put another tool to sleep first.`
-        : error.message;
+        : (error?.message ?? "Failed to wake tool");
       console.error("wakeApp error:", error);
       set({ lastLimitError: msg });
       return { ok: false, error: msg };

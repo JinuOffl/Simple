@@ -164,13 +164,13 @@ export function ImageCaptureAdapter({
       save_to={save_to}
       onCapture={async (base64, key) => {
         const targetKey = key ?? save_to;
-        const downscaled = await downscaleImage(base64, 800, 0.7);
+        const downscaled = await downscaleImage(base64, 640, 0.7);
         if (targetKey && ctx?.onDataChange) {
           const existing = ctx.appData?.[targetKey];
           const list: string[] = Array.isArray(existing)
             ? [...existing, downscaled]
             : [downscaled];
-          const trimmed = list.slice(-12);
+          const trimmed = list.slice(-6);
           ctx.onDataChange(targetKey, trimmed);
         }
         if (ctx?.onAction) {

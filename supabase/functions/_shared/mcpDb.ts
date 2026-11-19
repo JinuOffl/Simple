@@ -180,7 +180,7 @@ export async function resolveUserConnectionDb(args: {
     : `connector_id=eq.${encodeURIComponent(args.connectorId ?? "")}&user_id=eq.${encodeURIComponent(args.userId)}`;
 
   const res = await fetchFn(
-    `${base}/rest/v1/connections?${filter}&select=id,connector_id,label,server_url,allowed_tools,status&limit=1`,
+    `${base}/rest/v1/connections?${filter}&select=id,connector_id,label,server_url,allowed_tools,status&order=updated_at.desc&limit=1`,
     { headers: serviceHeaders(args.serviceRoleKey) }
   );
   if (!res.ok) {
@@ -266,9 +266,23 @@ export async function upsertUserConnectionDb(args: {
     updated_at?: string;
   };
 
-  if (args.id) {
+  let targetId = args.id;
+  if (!targetId && args.connectorId.startsWith("key:")) {
+    const existingRes = await fetchFn(
+      `${base}/rest/v1/connections?user_id=eq.${encodeURIComponent(args.userId)}&connector_id=eq.${encodeURIComponent(args.connectorId)}&select=id&order=updated_at.desc&limit=1`,
+      { headers: serviceHeaders(args.serviceRoleKey) }
+    );
+    if (existingRes.ok) {
+      const existingRows = (await existingRes.json()) as Array<{ id: string }>;
+      if (existingRows[0]?.id) {
+        targetId = existingRows[0].id;
+      }
+    }
+  }
+
+  if (targetId) {
     const updateRes = await fetchFn(
-      `${base}/rest/v1/connections?id=eq.${encodeURIComponent(args.id)}&user_id=eq.${encodeURIComponent(args.userId)}`,
+      `${base}/rest/v1/connections?id=eq.${encodeURIComponent(targetId)}&user_id=eq.${encodeURIComponent(args.userId)}`,
       {
         method: "PATCH",
         headers: {

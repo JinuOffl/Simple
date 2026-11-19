@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { CREDIT_COSTS_BY_CLASS, PLANS, type CreditCostClass } from "@/config/plans";
 import { createDefaultEntitlement, getPlanConfig, getRemainingCredits } from "@/lib/credits";
 import { downloadAppExport, useAppStore } from "@/lib/zustandStore";
+import { supabase } from "@/lib/supabaseClient";
 import {
   getByokStatus,
   saveByokKey,
@@ -32,7 +33,50 @@ export function PlanUsageScreen() {
     sleepApp,
     wakeApp,
     exportApp,
+    signOut,
   } = useAppStore();
+
+  const [deletingData, setDeletingData] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteData = async () => {
+    const confirmed = typeof window !== "undefined" && typeof window.confirm === "function"
+      ? window.confirm("Are you sure you want to delete all your data and account? This action is permanent and cannot be undone.")
+      : true;
+    if (!confirmed) return;
+
+    setDeletingData(true);
+    setDeleteError(null);
+    try {
+      const { error } = await supabase.functions.invoke("delete-account", {
+        method: "POST",
+      });
+      if (error) {
+        setDeleteError(error.message || "Failed to delete account");
+        setDeletingData(false);
+        return;
+      }
+      try {
+        const toRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith("simple_")) {
+            toRemove.push(k);
+          }
+        }
+        for (const k of toRemove) {
+          localStorage.removeItem(k);
+        }
+      } catch {
+        // ignore
+      }
+      await signOut();
+      navigate("/auth", { replace: true });
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete account");
+      setDeletingData(false);
+    }
+  };
 
   useEffect(() => {
     void fetchApps();
@@ -384,6 +428,34 @@ export function PlanUsageScreen() {
                 </div>
               ))}
             </div>
+          )}
+        </section>
+
+        {/* Danger Zone: Delete my data */}
+        <section className="glass p-5 space-y-3 border-red-900/40">
+          <p className="text-red-400 text-[9px] uppercase tracking-[0.18em]">
+            danger zone
+          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <span className="text-xs font-mono text-white">Delete All Data</span>
+              <p className="text-[10px] text-n-text3 font-mono">
+                Permanently delete your account, tools, and stored data.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={deletingData}
+              onClick={handleDeleteData}
+              className="px-3 py-2 text-xs font-mono uppercase tracking-wider text-red-400 hover:text-white border border-red-900/60 hover:bg-red-950/40 rounded-sm transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+            >
+              {deletingData ? "Deleting…" : "Delete my data"}
+            </button>
+          </div>
+          {deleteError && (
+            <p className="text-xs text-red-400 font-mono" role="alert">
+              {deleteError}
+            </p>
           )}
         </section>
       </main>

@@ -29,7 +29,7 @@ const UNSUPPORTED_RULES: readonly UnsupportedRule[] = [
     reason:
       "Simple v2 explicitly does not provide private end-to-end encrypted messaging or a WhatsApp/Signal replacement.",
     alternative:
-      "I can build a shared group check-in or notes app (non-E2E encrypted) using `card`, `checklist`, or `conversation_loop` instead.",
+      "I can build a shared group check-in or notes app (non-E2E encrypted) using `card` or `conversation_loop` instead.",
   },
   {
     feature: "ios_native_build",

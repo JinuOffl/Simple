@@ -4,6 +4,10 @@ import { supabase } from "./supabaseClient";
 export const GUEST_SESSION_KEY = "simple_guest_session";
 export const GUEST_ID_KEY = "simple_guest_id";
 
+export function isLocalGuestId(userId?: string | null): boolean {
+  return Boolean(userId?.startsWith("guest-"));
+}
+
 export function isGuestUser(user: User | null | undefined): boolean {
   if (!user) return false;
   return Boolean(
@@ -83,7 +87,10 @@ export function clearLocalGuestSession(): void {
   }
 }
 
-export async function loginAsGuest(options?: { captchaToken?: string }): Promise<{ session: Session; isLocal: boolean }> {
+export async function loginAsGuest(
+  options?: { captchaToken?: string }
+): Promise<{ session: Session; isLocal: boolean; error?: string }> {
+  let errorMsg: string | undefined;
   try {
     // 1. Attempt native Supabase anonymous sign-in first
     const credentials = options?.captchaToken
@@ -94,12 +101,15 @@ export async function loginAsGuest(options?: { captchaToken?: string }): Promise
       clearLocalGuestSession();
       return { session: data.session, isLocal: false };
     }
-  } catch {
-    // Supabase signInAnonymously threw (e.g. offline, mock client, or network error)
+    if (error) {
+      errorMsg = error.message;
+    }
+  } catch (err) {
+    errorMsg = err instanceof Error ? err.message : "Anonymous sign-in failed";
   }
 
   // 2. Seamless local guest session fallback
   const localSession = createLocalGuestSession();
-  return { session: localSession, isLocal: true };
+  return { session: localSession, isLocal: true, error: errorMsg };
 }
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppStore } from "@/lib/zustandStore";
+import { isGuestUser, isLocalGuestId, clearLocalGuestSession, loginAsGuest } from "@/lib/guestAuth";
 
 const CAPABILITIES = [
   "calculator  →  arithmetic, offline",
@@ -14,7 +15,7 @@ const CAPABILITIES = [
 
 export function AuthScreen() {
   const navigate = useNavigate();
-  const { session, setSession, signInAsGuest } = useAppStore();
+  const { session, setSession } = useAppStore();
 
   const [step, setStep] = useState<"email" | "otp">("email");
   const [email, setEmail] = useState("");
@@ -27,13 +28,32 @@ export function AuthScreen() {
   // Cloudflare Turnstile state
   const sitekey = import.meta.env.VITE_CAPTCHA_SITEKEY;
   const turnstileRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | undefined>(undefined);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
+  const isGuest = Boolean(session && (isGuestUser(session.user) || isLocalGuestId(session.user?.id)));
+
   useEffect(() => {
-    if (session) {
+    if (session && !isGuest) {
       navigate("/", { replace: true });
     }
-  }, [session, navigate]);
+  }, [session, isGuest, navigate]);
+
+  const resetTurnstile = () => {
+    try {
+      const turnstile = (window as unknown as { turnstile?: { reset: (id?: string) => void } }).turnstile;
+      if (turnstile) {
+        if (widgetIdRef.current) {
+          turnstile.reset(widgetIdRef.current);
+        } else {
+          turnstile.reset();
+        }
+      }
+    } catch {
+      // ignore
+    }
+    setCaptchaToken(null);
+  };
 
   // Load Turnstile script if sitekey is configured
   useEffect(() => {
@@ -65,6 +85,7 @@ export function AuthScreen() {
             "expired-callback": () => setCaptchaToken(null),
             "error-callback": () => setCaptchaToken(null),
           });
+          widgetIdRef.current = widgetId;
         } catch {
           // ignore duplicate render in strict mode
         }
@@ -97,11 +118,21 @@ export function AuthScreen() {
   const handleGuestLogin = async () => {
     setGuestLoading(true);
     setError(null);
-    const res = await signInAsGuest(captchaToken ? { captchaToken } : undefined);
-    if (res.ok) {
+    try {
+      const res = await loginAsGuest(captchaToken ? { captchaToken } : undefined);
+      resetTurnstile();
+      if (res.error) {
+        setError(res.error);
+        setSession(res.session);
+        setGuestLoading(false);
+        return;
+      }
+      setSession(res.session);
       navigate("/", { replace: true });
-    } else {
-      setError(res.error ?? "Failed to sign in as guest");
+    } catch (err) {
+      resetTurnstile();
+      setError(err instanceof Error ? err.message : "Guest sign-in failed");
+    } finally {
       setGuestLoading(false);
     }
   };
@@ -111,10 +142,16 @@ export function AuthScreen() {
     setLoading(true);
     setError(null);
 
+    const options: { shouldCreateUser: boolean; captchaToken?: string } = {
+      shouldCreateUser: true,
+      ...(sitekey && captchaToken ? { captchaToken } : {}),
+    };
+
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { shouldCreateUser: true },
+      options,
     });
+    resetTurnstile();
 
     if (otpError) {
       setError(otpError.message);
@@ -144,6 +181,7 @@ export function AuthScreen() {
       setError(verifyError.message || "Invalid or expired verification code");
       setLoading(false);
     } else if (data?.session) {
+      clearLocalGuestSession();
       setSession(data.session);
       navigate("/", { replace: true });
     } else {
@@ -157,10 +195,16 @@ export function AuthScreen() {
     setLoading(true);
     setError(null);
 
+    const options: { shouldCreateUser: boolean; captchaToken?: string } = {
+      shouldCreateUser: true,
+      ...(sitekey && captchaToken ? { captchaToken } : {}),
+    };
+
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { shouldCreateUser: true },
+      options,
     });
+    resetTurnstile();
 
     if (otpError) {
       setError(otpError.message);
@@ -184,6 +228,16 @@ export function AuthScreen() {
           describe it. build it. use it.
         </p>
       </div>
+
+      {/* Guest Banner */}
+      {isGuest && (
+        <div
+          data-testid="guest-banner"
+          className="w-full max-w-xs mb-6 p-3 bg-n-surface border border-white/20 rounded-sm text-center text-xs font-mono text-n-text animate-slide-up"
+        >
+          You are using guest mode. Signing in creates a new account; guest tools stay on this device.
+        </div>
+      )}
 
       {/* Capabilities list — monospace grid */}
       <div className="w-full max-w-xs mb-10 animate-fade-in">

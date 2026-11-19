@@ -176,5 +176,23 @@ describe("healManifest pure deterministic repairs", () => {
         help_url: "https://home.openweathermap.org/users/sign_up",
       },
     ]);
+
+    // 3. When obj.tool is completely missing and keyed adapter action is present -> creates tool = { size: "2x1" } & derives requires
+    const rawMissingTool = {
+      schema_version: 2,
+      actions: [
+        { id: "act_w2", kind: "api_fetch", api: "openweather" },
+      ],
+    };
+    const healedMissingTool = healManifest(rawMissingTool) as any;
+    expect(healedMissingTool.tool).toBeDefined();
+    expect(healedMissingTool.tool.size).toBe("2x1");
+    expect(healedMissingTool.tool.requires).toEqual([
+      {
+        key_id: "openweather",
+        label: "OpenWeather Current",
+        help_url: "https://home.openweathermap.org/users/sign_up",
+      },
+    ]);
   });
 });

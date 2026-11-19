@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { formatActionError } from "@/lib/actionError";
 import { ChatBubble } from "./ChatBubble";
 
 interface Message {
@@ -56,7 +57,7 @@ export function ConversationLoop({ persona_prompt, appId }: ConversationLoopProp
             persona_prompt,
           },
           app_data: {},
-          conversation_history: updatedHistory,
+          conversation_history: updatedHistory.slice(-12),
           app_id: appId,
         },
       });
@@ -68,10 +69,11 @@ export function ConversationLoop({ persona_prompt, appId }: ConversationLoopProp
         content: data.result ?? "I couldn't generate a response. Please try again.",
       };
       setMessages((prev) => [...prev, assistantMsg]);
-    } catch {
+    } catch (e) {
+      const msg = await formatActionError(e, "⚠️ Something went wrong. Please try again.");
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "⚠️ Something went wrong. Please try again." },
+        { role: "assistant", content: msg },
       ]);
     } finally {
       setIsLoading(false);

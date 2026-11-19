@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import { isLocalGuestId } from "./guestAuth";
 import type { Manifest } from "@/schema/manifest.v1";
 import type { ManifestV2 } from "@/schema/manifest.v2";
 import { ManifestSchema } from "@/schema/manifest.v1";
@@ -15,16 +16,34 @@ import type {
   ValidationResult,
 } from "../../supabase/functions/_shared/orchestrator/types.ts";
 
-async function readInvokeError(error: unknown): Promise<{ message: string; body?: Record<string, unknown> }> {
+export class GenerationClientError extends Error {
+  status?: number;
+  code?: string;
+  constructor(message: string, status?: number, code?: string) {
+    super(message);
+    this.name = "GenerationClientError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+async function readInvokeError(error: unknown): Promise<{
+  message: string;
+  status?: number;
+  code?: string;
+  body?: Record<string, unknown>;
+}> {
   const ctx = (error as { context?: Response }).context;
+  const status = ctx?.status;
   if (ctx && typeof ctx.clone === "function") {
     try {
       const body = (await ctx.clone().json()) as Record<string, unknown>;
       const message = typeof body.error === "string" ? body.error : (error as Error).message;
-      return { message, body };
+      const code = typeof body.code === "string" ? body.code : undefined;
+      return { message, status, code, body };
     } catch { /* fall through */ }
   }
-  return { message: (error as Error)?.message ?? String(error) };
+  return { message: (error as Error)?.message ?? String(error), status };
 }
 
 export interface GenerateAppParams {
@@ -37,11 +56,15 @@ export interface GenerationClientResult {
   ok: boolean;
   manifest?: Manifest | ManifestV2;
   error?: string;
+  status?: number;
+  code?: string;
   unsupported?: { message?: string; alternative?: string };
   trace?: unknown;
   patch?: unknown[];
   diagnostics?: unknown;
   tier?: "local" | "edge" | "browser" | "template";
+  usedTemplateFallback?: boolean;
+  templateName?: string;
 }
 
 function parseManifestPayload(payload: unknown, fallbackExisting?: unknown): Manifest | ManifestV2 | null {
@@ -204,7 +227,7 @@ export async function generateAppWithFallback(
 
   // ── 2. Try remote Supabase Edge Function ─────────────────────────────────────
   let remoteNetworkFailed = false;
-  if (callerUser?.id?.startsWith("guest-")) {
+  if (isLocalGuestId(callerUser?.id)) {
     return recordAndReturn({
       ok: false,
       error: "Sign in with email to generate tools (offline guest)",
@@ -256,15 +279,33 @@ export async function generateAppWithFallback(
           diagnostics: responseRecord?.diagnostics,
         });
       }
+
+      // 3.2: Edge returned ok: true, but parseManifestPayload failed -> do NOT fall through to template fallback
+      const zodRes = ManifestV2Schema.safeParse(candidatePayload);
+      const zodIssues = !zodRes.success
+        ? zodRes.error.issues
+            .slice(0, 3)
+            .map((i) => `${i.path.join(".") || "root"}: ${i.message}`)
+            .join("; ")
+        : "Schema parse failed";
+      return recordAndReturn({
+        ok: false,
+        error: `The generated tool was invalid: ${zodIssues}`,
+        tier: "edge",
+        trace: responseRecord?.trace,
+        diagnostics: responseRecord?.diagnostics,
+      });
     }
 
     if (error) {
-      const { message, body } = await readInvokeError(error);
+      const { message, status, code, body } = await readInvokeError(error);
       if (body?.unsupported) {
         return recordAndReturn({
           ok: false,
           unsupported: body.unsupported as { message?: string; alternative?: string },
           error: message,
+          status,
+          code,
           tier: "edge",
           trace: body.trace,
           patch: Array.isArray(body.patch) ? (body.patch as unknown[]) : undefined,
@@ -293,6 +334,8 @@ export async function generateAppWithFallback(
         return recordAndReturn({
           ok: false,
           error: errorText,
+          status,
+          code,
           tier: "edge",
           trace: body?.trace,
           patch: Array.isArray(body?.patch) ? (body?.patch as unknown[]) : undefined,
@@ -351,8 +394,8 @@ export async function generateAppWithFallback(
     }
   }
 
-  // ── 4. Deterministic In-Browser Starter Template Fallback ───────────────────
-  if (!existingManifest) {
+  // ── 4. Deterministic In-Browser Starter Template Fallback (Network failure only) ──
+  if (!existingManifest && remoteNetworkFailed) {
     try {
       const matcher = new KeywordTemplateMatcher(0.2);
       const match = await matcher.findBestMatch(userPrompt);
@@ -362,7 +405,13 @@ export async function generateAppWithFallback(
         cloned.app_id = `app-${Date.now()}`;
         const parsed = parseManifestPayload(cloned);
         if (parsed) {
-          return recordAndReturn({ ok: true, manifest: parsed, tier: "template" });
+          return recordAndReturn({
+            ok: true,
+            manifest: parsed,
+            tier: "template",
+            usedTemplateFallback: true,
+            templateName: match.name,
+          });
         }
       }
     } catch (err) {

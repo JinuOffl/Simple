@@ -156,6 +156,8 @@ export async function handleRunLlmAction(
       );
     }
 
+    // Truncate conversation history server-side: keep last 12 messages, cut each content to 1500 chars (Phase 1.6)
+    let effectiveHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
     if (conversation_history !== undefined) {
       if (!Array.isArray(conversation_history)) {
         return jsonResponse(
@@ -163,24 +165,10 @@ export async function handleRunLlmAction(
           400
         );
       }
-      if (conversation_history.length > 20) {
-        return jsonResponse(
-          { error: "conversation_history exceeds maximum 20 messages" },
-          400
-        );
-      }
-      for (const msg of conversation_history) {
-        if (
-          msg &&
-          typeof msg.content === "string" &&
-          msg.content.length > 2000
-        ) {
-          return jsonResponse(
-            { error: "conversation message exceeds maximum 2000 characters" },
-            400
-          );
-        }
-      }
+      effectiveHistory = conversation_history.slice(-12).map((m: { role?: string; content?: unknown }) => ({
+        role: (m && m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+        content: typeof m?.content === "string" ? m.content.slice(0, 1500) : String(m?.content ?? "").slice(0, 1500),
+      }));
     }
 
     const supabaseUrl = getEnv("SUPABASE_URL") ?? getEnv("VITE_SUPABASE_URL");
@@ -212,6 +200,29 @@ export async function handleRunLlmAction(
       });
       if (!withinRateLimit) {
         return jsonResponse({ error: "Too many requests. Wait a minute." }, 429);
+      }
+    }
+
+    // ── Record BYOK usage ledger row with 0 credits charged (Phase 1.3) ─────────
+    if (supabaseUrl && serviceRoleKey && user.userId !== "local-dev-user" && byok.hasByok) {
+      try {
+        await baseFetch(`${supabaseUrl.replace(/\/+$/, "")}/rest/v1/usage_ledger`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: serviceRoleKey,
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({
+            user_id: user.userId,
+            action: "runtime_llm",
+            cost_class: "runtime_llm",
+            credits_charged: 0,
+            metadata: { byok: true, action_kind: action.kind },
+          }),
+        });
+      } catch (ledgerErr) {
+        console.warn("Failed to insert BYOK runtime ledger row:", ledgerErr);
       }
     }
 
@@ -283,16 +294,9 @@ export async function handleRunLlmAction(
           "\n\nBe concise. Ask one follow-up question at a time. Keep responses under 150 words.",
       };
 
-      const historyMessages = Array.isArray(conversation_history)
-        ? conversation_history.map((m: { role: string; content: string }) => ({
-            role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
-            content: String(m.content ?? ""),
-          }))
-        : [];
-
       const completion = await provider.completeMessages({
         role: "runtime",
-        messages: [systemMsg, ...historyMessages],
+        messages: [systemMsg, ...effectiveHistory],
         temperature: runtimeConfig.primary.runtimeTemperature,
         maxTokens: runtimeConfig.primary.runtimeMaxTokens,
       });

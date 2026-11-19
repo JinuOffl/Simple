@@ -24,6 +24,7 @@ export function MicRecorder({ label, save_to, onTranscript }: MicRecorderProps) 
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SR | null>(null);
+  const transcriptRef = useRef<string>("");
 
   useEffect(() => {
     return () => {
@@ -38,6 +39,9 @@ export function MicRecorder({ label, save_to, onTranscript }: MicRecorderProps) 
       return;
     }
 
+    transcriptRef.current = "";
+    setTranscript("");
+
     const recognition = new SR();
     recognition.continuous = false;
     recognition.interimResults = true;
@@ -47,13 +51,14 @@ export function MicRecorder({ label, save_to, onTranscript }: MicRecorderProps) 
       const result = Array.from(e.results)
         .map((r: SpeechRecognitionResult) => r[0].transcript)
         .join(" ");
+      transcriptRef.current = result;
       setTranscript(result);
     };
 
     recognition.onend = () => {
       setIsRecording(false);
-      if (transcript) {
-        onTranscript?.(transcript, save_to);
+      if (transcriptRef.current) {
+        onTranscript?.(transcriptRef.current, save_to);
       }
     };
 
@@ -71,8 +76,8 @@ export function MicRecorder({ label, save_to, onTranscript }: MicRecorderProps) 
   const stopRecording = () => {
     recognitionRef.current?.stop();
     setIsRecording(false);
-    if (transcript) {
-      onTranscript?.(transcript, save_to);
+    if (transcriptRef.current) {
+      onTranscript?.(transcriptRef.current, save_to);
     }
   };
 

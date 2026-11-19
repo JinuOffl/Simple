@@ -458,6 +458,14 @@ export async function handleRunApiFetch(
     const supabaseUrl = getEnv("SUPABASE_URL") ?? getEnv("VITE_SUPABASE_URL");
     const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
 
+    // ── Check key presence BEFORE charging credits (Phase 1.9) ───────────────
+    if (catalogAdapter && catalogAdapter.keyId) {
+      const keyValue = await loadUserKeySecret(user.userId, catalogAdapter.keyId, getEnv, baseFetch, deps);
+      if (!keyValue || keyValue.trim().length === 0) {
+        return jsonResponse({ error: "missing_key", key_id: catalogAdapter.keyId }, 424);
+      }
+    }
+
     if (deps.chargeCredits) {
       const creditOutcome = await deps.chargeCredits({
         userId: user.userId,

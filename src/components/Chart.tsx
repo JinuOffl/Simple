@@ -32,12 +32,7 @@ export function Chart({
   bindValue,
 }: ChartProps) {
   const maxPoints = max_points ?? 60;
-  const [liveBuffer, setLiveBuffer] = useState<number[]>(() => {
-    if (live && typeof bindValue === "number" && !Number.isNaN(bindValue)) {
-      return [bindValue];
-    }
-    return [];
-  });
+  const [liveBuffer, setLiveBuffer] = useState<number[]>([]);
 
   useEffect(() => {
     if (live && typeof bindValue === "number" && !Number.isNaN(bindValue)) {
@@ -150,7 +145,7 @@ function RenderBarChart({
                 {val}
               </span>
               <div
-                className="w-full bg-white rounded-t-xs transition-all duration-300 hover:opacity-80"
+                className="w-full bg-white rounded-t-sm transition-all duration-300 hover:opacity-80"
                 style={{ height: `${barHeight}px` }}
               />
             </div>

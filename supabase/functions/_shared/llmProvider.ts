@@ -227,7 +227,7 @@ export class VercelAiFallbackProvider implements LLMProvider {
           maxTokens: request.maxTokens,
         });
         return {
-          text: res.text,
+          text: res.text.replace(/<think[\s\S]*?<\/think>/gi, "").trim(),
           provider: primary.provider,
           model: res.model,
           usedFallback: false,
@@ -251,7 +251,7 @@ export class VercelAiFallbackProvider implements LLMProvider {
           maxTokens: request.maxTokens,
         });
         return {
-          text: res.text,
+          text: res.text.replace(/<think[\s\S]*?<\/think>/gi, "").trim(),
           provider: fallback.provider,
           model: res.model,
           usedFallback: true,

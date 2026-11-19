@@ -140,11 +140,13 @@ Deno.test("handleRunMcpAction rejects unauthenticated requests and SSRF endpoint
       Authorization: "Bearer valid-user-token",
     },
     body: JSON.stringify({
+      app_id: "00000000-0000-4000-8000-000000000001",
       action: { kind: "mcp_call", connector_id: "evil_imds", tool_name: "light.toggle" },
     }),
   });
   const ssrfRes = await handleRunMcpAction(ssrfReq, {
     verifyJwt: () => Promise.resolve({ userId: "u1" }),
+    verifyAppAccess: () => Promise.resolve({ allowed: true }),
     resolveConnector: () => ({ url: "https://169.254.169.254/latest/meta-data/" }),
     getEnv: () => undefined,
   });

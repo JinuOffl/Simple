@@ -30,11 +30,13 @@ Set these via `supabase secrets set <KEY>=<VALUE>` on the target Supabase projec
 | :--- | :--- | :--- | :--- |
 | `SUPABASE_URL` | **Yes** | `https://<project-ref>.supabase.co` | System URL injected by Supabase runtime. |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Yes** | `<service-role-key>` | Service role key for admin tasks (rate-limit ledger reads, credit deductions). |
-| `GROQ_API_KEY` | **Yes** | `gsk_...` | Primary LLM inference API key for tool generation and conversation loop. |
+| `GROQ_API_KEY` | **Yes** | `gsk_...` | Primary LLM inference API key for tool generation and conversation loop (called strictly server-side). |
 | `CONNECTION_ENCRYPTION_KEY` | **Yes** | `64-character hex string` (32 bytes) | AES-GCM-256 master key for encrypting user connector secrets & BYOK credentials at rest. |
-| `BILLING_WEBHOOK_SECRET` | **Yes** | `whsec_...` | Webhook signing secret from Stripe / LemonSqueezy for credit grants and plan changes. |
+| `BILLING_WEBHOOK_SECRET` | **Yes** | `<random-cryptographic-secret>` | Webhook signing secret for credit grants and plan changes (compared in constant-time). |
+| `LLM_FALLBACK_API_KEY` / `OPENAI_API_KEY` | *Optional* | `sk-...` | Secondary fallback LLM inference key (called strictly server-side). |
+| `DAILY_USER_GENERATIONS` | *Optional* | `"15"` | Maximum tool generations allowed per user per UTC day (default 15). |
+| `DAILY_GLOBAL_GENERATIONS`| *Optional* | `"1000"` | Maximum total tool generations permitted globally across all users per UTC day (default 1000). |
 | `GENERATION_DISABLED` | *Optional*| `"false"` | Global operational kill switch. Set to `"true"` to return HTTP 503 maintenance mode. |
-| `GROQ_FALLBACK_API_KEY` | *Optional*| `gsk_...` | Optional secondary key for automatic LLM fallback failover. |
 | `MCP_CONNECTOR_URLS` | *Optional*| JSON map of vetted servers | Allowlisted MCP server URLs for external tool integrations. |
 
 > [!CAUTION]

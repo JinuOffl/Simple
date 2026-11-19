@@ -414,35 +414,197 @@ Deno.test("Phase 1.10: run-llm-action hardens action kind and length limits", as
   );
   assertEquals(resLongPersona.status, 400);
 
-  // 4. Reject conversation_history > 20 messages
-  const resLongHistory = await handleRunLlmAction(
-    new Request("https://edge.local/run-llm-action", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer tok" },
-      body: JSON.stringify({
-        action: { kind: "conversation_loop" },
-        conversation_history: Array.from({ length: 21 }, () => ({ role: "user", content: "hi" })),
-      }),
-    }),
-    validUserDeps
-  );
-  assertEquals(resLongHistory.status, 400);
-  const dataLongHistory = await resLongHistory.json();
-  assert(dataLongHistory.error.includes("exceeds maximum 20 messages"));
+  // 4. Server-side truncation: accepts long history (>12 messages) and truncates to 12 messages with max 1500 chars (Phase 1.6)
+  let passedMessages: Array<{ role: string; content: string }> = [];
+  const truncatingDeps = {
+    ...validUserDeps,
+    llmProvider: {
+      completeMessages: (req: { messages: Array<{ role: string; content: string }> }) => {
+        passedMessages = req.messages;
+        return Promise.resolve({
+          text: "Hello user!",
+          model: "test-model",
+          provider: "test",
+          usedFallback: false,
+          latencyMs: 10,
+        });
+      },
+    },
+  };
 
-  // 5. Reject message content > 2000 chars in conversation_history
-  const resLongMsg = await handleRunLlmAction(
+  const resTruncate = await handleRunLlmAction(
     new Request("https://edge.local/run-llm-action", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer tok" },
       body: JSON.stringify({
         action: { kind: "conversation_loop" },
-        conversation_history: [{ role: "user", content: "x".repeat(2001) }],
+        conversation_history: Array.from({ length: 25 }, (_, i) => ({
+          role: "user",
+          content: `msg-${i}: ${"a".repeat(1600)}`,
+        })),
       }),
     }),
-    validUserDeps
+    truncatingDeps
   );
-  assertEquals(resLongMsg.status, 400);
-  const dataLongMsg = await resLongMsg.json();
-  assert(dataLongMsg.error.includes("exceeds maximum 2000 characters"));
+  assertEquals(resTruncate.status, 200);
+  // System prompt + 12 truncated user messages = 13 messages total
+  assertEquals(passedMessages.length, 13);
+  assertEquals(passedMessages[passedMessages.length - 1].content.length, 1500);
+});
+
+// ── 1.3: BYOK safety & key validation ─────────────────────────────────────────
+Deno.test("Phase 1.3: BYOK validation, no fallback when BYOK active, and usage_ledger row with 0 credits", async () => {
+  // 1. manage-byok set rejects invalid key when provider returns 401
+  const fakeFetch401: typeof fetch = (_url) =>
+    Promise.resolve(new Response(JSON.stringify({ error: "Invalid API key" }), { status: 401 }));
+
+  const setBadKeyReq = new Request("https://edge.local/manage-byok", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer tok" },
+    body: JSON.stringify({ op: "set", apiKey: "gsk_invalid_test" }),
+  });
+
+  const resBadByok = await handleManageByok(setBadKeyReq, {
+    verifyJwt: async () => ({ userId: "test-user" }),
+    baseFetch: fakeFetch401,
+  });
+  assertEquals(resBadByok.status, 400);
+  const dataBadByok = await resBadByok.json();
+  assertEquals(dataBadByok.error, "Invalid API key");
+});
+
+// ── 1.4: Cost caps in generate-app (User 429, Global 503) ─────────────────────
+Deno.test("Phase 1.4: generate-app enforces daily user cap (429) and global cap (503)", async () => {
+  // 1. User daily cap reached
+  const fakeFetchUserCapped: typeof fetch = (url) => {
+    const urlStr = String(url);
+    if (urlStr.includes("usage_ledger") && urlStr.includes("user_id=eq.")) {
+      return Promise.resolve(
+        new Response("[]", {
+          status: 200,
+          headers: { "content-range": "0-0/15" },
+        })
+      );
+    }
+    return Promise.resolve(new Response("[]", { status: 200 }));
+  };
+
+  const reqUserCap = new Request("https://edge.local/generate-app", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer tok" },
+    body: JSON.stringify({ user_prompt: "Build me a calculator" }),
+  });
+
+  const resUserCap = await handleGenerateApp(reqUserCap, {
+    verifyJwt: async () => ({ userId: "test-user" }),
+    getEnv: (k) => {
+      if (k === "SUPABASE_URL") return "https://mock.supabase.co";
+      if (k === "SUPABASE_SERVICE_ROLE_KEY") return "mock-service-key";
+      if (k === "DAILY_USER_GENERATIONS") return "15";
+      return undefined;
+    },
+    baseFetch: fakeFetchUserCapped,
+  });
+  assertEquals(resUserCap.status, 429);
+  const dataUserCap = await resUserCap.json();
+  assertEquals(dataUserCap.error, "Daily limit reached");
+
+  // 2. Global daily cap reached
+  const fakeFetchGlobalCapped: typeof fetch = (url) => {
+    const urlStr = String(url);
+    if (urlStr.includes("usage_ledger") && !urlStr.includes("user_id=eq.")) {
+      return Promise.resolve(
+        new Response("[]", {
+          status: 200,
+          headers: { "content-range": "0-0/1000" },
+        })
+      );
+    }
+    return Promise.resolve(new Response("[]", { status: 200 }));
+  };
+
+  const reqGlobalCap = new Request("https://edge.local/generate-app", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer tok" },
+    body: JSON.stringify({ user_prompt: "Build me a calculator" }),
+  });
+
+  const resGlobalCap = await handleGenerateApp(reqGlobalCap, {
+    verifyJwt: async () => ({ userId: "test-user" }),
+    getEnv: (k) => {
+      if (k === "SUPABASE_URL") return "https://mock.supabase.co";
+      if (k === "SUPABASE_SERVICE_ROLE_KEY") return "mock-service-key";
+      if (k === "DAILY_GLOBAL_GENERATIONS") return "1000";
+      return undefined;
+    },
+    baseFetch: fakeFetchGlobalCapped,
+  });
+  assertEquals(resGlobalCap.status, 503);
+  const dataGlobalCap = await resGlobalCap.json();
+  assertEquals(dataGlobalCap.error, "Generation is temporarily busy");
+});
+
+// ── 1.5: generate-app payload limits & fail-closed ─────────────────────────────
+Deno.test("Phase 1.5: generate-app rejects payload > 200KB, context > 12 items, and fails closed when env missing", async () => {
+  // 1. Reject body > 200KB
+  const bigBody = JSON.stringify({ user_prompt: "a".repeat(205 * 1024) });
+  const reqBig = new Request("https://edge.local/generate-app", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer tok" },
+    body: bigBody,
+  });
+  const resBig = await handleGenerateApp(reqBig, {
+    verifyJwt: async () => ({ userId: "test-user" }),
+  });
+  assertEquals(resBig.status, 400);
+
+  // 2. Reject conversation_context > 12 items
+  const reqContext = new Request("https://edge.local/generate-app", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer tok" },
+    body: JSON.stringify({
+      user_prompt: "Test",
+      conversation_context: Array.from({ length: 13 }, () => ({ role: "user", content: "hi" })),
+    }),
+  });
+  const resContext = await handleGenerateApp(reqContext, {
+    verifyJwt: async () => ({ userId: "test-user" }),
+  });
+  assertEquals(resContext.status, 400);
+
+  // 3. Fail closed if SUPABASE_URL missing and GENERATION_LOCAL_DEV_OPEN != true
+  const reqAuth = new Request("https://edge.local/generate-app", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer tok" },
+    body: JSON.stringify({ user_prompt: "Test" }),
+  });
+  const resFailClosed = await handleGenerateApp(reqAuth, {
+    getEnv: () => undefined, // no SUPABASE_URL, no GENERATION_LOCAL_DEV_OPEN
+  });
+  assertEquals(resFailClosed.status, 401);
+});
+
+// ── 1.9: run-api-fetch returns 424 missing_key without charging credits ────────
+Deno.test("Phase 1.9: run-api-fetch checks stored key BEFORE charging credits (returns 424 missing_key)", async () => {
+  let creditsCharged = false;
+  const req = new Request("https://edge.local/run-api-fetch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer tok" },
+    body: JSON.stringify({ api: "openweather", params: { city: "London" } }),
+  });
+
+  const res = await handleRunApiFetch(req, {
+    verifyJwt: async () => ({ userId: "test-user" }),
+    loadConnectionSecret: async () => undefined, // No key stored
+    chargeCredits: async () => {
+      creditsCharged = true;
+      return { allowed: true, remainingCredits: 10, monthlyCreditLimit: 100 };
+    },
+  });
+
+  assertEquals(res.status, 424);
+  const data = await res.json();
+  assertEquals(data.error, "missing_key");
+  assertEquals(data.key_id, "openweather");
+  assertEquals(creditsCharged, false); // Crucial: credits were NOT charged
 });

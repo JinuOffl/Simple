@@ -5,6 +5,7 @@ export interface ToolTileProps {
   manifest: ManifestV2;
   appData?: Record<string, unknown>;
   status?: string;
+  isShared?: boolean;
   onOpen: () => void;
   onSleep?: () => void;
   onExport?: () => void;
@@ -29,6 +30,7 @@ export function ToolTile({
   manifest,
   appData = {},
   status,
+  isShared = false,
   onOpen,
   onSleep,
   onExport,
@@ -37,7 +39,15 @@ export function ToolTile({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       data-testid="tool-tile"
       className={`bg-n-surface border border-n-border hover:border-n-border2 rounded-sm p-2 flex flex-col justify-between relative overflow-hidden cursor-pointer group transition-all duration-150 ${sizeClass}`}
     >
@@ -50,6 +60,11 @@ export function ToolTile({
           <span className="text-[9px] uppercase tracking-wider text-n-text2 truncate">
             {manifest.name || "Tool"}
           </span>
+          {isShared && (
+            <span className="text-[8px] uppercase tracking-wider text-n-text3 px-1 py-0.5 border border-n-border rounded-sm shrink-0">
+              shared
+            </span>
+          )}
           {status && (
             <span className="text-[8px] uppercase tracking-wider text-n-text3 px-1 py-0.5 border border-n-border rounded-sm shrink-0">
               {status}
@@ -58,7 +73,7 @@ export function ToolTile({
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {onExport && (
+          {!isShared && onExport && (
             <button
               type="button"
               onClick={(e) => {
@@ -73,7 +88,7 @@ export function ToolTile({
             </button>
           )}
 
-          {onSleep && (
+          {!isShared && onSleep && (
             <button
               type="button"
               onClick={(e) => {

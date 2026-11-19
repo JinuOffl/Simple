@@ -101,7 +101,26 @@ export function healManifest(raw: unknown, fallback?: unknown): unknown {
     });
   }
 
-  // 6. Tool meta healing: ensure size is valid and requires is code-derived from catalog
+  // 6. Tool meta healing: if obj.tool is missing but an api_fetch action uses a keyed adapter, auto-create tool
+  if (!obj.tool || typeof obj.tool !== "object" || Array.isArray(obj.tool)) {
+    let hasKeyedAdapter = false;
+    if (Array.isArray(obj.actions)) {
+      for (const a of obj.actions as Array<Record<string, unknown>>) {
+        if (a && a.kind === "api_fetch" && typeof a.api === "string") {
+          const adapter = getCatalogAdapter(a.api);
+          if (adapter?.keyId) {
+            hasKeyedAdapter = true;
+            break;
+          }
+        }
+      }
+    }
+    if (hasKeyedAdapter) {
+      obj.tool = { size: "2x1" };
+    }
+  }
+
+  // Ensure tool size is valid and requires is code-derived from catalog
   if (obj.tool && typeof obj.tool === "object" && !Array.isArray(obj.tool)) {
     const toolObj = { ...(obj.tool as Record<string, unknown>) };
     const validSizes = new Set(["1x1", "2x1", "2x2", "4x2"]);

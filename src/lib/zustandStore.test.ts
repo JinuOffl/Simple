@@ -2,10 +2,13 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { Manifest } from "@/schema/manifest.v1";
 import { ManifestV2Schema, type ManifestV2 } from "@/schema/manifest.v2";
 
-const { mockEq, mockUpdate, mockDelete, mockFrom } = vi.hoisted(() => {
+const { mockEq, mockSelect, mockUpdate, mockDelete, mockFrom } = vi.hoisted(() => {
+  const mockSelect = vi
+    .fn<() => Promise<{ data: Array<{ id: string }>; error: null }>>()
+    .mockResolvedValue({ data: [{ id: "app-1" }], error: null });
   const mockEq = vi
-    .fn<(column: string, value: string) => Promise<{ error: null }>>()
-    .mockResolvedValue({ error: null });
+    .fn<(column: string, value: string) => { select: typeof mockSelect }>()
+    .mockReturnValue({ select: mockSelect });
   const mockUpdate = vi.fn<(values: Record<string, unknown>) => { eq: typeof mockEq }>(() => ({
     eq: mockEq,
   }));
@@ -16,7 +19,7 @@ const { mockEq, mockUpdate, mockDelete, mockFrom } = vi.hoisted(() => {
     update: mockUpdate,
     delete: mockDelete,
   }));
-  return { mockEq, mockUpdate, mockDelete, mockFrom };
+  return { mockEq, mockSelect, mockUpdate, mockDelete, mockFrom };
 });
 
 vi.mock("@/lib/supabaseClient", () => ({
@@ -96,7 +99,8 @@ interface ExportedEnvelope {
 describe("useAppStore — sleepApp, wakeApp, exportApp", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockEq.mockResolvedValue({ error: null });
+    mockSelect.mockResolvedValue({ data: [{ id: "app-1" }], error: null });
+    mockEq.mockReturnValue({ select: mockSelect });
     useAppStore.setState({
       apps: [
         makeSavedApp({ id: "app-1", status: "active" }),

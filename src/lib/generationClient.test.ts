@@ -379,5 +379,64 @@ describe("generationClient", () => {
     expect(res.ok).toBe(false);
     expect(res.error).toBe("Sign in with email to generate tools (offline guest)");
   });
+
+  it("3.2: does NOT fall back to template when edge returns ok: true but manifest fails Zod", async () => {
+    vi.spyOn(supabase.auth, "getSession").mockResolvedValueOnce({
+      data: {
+        session: {
+          user: { id: "real-uuid-user" },
+        } as any,
+      },
+      error: null,
+    });
+
+    // Mock edge function returning ok: true with invalid manifest payload (missing screens and name)
+    vi.spyOn(supabase.functions, "invoke").mockResolvedValueOnce({
+      data: {
+        ok: true,
+        manifest: {
+          schema_version: 2,
+          app_id: "invalid-manifest-app",
+          // missing name, icon, screens, etc.
+        },
+      },
+      error: null,
+    });
+
+    const res = await generateAppWithFallback({
+      userPrompt: "A habit tracker",
+    });
+
+    expect(res.ok).toBe(false);
+    expect(res.tier).toBe("edge");
+    expect(res.error).toContain("The generated tool was invalid:");
+    expect(res.usedTemplateFallback).toBeUndefined();
+  });
+
+  it("3.2: returns usedTemplateFallback: true when network fails and template match succeeds", async () => {
+    vi.spyOn(supabase.auth, "getSession").mockResolvedValueOnce({
+      data: {
+        session: {
+          user: { id: "real-uuid-user" },
+        } as any,
+      },
+      error: null,
+    });
+
+    // Mock network failure
+    vi.spyOn(supabase.functions, "invoke").mockResolvedValueOnce({
+      data: null,
+      error: new Error("Failed to send a request to the Edge Function") as any,
+    });
+
+    const res = await generateAppWithFallback({
+      userPrompt: "Create a Clock widget that shows US and Indian time",
+    });
+
+    expect(res.ok).toBe(true);
+    expect(res.tier).toBe("template");
+    expect(res.usedTemplateFallback).toBe(true);
+    expect(res.manifest).toBeDefined();
+  });
 });
 

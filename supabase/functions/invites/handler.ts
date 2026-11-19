@@ -1,6 +1,8 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { checkProductionGuard } from "../_shared/prodGuard.ts";
 
+declare const Deno: { env: { get: (k: string) => string | undefined } } | undefined;
+
 export interface InvitesPayload {
   op?: "create" | "accept" | "get_info" | "list_members" | "remove_member";
   app_id?: string;
@@ -64,14 +66,19 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function generateInviteCode(): string {
-  // 8-character base36 uppercase alphanumeric string
-  const array = new Uint8Array(6);
-  crypto.getRandomValues(array);
-  return Array.from(array, (byte) => byte.toString(36).padStart(2, "0"))
-    .join("")
-    .slice(0, 8)
-    .toUpperCase();
+export const APP_COLUMNS = "id,user_id,name,icon,manifest";
+export const UNAMBIGUOUS_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+export function generateInviteCode(length = 10): string {
+  // 10-character code using unambiguous alphabet (no 0/O, 1/I)
+  // Length 32 divides 256 evenly (256/32 = 8), yielding zero modulo bias with bitmask 0x1f
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  let code = "";
+  for (let i = 0; i < length; i++) {
+    code += UNAMBIGUOUS_ALPHABET[bytes[i] & 0x1f];
+  }
+  return code;
 }
 
 /**
@@ -93,12 +100,22 @@ export function createDefaultInvitesDb(
   return {
     async getApp(appId: string) {
       const res = await fetchFn(
-        `${restBase}/apps?id=eq.${encodeURIComponent(appId)}&select=id,user_id,name,icon,description`,
+        `${restBase}/apps?id=eq.${encodeURIComponent(appId)}&select=${APP_COLUMNS}`,
         { headers }
       );
       if (!res.ok) return null;
       const data = await res.json();
-      return Array.isArray(data) && data[0] ? data[0] : null;
+      const row = Array.isArray(data) && data[0] ? data[0] : null;
+      if (!row) return null;
+      const manifest = row.manifest && typeof row.manifest === "object" ? (row.manifest as Record<string, unknown>) : null;
+      const description = typeof manifest?.description === "string" ? manifest.description : undefined;
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        name: row.name,
+        icon: row.icon,
+        description,
+      };
     },
 
     async getInviteByCode(code: string) {
@@ -252,7 +269,7 @@ export async function handleInvites(
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
-  const getEnv = deps.getEnv ?? ((k: string) => Deno.env.get(k));
+  const getEnv = deps.getEnv ?? ((k: string) => typeof Deno !== "undefined" ? Deno?.env.get(k) : undefined);
   const misconfigured = checkProductionGuard(getEnv);
   if (misconfigured) return misconfigured;
 
@@ -325,6 +342,24 @@ export async function handleInvites(
       case "create": {
         const { app_id, role = "editor", max_uses = 10, expires_at } = payload;
         if (!app_id) return jsonResponse({ error: "app_id is required" }, 400);
+
+        if (payload.role !== undefined && !["editor", "viewer"].includes(payload.role)) {
+          return jsonResponse({ error: "role must be 'editor' or 'viewer'" }, 400);
+        }
+        if (!["editor", "viewer"].includes(role)) {
+          return jsonResponse({ error: "role must be 'editor' or 'viewer'" }, 400);
+        }
+
+        if (payload.max_uses !== undefined) {
+          if (
+            typeof payload.max_uses !== "number" ||
+            !Number.isInteger(payload.max_uses) ||
+            payload.max_uses < 1 ||
+            payload.max_uses > 100
+          ) {
+            return jsonResponse({ error: "max_uses must be an integer between 1 and 100" }, 400);
+          }
+        }
 
         const app = await db.getApp(app_id);
         if (!app) return jsonResponse({ error: "App not found" }, 404);

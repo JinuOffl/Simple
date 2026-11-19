@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { downloadAppExport, useAppStore } from "@/lib/zustandStore";
 import type { SavedApp } from "@/lib/zustandStore";
+import { isLocalGuestId } from "@/lib/guestAuth";
 import { ManifestRenderer } from "@/renderer/ManifestRenderer";
 import type { Manifest } from "@/schema/manifest.v1";
 import type { ManifestV2 } from "@/schema/manifest.v2";
@@ -28,7 +29,7 @@ export function AppRunnerScreen() {
       const cached = apps.find((a) => a.id === id);
       let loadedApp: SavedApp | null = cached ?? null;
 
-      if (!loadedApp && user?.id.startsWith("guest-")) {
+      if (!loadedApp && user && isLocalGuestId(user.id)) {
         try {
           const stored = localStorage.getItem(`simple_guest_apps_${user.id}`);
           if (stored) {
@@ -65,7 +66,7 @@ export function AppRunnerScreen() {
         }
       }
 
-      if (user?.id.startsWith("guest-")) {
+      if (isLocalGuestId(user?.id)) {
         try {
           const localDataRaw = localStorage.getItem(`simple_guest_data_${id}`);
           if (localDataRaw) {
@@ -112,7 +113,7 @@ export function AppRunnerScreen() {
     setAppData(prev => ({ ...prev, [key]: value }));
     if (!id) return;
 
-    if (user?.id.startsWith("guest-")) {
+    if (isLocalGuestId(user?.id)) {
       try {
         const raw = localStorage.getItem(`simple_guest_data_${id}`);
         const data = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};

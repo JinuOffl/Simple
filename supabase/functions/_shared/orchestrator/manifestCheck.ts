@@ -180,6 +180,15 @@ export function validateManifestPure(raw: unknown): ValidationResult {
       }
       usedNodeTypes.add(node.type);
 
+      const propsObj = isPlainObject(node.props) ? (node.props as Record<string, unknown>) : {};
+      for (const requiredKey of entry.requiredPropKeys) {
+        if (propsObj[requiredKey] === undefined || propsObj[requiredKey] === null) {
+          errors.push(
+            `Node "${node.id}" (type "${node.type}") missing required prop "${requiredKey}".`
+          );
+        }
+      }
+
       if (node.props !== undefined) {
         if (!isPlainObject(node.props)) {
           errors.push(`Node "${node.id}".props must be a plain object.`);

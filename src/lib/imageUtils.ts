@@ -4,7 +4,7 @@
  */
 export async function downscaleImage(
   dataUrl: string,
-  maxDimension = 800,
+  maxDimension = 640,
   quality = 0.7
 ): Promise<string> {
   if (typeof window === "undefined" || typeof document === "undefined" || typeof Image === "undefined") {
@@ -19,10 +19,12 @@ export async function downscaleImage(
     const img = new Image();
     img.crossOrigin = "anonymous";
 
-    // Fallback timer so downscaling never hangs if jsdom or environment doesn't load image
+    // Fallback timer: 200ms in jsdom, 10s in real browsers (cleared on load/error)
+    const isJsdom = typeof window !== "undefined" && typeof window.createImageBitmap === "undefined";
+    const timeoutMs = isJsdom ? 200 : 10000;
     const fallbackTimer = setTimeout(() => {
       resolve(dataUrl);
-    }, 200);
+    }, timeoutMs);
 
     img.onload = () => {
       clearTimeout(fallbackTimer);

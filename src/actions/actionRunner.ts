@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabaseClient";
 import type { ManifestAction } from "@/schema/manifest.v1";
 import type { ManifestV2Action } from "@/schema/manifest.v2";
 import { useAppStore } from "@/lib/zustandStore";
+import { formatActionError } from "@/lib/actionError";
 
 import { executeMcpCallAction } from "./mcpAction";
 
@@ -52,11 +53,12 @@ export async function runAction({
           body: { action: { ...action, prompt_template: prompt }, app_data: appData, app_id: appId },
         });
 
-        if (error) throw new Error(error.message);
+        if (error) throw error;
         onDataChange?.(action.render_result_into, data.result as string);
       } catch (e) {
         console.error("llm_call failed:", e);
-        onDataChange?.(action.render_result_into, "⚠️ Something went wrong. Please try again.");
+        const msg = await formatActionError(e, "⚠️ Something went wrong. Please try again.");
+        onDataChange?.(action.render_result_into, msg);
       } finally {
         store.setComponentLoading(action.render_result_into, false);
       }
@@ -116,13 +118,14 @@ export async function runAction({
           body: { api: action.api, params: resolvedParams, ...(appId ? { app_id: appId } : {}) },
         });
 
-        if (error) throw new Error(error.message);
+        if (error) throw error;
 
         // Result is a formatted string ready to display, or structured object for special renderers
         onDataChange?.(action.render_result_into, data.result ?? data);
       } catch (e) {
         console.error("api_fetch failed:", e);
-        onDataChange?.(action.render_result_into, "⚠️ Couldn't load data. Check your connection.");
+        const msg = await formatActionError(e, "⚠️ Couldn't load data. Check your connection.");
+        onDataChange?.(action.render_result_into, msg);
       } finally {
         store.setComponentLoading(action.render_result_into, false);
       }

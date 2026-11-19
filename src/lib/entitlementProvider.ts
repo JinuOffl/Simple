@@ -33,7 +33,7 @@ export interface EntitlementProvider {
 export class DevEntitlementProvider implements EntitlementProvider {
   private webhookSecret: string;
 
-  constructor(webhookSecret: string = "dev-webhook-secret") {
+  constructor(webhookSecret: string) {
     this.webhookSecret = webhookSecret;
   }
 

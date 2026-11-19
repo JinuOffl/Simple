@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { formatActionError } from "@/lib/actionError";
 import { ChatBubble } from "./ChatBubble";
 
 interface Message {
@@ -63,7 +64,7 @@ export function ChatThread({
             persona_prompt,
           },
           app_data: {},
-          conversation_history: updated,
+          conversation_history: updated.slice(-12),
           app_id: appId,
         },
       });
@@ -72,12 +73,16 @@ export function ChatThread({
 
       const reply = data?.result ?? "No response received.";
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
-    } catch {
+    } catch (e) {
+      const msg = await formatActionError(
+        e,
+        "⚠️ Unable to get a response right now. Please try again."
+      );
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "⚠️ Unable to get a response right now. Please try again.",
+          content: msg,
         },
       ]);
     } finally {

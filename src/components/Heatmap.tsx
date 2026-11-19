@@ -11,6 +11,102 @@ export interface HeatmapProps {
   ctx?: RegistryRenderContext;
 }
 
+export interface HeatmapState {
+  start: string; // "YYYY-MM-DD"
+  rows: Record<string, boolean[]>;
+}
+
+function getTodayDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseLocalDate(dateStr: string): Date {
+  const parts = dateStr.split("-").map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) {
+    return new Date();
+  }
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+function getElapsedDays(startStr: string, todayStr: string): number {
+  const startDate = parseLocalDate(startStr);
+  const todayDate = parseLocalDate(todayStr);
+  startDate.setHours(0, 0, 0, 0);
+  todayDate.setHours(0, 0, 0, 0);
+  const diffTime = todayDate.getTime() - startDate.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+}
+
+function shiftRowValues(
+  rowValues: boolean[],
+  elapsedDays: number,
+  totalDays: number
+): boolean[] {
+  if (elapsedDays >= totalDays) {
+    return new Array(totalDays).fill(false);
+  }
+  const padded = [...rowValues];
+  while (padded.length < totalDays) {
+    padded.push(false);
+  }
+  const shifted = padded.slice(elapsedDays, totalDays);
+  while (shifted.length < totalDays) {
+    shifted.push(false);
+  }
+  return shifted;
+}
+
+function normalizeRawData(
+  raw: unknown,
+  rows: string[],
+  totalDays: number
+): HeatmapState {
+  const todayStr = getTodayDateString();
+  if (!raw || typeof raw !== "object") {
+    const freshRows: Record<string, boolean[]> = {};
+    for (const row of rows) {
+      freshRows[row] = new Array(totalDays).fill(false);
+    }
+    return { start: todayStr, rows: freshRows };
+  }
+
+  const obj = raw as Record<string, unknown>;
+  let startStr = todayStr;
+  let storedRowsObj: Record<string, unknown> = obj;
+
+  // Check if new shape { start: string, rows: Record<string, boolean[]> }
+  if (typeof obj.start === "string" && obj.rows && typeof obj.rows === "object") {
+    startStr = obj.start;
+    storedRowsObj = obj.rows as Record<string, unknown>;
+  }
+
+  const elapsedDays = getElapsedDays(startStr, todayStr);
+  const resultRows: Record<string, boolean[]> = {};
+
+  for (const row of rows) {
+    const rowData = storedRowsObj[row];
+    let rowArray: boolean[];
+    if (Array.isArray(rowData)) {
+      rowArray = rowData.slice(0, totalDays).map(Boolean);
+      while (rowArray.length < totalDays) rowArray.push(false);
+    } else {
+      rowArray = new Array(totalDays).fill(false);
+    }
+
+    if (elapsedDays > 0) {
+      resultRows[row] = shiftRowValues(rowArray, elapsedDays, totalDays);
+    } else {
+      resultRows[row] = rowArray;
+    }
+  }
+
+  return { start: todayStr, rows: resultRows };
+}
+
 export function Heatmap({
   id = "heatmap",
   rows = [],
@@ -23,22 +119,11 @@ export function Heatmap({
   const totalDays = Math.min(31, Math.max(1, days));
   const storageKey = `simple_heatmap_${save_to ?? id}`;
 
-  const initializeGrid = (): Record<string, boolean[]> => {
+  const initializeState = (): HeatmapState => {
     // 1. Try bindValue or ctx.bindValue or ctx.appData
     const bound = ctx?.bindValue ?? bindValue ?? ctx?.appData?.[save_to ?? id];
     if (bound && typeof bound === "object") {
-      const result: Record<string, boolean[]> = {};
-      for (const row of rows) {
-        const rowData = (bound as Record<string, unknown>)[row];
-        if (Array.isArray(rowData)) {
-          const arr = rowData.slice(0, totalDays).map(Boolean);
-          while (arr.length < totalDays) arr.push(false);
-          result[row] = arr;
-        } else {
-          result[row] = new Array(totalDays).fill(false);
-        }
-      }
-      return result;
+      return normalizeRawData(bound, rows, totalDays);
     }
 
     // 2. In non-preview mode, try localStorage
@@ -47,20 +132,12 @@ export function Heatmap({
         const stored = localStorage.getItem(storageKey);
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (parsed && typeof parsed === "object") {
-            const result: Record<string, boolean[]> = {};
-            for (const row of rows) {
-              const rowData = parsed[row];
-              if (Array.isArray(rowData)) {
-                const arr = rowData.slice(0, totalDays).map(Boolean);
-                while (arr.length < totalDays) arr.push(false);
-                result[row] = arr;
-              } else {
-                result[row] = new Array(totalDays).fill(false);
-              }
-            }
-            return result;
-          }
+          const normalized = normalizeRawData(parsed, rows, totalDays);
+          // Persist shifted state if elapsed
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(normalized));
+          } catch {}
+          return normalized;
         }
       } catch {
         // ignore parse/storage error
@@ -68,51 +145,40 @@ export function Heatmap({
     }
 
     // 3. Fresh grid
-    const fresh: Record<string, boolean[]> = {};
-    for (const row of rows) {
-      fresh[row] = new Array(totalDays).fill(false);
-    }
-    return fresh;
+    return normalizeRawData(null, rows, totalDays);
   };
 
-  const [grid, setGrid] = useState<Record<string, boolean[]>>(initializeGrid);
+  const [state, setState] = useState<HeatmapState>(initializeState);
 
   // Sync if bound prop changes
   useEffect(() => {
     const bound = ctx?.bindValue ?? bindValue;
     if (bound && typeof bound === "object") {
-      const next: Record<string, boolean[]> = {};
-      for (const row of rows) {
-        const rowData = (bound as Record<string, unknown>)[row];
-        if (Array.isArray(rowData)) {
-          const arr = rowData.slice(0, totalDays).map(Boolean);
-          while (arr.length < totalDays) arr.push(false);
-          next[row] = arr;
-        } else {
-          next[row] = new Array(totalDays).fill(false);
-        }
-      }
-      setGrid(next);
+      setState(normalizeRawData(bound, rows, totalDays));
     }
   }, [bindValue, ctx?.bindValue, rows, totalDays]);
 
   const toggleCell = (row: string, dayIndex: number) => {
-    const currentRow = grid[row] ?? new Array(totalDays).fill(false);
+    const currentRow = state.rows[row] ?? new Array(totalDays).fill(false);
     const updatedRow = [...currentRow];
     updatedRow[dayIndex] = !updatedRow[dayIndex];
 
-    const nextGrid = {
-      ...grid,
-      [row]: updatedRow,
+    const todayStr = getTodayDateString();
+    const nextState: HeatmapState = {
+      start: todayStr,
+      rows: {
+        ...state.rows,
+        [row]: updatedRow,
+      },
     };
 
-    setGrid(nextGrid);
-    ctx?.onDataChange?.(save_to ?? id, nextGrid);
+    setState(nextState);
+    ctx?.onDataChange?.(save_to ?? id, nextState);
 
     // Persist only when not in preview mode
     if (!ctx?.isPreview && typeof window !== "undefined") {
       try {
-        localStorage.setItem(storageKey, JSON.stringify(nextGrid));
+        localStorage.setItem(storageKey, JSON.stringify(nextState));
       } catch {
         // ignore storage error
       }
@@ -165,7 +231,7 @@ export function Heatmap({
 
           {/* Grid rows */}
           {rows.map((row) => {
-            const rowValues = grid[row] ?? new Array(totalDays).fill(false);
+            const rowValues = state.rows[row] ?? new Array(totalDays).fill(false);
             return (
               <div key={row} className="flex items-center gap-2">
                 <span

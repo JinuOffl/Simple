@@ -4,11 +4,12 @@ import { downloadAppExport, useAppStore } from "@/lib/zustandStore";
 import type { SavedApp } from "@/lib/zustandStore";
 import { ToolTile } from "@/components/ToolTile";
 import { getToolStatus } from "@/lib/toolStatus";
-import { isLocalGuestSession } from "@/lib/guestAuth";
+import { isLocalGuestSession, isLocalGuestId } from "@/lib/guestAuth";
 import { supabase } from "@/lib/supabaseClient";
 import { migrateV1toV2, needsMigration } from "@/schema/migrator";
 import type { Manifest } from "@/schema/manifest.v1";
 import type { ManifestV2 } from "@/schema/manifest.v2";
+import { PLANS } from "@/config/plans";
 import { STARTER_TEMPLATES } from "../../supabase/functions/_shared/orchestrator/templates.ts";
 import type { StarterTemplate } from "../../supabase/functions/_shared/orchestrator/types.ts";
 
@@ -79,16 +80,18 @@ function TemplateCard({
 
 function AppCard({
   app,
+  isShared = false,
   onOpen,
   onSleep,
   onWake,
   onExport,
 }: {
   app: SavedApp;
+  isShared?: boolean;
   onOpen: () => void;
-  onSleep: () => void;
-  onWake: () => void;
-  onExport: () => void;
+  onSleep?: () => void;
+  onWake?: () => void;
+  onExport?: () => void;
 }) {
   const isSleeping = app.status === "sleeping";
   const spanClass = (app.manifest as any)?.tool?.size === "1x1" ? "col-span-1 row-span-1" : "col-span-2 row-span-1";
@@ -101,7 +104,11 @@ function AppCard({
     >
       {/* Top action bar */}
       <div className="w-full flex items-center justify-between gap-1 min-h-[18px]">
-        {isSleeping ? (
+        {isShared ? (
+          <span className="nt-tag text-[8px] px-1.5 py-0.5 leading-none">
+            shared
+          </span>
+        ) : isSleeping ? (
           <span className="nt-tag text-[8px] px-1.5 py-0.5 leading-none">
             sleeping
           </span>
@@ -110,22 +117,24 @@ function AppCard({
         )}
 
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onExport();
-            }}
-            title="Export JSON"
-            aria-label={`Export ${app.name}`}
-            className={`px-1 py-0.5 text-[9px] text-n-text3 hover:text-white transition-all duration-150 ${
-              isSleeping ? "opacity-100" : "opacity-60 sm:opacity-0 sm:group-hover:opacity-100"
-            }`}
-          >
-            ↓
-          </button>
+          {!isShared && onExport && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onExport();
+              }}
+              title="Export JSON"
+              aria-label={`Export ${app.name}`}
+              className={`px-1 py-0.5 text-[9px] text-n-text3 hover:text-white transition-all duration-150 ${
+                isSleeping ? "opacity-100" : "opacity-60 sm:opacity-0 sm:group-hover:opacity-100"
+              }`}
+            >
+              ↓
+            </button>
+          )}
 
-          {!isSleeping && (
+          {!isShared && !isSleeping && onSleep && (
             <button
               type="button"
               onClick={(e) => {
@@ -153,7 +162,7 @@ function AppCard({
       </div>
 
       {/* Wake button for sleeping apps */}
-      {isSleeping && (
+      {isSleeping && !isShared && onWake && (
         <button
           type="button"
           onClick={(e) => {
@@ -203,6 +212,7 @@ export function HomeScreen() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [cloningSlug, setCloningSlug] = useState<string | null>(null);
+  const [cloneNotice, setCloneNotice] = useState<string | null>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const previousTemplatesFocusRef = useRef<HTMLElement | null>(null);
 
@@ -241,13 +251,11 @@ export function HomeScreen() {
         return;
       }
 
-      const isGuest =
-        session?.user.is_anonymous ||
-        session?.user.user_metadata?.is_guest ||
-        session?.user.id.startsWith("guest-") ||
+      const isLocalGuest =
+        isLocalGuestId(session?.user?.id) ||
         isLocalGuestSession(session);
 
-      if (isGuest) {
+      if (isLocalGuest) {
         const guestMap: Record<string, Record<string, unknown>> = {};
         for (const app of activeApps) {
           try {
@@ -290,7 +298,8 @@ export function HomeScreen() {
   }, [apps, session]);
 
   const isLocalGuest = isLocalGuestSession(session);
-  const activeCount = apps.filter((a) => (a.status ?? "active") === "active").length;
+  const currentUserId = session?.user?.id;
+  const activeCount = apps.filter((a) => (a.status ?? "active") === "active" && (!currentUserId || a.user_id === currentUserId)).length;
   const activeLimit = entitlement?.active_app_limit ?? 3;
 
   const handleStartBuilder = (prefillPrompt?: string) => {
@@ -316,6 +325,14 @@ export function HomeScreen() {
   const handleCloneTemplate = async (template: StarterTemplate) => {
     try {
       setCloningSlug(template.slug);
+      setCloneNotice(null);
+
+      const userId = session?.user?.id;
+      const ownedAppsBefore = apps.filter((a) => !userId || a.user_id === userId);
+      const activeBeforeIds = new Set(
+        ownedAppsBefore.filter((a) => (a.status ?? "active") === "active").map((a) => a.id)
+      );
+
       const newAppId =
         typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
           ? crypto.randomUUID()
@@ -327,10 +344,30 @@ export function HomeScreen() {
       };
 
       const saved = await saveApp(clonedManifest);
-      if (saved) {
-        setShowTemplatesModal(false);
-        navigate(`/app/${saved.id}`);
+      if (!saved) {
+        setCloneNotice("Could not save the tool. Try again.");
+        return;
       }
+
+      // Check if another owned tool was put to sleep
+      const appsAfter = useAppStore.getState().apps;
+      const newlySleeping = appsAfter.find(
+        (a) =>
+          (!userId || a.user_id === userId) &&
+          a.id !== saved.id &&
+          activeBeforeIds.has(a.id) &&
+          a.status === "sleeping"
+      );
+
+      if (newlySleeping) {
+        const limit = entitlement?.active_app_limit ?? PLANS.free.activeAppLimit;
+        setCloneNotice(
+          `Free plan: ${newlySleeping.name} was put to sleep (${limit} active tools). Wake it from Plan & usage.`
+        );
+      }
+
+      setShowTemplatesModal(false);
+      navigate(`/app/${saved.id}`);
     } finally {
       setCloningSlug(null);
     }
@@ -339,7 +376,7 @@ export function HomeScreen() {
   const isGuest =
     session?.user.is_anonymous ||
     session?.user.user_metadata?.is_guest ||
-    session?.user.id.startsWith("guest-");
+    isLocalGuestId(session?.user?.id);
   const accountLabel = isGuest ? "guest" : (session?.user.email?.split("@")[0] ?? "account");
 
   return (
@@ -483,8 +520,25 @@ export function HomeScreen() {
           </div>
         )}
 
+        {cloneNotice && (
+          <div
+            data-testid="clone-notice-banner"
+            className="mb-4 bg-n-surface border border-n-border rounded-sm px-4 py-3 flex items-center justify-between gap-3 text-xs text-white animate-slide-up"
+          >
+            <span className="font-mono">{cloneNotice}</span>
+            <button
+              type="button"
+              onClick={() => setCloneNotice(null)}
+              className="text-n-text3 hover:text-white px-1.5 py-0.5 text-xs font-mono"
+              aria-label="Dismiss notice"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {loadingApps ? (
-          <div className="grid grid-cols-4 gap-2 auto-rows-[88px] [grid-auto-flow:dense]">
+          <div className="grid grid-cols-4 gap-2 auto-rows-[120px] [grid-auto-flow:dense]">
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : apps.length === 0 ? (
@@ -550,18 +604,21 @@ export function HomeScreen() {
           </div>
         ) : (
           /* ── Tool grid ── */
-          <div className="grid grid-cols-4 gap-2 auto-rows-[88px] [grid-auto-flow:dense] animate-fade-in">
+          <div className="grid grid-cols-4 gap-2 auto-rows-[120px] [grid-auto-flow:dense] animate-fade-in">
             {apps.map((app) => {
               const isSleeping = app.status === "sleeping";
+              const isOwned = !currentUserId || app.user_id === currentUserId;
+
               if (isSleeping) {
                 return (
                   <AppCard
                     key={app.id}
                     app={app}
+                    isShared={!isOwned}
                     onOpen={() => handleOpen(app)}
-                    onSleep={() => handleSleep(app)}
-                    onWake={() => handleWake(app)}
-                    onExport={() => handleExport(app)}
+                    onSleep={isOwned ? () => handleSleep(app) : undefined}
+                    onWake={isOwned ? () => handleWake(app) : undefined}
+                    onExport={isOwned ? () => handleExport(app) : undefined}
                   />
                 );
               }
@@ -576,9 +633,10 @@ export function HomeScreen() {
                   manifest={v2Manifest}
                   appData={appsData[app.id] ?? {}}
                   status={getToolStatus(v2Manifest)}
+                  isShared={!isOwned}
                   onOpen={() => handleOpen(app)}
-                  onSleep={() => handleSleep(app)}
-                  onExport={() => handleExport(app)}
+                  onSleep={isOwned ? () => handleSleep(app) : undefined}
+                  onExport={isOwned ? () => handleExport(app) : undefined}
                 />
               );
             })}

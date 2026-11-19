@@ -6,7 +6,7 @@ import { mapBuilderErrorMessage } from "@/lib/builderError";
 import { ManifestRenderer } from "@/renderer/ManifestRenderer";
 import { isHighRiskMcpTool } from "@/actions/mcpAction";
 import { getManifestConsentSummary } from "@/lib/manifestConsent";
-import { generateAppWithFallback } from "@/lib/generationClient";
+import { generateAppWithFallback, GenerationClientError } from "@/lib/generationClient";
 import { getGenerationLog } from "@/lib/generationLog";
 import { getToolStatus } from "@/lib/toolStatus";
 import { listConnections } from "@/lib/connectionsApi";
@@ -126,9 +126,13 @@ export function BuilderScreen() {
           const full = result.unsupported.alternative
             ? `${result.unsupported.message} ${result.unsupported.alternative}`
             : result.unsupported.message;
-          throw new Error(full);
+          throw new GenerationClientError(full, result.status, result.code);
         }
-        throw new Error(result.error ?? "Failed to generate tool manifest.");
+        throw new GenerationClientError(
+          result.error ?? "Failed to generate tool manifest.",
+          result.status,
+          result.code
+        );
       }
 
       const parsedManifest = result.manifest;
@@ -139,17 +143,28 @@ export function BuilderScreen() {
           ? result.patch.map((op: any) => `${op.op} ${op.path}`).join("; ")
           : "";
 
-      const assistantMsg: ChatMessage = {
-        role: "assistant",
-        content: currentManifest
-          ? `Updated "${parsedManifest.name}". ${patchSummary || "Applied changes."}`
-          : `Built "${parsedManifest.name}". Save it or ask me to change something.`,
-      };
-      setChatHistory(prev => [...prev, assistantMsg]);
-      addMessage("assistant", assistantMsg.content);
+      if (result.usedTemplateFallback) {
+        const fallbackText = `AI is unreachable - loaded the closest starter template: ${
+          result.templateName ?? parsedManifest.name
+        }`;
+        const assistantMsg: ChatMessage = {
+          role: "assistant",
+          content: fallbackText,
+        };
+        setChatHistory((prev) => [...prev, assistantMsg]);
+        addMessage("assistant", assistantMsg.content);
+      } else {
+        const assistantMsg: ChatMessage = {
+          role: "assistant",
+          content: currentManifest
+            ? `Updated "${parsedManifest.name}". ${patchSummary || "Applied changes."}`
+            : `Built "${parsedManifest.name}". Save it or ask me to change something.`,
+        };
+        setChatHistory((prev) => [...prev, assistantMsg]);
+        addMessage("assistant", assistantMsg.content);
+      }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Generation failed";
-      const friendly = mapBuilderErrorMessage(msg);
+      const friendly = mapBuilderErrorMessage(e instanceof Error ? e : String(e));
       setGenerationError(friendly);
       setChatHistory(prev => [
         ...prev,
@@ -238,7 +253,7 @@ export function BuilderScreen() {
       {/* Canvas / Preview tile container */}
       <div
         className="overflow-y-auto border-b border-n-border p-4 flex items-center justify-center bg-n-bg/30"
-        style={{ flex: "0 0 48dvh" }}
+        style={{ flex: "0 0 40dvh" }}
       >
         {currentManifest ? (
           <div
@@ -413,7 +428,7 @@ export function BuilderScreen() {
         )}
 
         {/* Input bar */}
-        <div className="px-4 py-3 border-t border-n-border flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <div className="sticky bottom-0 bg-n-bg px-4 py-3 border-t border-n-border flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <input
             ref={inputRef}
             type="text"

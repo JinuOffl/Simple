@@ -310,6 +310,13 @@ export async function handleRunMcpAction(req: Request, deps: RunMcpDeps = {}): P
   const supabaseUrl = getEnv("SUPABASE_URL") ?? getEnv("VITE_SUPABASE_URL");
   const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
 
+  // Production requirement (Phase 1.7): require valid UUID app_id unless local dev loopback is enabled
+  if (!allowLocalDevLoopback) {
+    if (!appId || !UUID_REGEX.test(appId)) {
+      return jsonResponse({ error: "app_id is required and must be a valid UUID" }, 400);
+    }
+  }
+
   // ── 2 & 3. Member with role + Action & tool in saved manifest ───────────────
   if (deps.verifyAppAccess && appId) {
     const access = await deps.verifyAppAccess({ appId, userId: user.userId });
@@ -353,6 +360,9 @@ export async function handleRunMcpAction(req: Request, deps: RunMcpDeps = {}): P
     if (!manifestCheck.ok) {
       return jsonResponse({ error: manifestCheck.error }, 403);
     }
+  } else if (!allowLocalDevLoopback) {
+    // If running in production without access verifier or db
+    return jsonResponse({ error: "Forbidden: unable to verify app membership" }, 403);
   }
 
   // ── 4. Invoking user's OWN connection + allowed_tools check ─────────────────
@@ -385,7 +395,7 @@ export async function handleRunMcpAction(req: Request, deps: RunMcpDeps = {}): P
     }
   }
 
-  if (!connector && (!appId || !UUID_REGEX.test(appId))) {
+  if (!connector && allowLocalDevLoopback && (!appId || !UUID_REGEX.test(appId))) {
     connector = defaultResolveEnvConnector(connectorId, getEnv);
   }
 

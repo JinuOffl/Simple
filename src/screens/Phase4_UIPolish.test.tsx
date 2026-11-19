@@ -292,4 +292,75 @@ describe("Phase 4 UI Polish (P1)", () => {
       expect(document.activeElement).toBe(triggerBtn);
     });
   });
+
+  describe("4.8 & 4.10: Data ownership limits & ToolTile accessibility", () => {
+    it("wrapper div has role='button', tabIndex=0, and onKeyDown Enter/Space triggers onOpen", () => {
+      const onOpen = vi.fn();
+      render(
+        <ToolTile
+          manifest={sampleManifest}
+          appData={{}}
+          onOpen={onOpen}
+        />
+      );
+
+      const tile = screen.getByTestId("tool-tile");
+      expect(tile.getAttribute("role")).toBe("button");
+      expect(tile.getAttribute("tabIndex")).toBe("0");
+
+      fireEvent.keyDown(tile, { key: "Enter" });
+      expect(onOpen).toHaveBeenCalledTimes(1);
+
+      fireEvent.keyDown(tile, { key: " " });
+      expect(onOpen).toHaveBeenCalledTimes(2);
+    });
+
+    it("hides sleep and export buttons and displays 'shared' tag when isShared is true", () => {
+      render(
+        <ToolTile
+          manifest={sampleManifest}
+          appData={{}}
+          isShared={true}
+          onOpen={vi.fn()}
+          onSleep={vi.fn()}
+          onExport={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText("shared")).toBeTruthy();
+      expect(screen.queryByLabelText(`Sleep ${sampleManifest.name}`)).toBeNull();
+      expect(screen.queryByLabelText(`Export ${sampleManifest.name}`)).toBeNull();
+    });
+
+    it("HomeScreen renders 'shared' and hides controls for tools belonging to another user", () => {
+      const otherUserApp: SavedApp = {
+        id: "app-shared-1",
+        user_id: "other-user-999",
+        name: "Partner's Tool",
+        icon: "🤝",
+        manifest: { ...sampleManifest, name: "Partner's Tool" },
+        schema_version: 2,
+        status: "active",
+        pinned_order: null,
+        created_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:00.000Z",
+      };
+
+      useAppStore.setState({
+        apps: [otherUserApp],
+        fetchApps: vi.fn().mockResolvedValue(undefined),
+        fetchEntitlementAndUsage: vi.fn().mockResolvedValue(undefined),
+      });
+
+      render(
+        <MemoryRouter>
+          <HomeScreen />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByText("shared")).toBeTruthy();
+      expect(screen.queryByLabelText("Sleep Partner's Tool")).toBeNull();
+      expect(screen.queryByLabelText("Export Partner's Tool")).toBeNull();
+    });
+  });
 });

@@ -57,6 +57,11 @@ Deno.test("VercelAiFallbackProvider uses primary Groq config and fails over clea
       return makeOpenAiJsonResponse({ pass: true, issues: [], summary: "Fallback worked" }, "fallback-mini");
     }
 
+    if (url.includes("/rest/v1/usage_ledger")) {
+      return Promise.resolve(
+        new Response("[]", { status: 200, headers: { "Content-Type": "application/json", "content-range": "0-0/0" } })
+      );
+    }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
 
@@ -221,6 +226,11 @@ Deno.test("handleGenerateApp enforces auth and 402 credits when Supabase service
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
+    if (url.includes("/rest/v1/usage_ledger")) {
+      return Promise.resolve(
+        new Response("[]", { status: 200, headers: { "Content-Type": "application/json", "content-range": "0-0/0" } })
+      );
+    }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
 
@@ -315,7 +325,7 @@ Deno.test("handleGenerateApp rejects non-v2 existing_manifest with status 400", 
   });
 
   const res = await handleGenerateApp(req, {
-    getEnv: () => undefined,
+    getEnv: (k) => (k === "GENERATION_LOCAL_DEV_OPEN" ? "true" : undefined),
   });
 
   assertEquals(res.status, 400);
@@ -378,6 +388,11 @@ Deno.test("handleGenerateApp uses BYOK key as Authorization bearer for the prima
       return makeOpenAiJsonResponse(STARTER_TEMPLATES[0].manifest);
     }
 
+    if (url.includes("/rest/v1/usage_ledger")) {
+      return Promise.resolve(
+        new Response("[]", { status: 200, headers: { "Content-Type": "application/json", "content-range": "0-0/0" } })
+      );
+    }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
 

@@ -101,7 +101,7 @@ describe("Phase 5 — Templates and instant demos", () => {
       expect(dry.pass).toBe(true);
       expect(dry.errors).toEqual([]);
 
-      expect(m.tool?.size).toBe("2x1");
+      expect(m.tool?.size).toBe("4x2"); // Phase 4: 4x2 for 14-day grid
       expect(m.screens.length).toBe(1);
       expect(m.screens[0].nodes.length).toBeLessThanOrEqual(4);
 
@@ -123,7 +123,7 @@ describe("Phase 5 — Templates and instant demos", () => {
       expect(dry.pass).toBe(true);
       expect(dry.errors).toEqual([]);
 
-      expect(m.tool?.size).toBe("2x1");
+      expect(m.tool?.size).toBe("2x2"); // Phase 4: 2x2 for timer
       expect(m.screens.length).toBe(1);
       expect(m.screens[0].nodes.length).toBeLessThanOrEqual(4);
 

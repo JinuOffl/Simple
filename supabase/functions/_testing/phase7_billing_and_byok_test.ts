@@ -228,7 +228,12 @@ Deno.test("manage-byok Edge Function: set, get without leaking plaintext, and de
       provider: "groq",
     }),
   });
-  const setRes = await handleManageByok(setReq, { db, getEnv, verifyJwt });
+  const setRes = await handleManageByok(setReq, {
+    db,
+    getEnv,
+    verifyJwt,
+    baseFetch: () => Promise.resolve(new Response(JSON.stringify({ data: [] }), { status: 200 })),
+  });
   assertEquals(setRes.status, 200);
   const setData = await setRes.json();
   assertEquals(setData.success, true);

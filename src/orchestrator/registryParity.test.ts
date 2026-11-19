@@ -14,12 +14,29 @@ describe("orchestrator metadata & template parity", () => {
     const metaMap = new Map(REGISTRY_CAPABILITY_META.map((e) => [e.type, e] as const));
 
     for (const reg of COMPONENT_REGISTRY) {
+      const res = reg.propsSchema.safeParse({});
+      const derived: string[] = [];
+      if (!res.success) {
+        for (const issue of res.error.issues) {
+          if (issue.path.length === 1 && typeof issue.path[0] === "string") {
+            derived.push(issue.path[0]);
+          }
+        }
+      }
+      const derivedRequiredKeys = Array.from(new Set(derived)).sort();
+
       const meta = metaMap.get(reg.type);
       expect(meta, `Missing metadata entry for "${reg.type}"`).toBeDefined();
       expect([...(meta?.requiredPermissions ?? [])].sort()).toEqual(
         [...reg.requiredPermissions].sort()
       );
       expect(Boolean(meta?.isStub)).toBe(Boolean(reg.isStub));
+
+      // Parity check: requiredPropKeys derived from Zod safeParse({}) matches registrySpec
+      expect(
+        [...(meta?.requiredPropKeys ?? [])].sort(),
+        `requiredPropKeys mismatch for "${reg.type}"`
+      ).toEqual(derivedRequiredKeys);
 
       // Verify exampleProps satisfies the canonical Zod propsSchema
       const parsed = reg.propsSchema.safeParse(meta?.exampleProps);

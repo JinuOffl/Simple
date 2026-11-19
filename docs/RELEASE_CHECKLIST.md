@@ -10,8 +10,8 @@
 
 The codebase and local verification gates are green. Production launch requires the following infrastructure tasks to be executed:
 
-- [ ] Migrations applied (001 through 006 on target Supabase project)
-- [ ] Functions deployed (`generate-app`, `run-mcp-action`, `run-api-fetch`, `invites`, `billing-webhook`, `manage-connection`, `manage-byok`, `run-llm-action`)
+- [ ] Migrations applied (001 through 007 on target Supabase project)
+- [ ] Functions deployed (`generate-app`, `run-mcp-action`, `run-api-fetch`, `invites`, `billing-webhook`, `manage-connection`, `manage-byok`, `run-llm-action`, `delete-account`)
 - [ ] Secrets set (`CONNECTION_ENCRYPTION_KEY`, `GROQ_API_KEY`, `BILLING_WEBHOOK_SECRET`)
 - [ ] SMTP configured (Custom SMTP provider configured in Supabase auth for OTP deliverability)
 - [ ] Auth URLs set (Site URL and Redirect URLs configured for production domain)
@@ -37,7 +37,7 @@ The codebase and local verification gates are green. Production launch requires 
 
 ## 2. Component Registry & UI Engine
 
-- [x] **Registry Completeness:** All 23 components implemented and registered (`Button`, `Card`, `Text`, `Input`, `Switch`, `Toggle`, `Badge`, `Divider`, `Icon`, `Spacer`, `Progress`, `Checklist`, `RadioGroup`, `Markdown`, `Stat`, `Slider`, `Timer`, `Tabs`, `List`, `Table`, `Form`, `Chart`, `ChatThread`). Zero stubs remaining.
+- [x] **Registry Completeness:** All 27 components implemented and registered (`Button`, `Card`, `Text`, `Input`, `Switch`, `Toggle`, `Badge`, `Divider`, `Icon`, `Spacer`, `Progress`, `Checklist`, `RadioGroup`, `Markdown`, `Stat`, `Slider`, `Timer`, `Tabs`, `List`, `Table`, `Form`, `Chart`, `ChatThread`, `Heatmap`, `McqQuiz`, `Calculator`, `Clock`). Zero stubs remaining.
 - [x] **Dual UI Spec Support:** `UiSpecAdapter` transparently supports both JSON manifests and OpenUI Lang with bidirectional conversion and error reporting (ADR 004).
 - [x] **XSS-Safe Markdown:** `Markdown` component parses GitHub-flavored markdown into React VDOM nodes without raw HTML injection.
 - [x] **Design Token Consistency:** Strictly adheres to Nothing-OS aesthetics: Doto dot-matrix typography, Space Mono, monochrome palettes, and tactile borders.
@@ -51,6 +51,9 @@ The codebase and local verification gates are green. Production launch requires 
   - `002_v2_schema.sql` (v2 tables, entitlements, atomic credits, sleeping, & RLS)
   - `003_connection_secrets.sql` (server-side connector secrets)
   - `004_byok_secrets.sql` (server-side BYOK secrets)
+  - `005_refund.sql` (atomic generation credit refunds)
+  - `006_realtime.sql` (publication replica identity for realtime)
+  - `007_hardening.sql` (owner-only app updates, revoked anon functions, dropped plaintext keys)
 - [x] **PostgreSQL RLS Enforcement:**
   - `apps`: Users can only access their own apps or apps they are members of; viewers cannot update manifests.
   - `app_data`: Members can read; only owners and editors can insert/update/delete.
