@@ -85,6 +85,31 @@ describe("AuthScreen", () => {
     expect(useAppStore.getState().session?.user.id).toBe("guest-test-123");
   });
 
+  it("clicking CONTINUE AS GUEST when already a guest navigates back to home", async () => {
+    useAppStore.setState({
+      session: {
+        access_token: "guest-token-123",
+        user: { id: "guest-test-123", is_anonymous: true } as any,
+      } as any,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/auth"]}>
+        <Routes>
+          <Route path="/auth" element={<AuthScreen />} />
+          <Route path="/" element={<div data-testid="home-view">Home Screen</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const guestBtn = screen.getByRole("button", { name: /continue as guest/i });
+    fireEvent.click(guestBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("home-view")).toBeTruthy();
+    });
+  });
+
   it("Step 1: submitting email calls signInWithOtp with shouldCreateUser and advances to Step 2", async () => {
     const otpMock = vi.mocked(supabase.auth.signInWithOtp).mockResolvedValueOnce({
       data: {} as any,

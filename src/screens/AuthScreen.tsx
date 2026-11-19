@@ -116,6 +116,10 @@ export function AuthScreen() {
   }, [step, countdown]);
 
   const handleGuestLogin = async () => {
+    if (isGuest && session) {
+      navigate("/", { replace: true });
+      return;
+    }
     setGuestLoading(true);
     setError(null);
     try {
@@ -154,7 +158,10 @@ export function AuthScreen() {
     resetTurnstile();
 
     if (otpError) {
-      setError(otpError.message);
+      const msg = otpError.message.toLowerCase().includes("failed to fetch")
+        ? "Unable to connect to Supabase (Failed to fetch). If your Supabase project is paused, resume it in your Supabase dashboard or check VITE_SUPABASE_URL in .env."
+        : otpError.message;
+      setError(msg);
     } else {
       setStep("otp");
       setCountdown(30);
@@ -178,7 +185,10 @@ export function AuthScreen() {
     });
 
     if (verifyError) {
-      setError(verifyError.message || "Invalid or expired verification code");
+      const msg = verifyError.message.toLowerCase().includes("failed to fetch")
+        ? "Unable to connect to Supabase (Failed to fetch). Please check your internet connection or Supabase status."
+        : (verifyError.message || "Invalid or expired verification code");
+      setError(msg);
       setLoading(false);
     } else if (data?.session) {
       clearLocalGuestSession();
@@ -207,7 +217,10 @@ export function AuthScreen() {
     resetTurnstile();
 
     if (otpError) {
-      setError(otpError.message);
+      const msg = otpError.message.toLowerCase().includes("failed to fetch")
+        ? "Unable to connect to Supabase (Failed to fetch). If your Supabase project is paused, resume it in your Supabase dashboard or check VITE_SUPABASE_URL in .env."
+        : otpError.message;
+      setError(msg);
     } else {
       setCountdown(30);
     }
