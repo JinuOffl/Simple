@@ -297,4 +297,50 @@ a:focus-visible {
   }
 }
 
+/* ─── Nothing OS v2 Utilities ──────────────────────────────────────────────── */
+.nt-press {
+  transition: transform 80ms ease-out, opacity 80ms ease-out;
+}
+.nt-press:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+.nt-dot-green {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: inline-block;
+}
+.nt-dot-amber {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+  display: inline-block;
+}
+.nt-dot-red {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #D71921;
+  display: inline-block;
+}
+
+.nt-label {
+  font-family: "Space Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.nt-hero {
+  font-family: "Doto", monospace;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+
 

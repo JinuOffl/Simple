@@ -11,6 +11,7 @@ import { getGenerationLog } from "@/lib/generationLog";
 import { getToolStatus } from "@/lib/toolStatus";
 import { listConnections } from "@/lib/connectionsApi";
 import { NeedsKeyCard } from "@/components/NeedsKeyCard";
+import { ArrowLeft, Wrench, Send, ChevronRight } from "lucide-react";
 
 const PREVIEW_SIZE_CLASSES: Record<string, string> = {
   "1x1": "max-w-[220px]",
@@ -209,57 +210,61 @@ export function BuilderScreen() {
     <div className="min-h-[100dvh] flex flex-col bg-gradient-mesh">
 
       {/* Header */}
-      <header className="px-4 pt-5 pb-3 flex items-center gap-3 border-b border-n-border">
-        <button
-          onClick={() => { resetBuilder(); navigate("/"); }}
-          aria-label="Back to home"
-          className="text-n-text3 hover:text-white text-[11px] uppercase tracking-wider transition-colors"
-        >
-          ← back
-        </button>
+      <header className="px-4 py-3 flex items-center justify-between border-b border-n-line bg-n-bg shrink-0">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => { resetBuilder(); navigate("/"); }}
+            aria-label="Back to home"
+            className="flex items-center gap-1.5 nt-label hover:text-white transition-colors cursor-pointer"
+          >
+            <ArrowLeft size={13} strokeWidth={1.5} />
+            <span>BACK</span>
+          </button>
 
-        <button
-          onClick={() => resetBuilder()}
-          className="px-2 py-0.5 text-[10px] uppercase tracking-wider text-n-text3 hover:text-white border border-n-border rounded-sm transition-colors"
-        >
-          NEW
-        </button>
-
-        <div className="flex-1">
-          <p className="text-n-text2 text-[11px] uppercase tracking-wider">
-            {editingAppId
-              ? `editing · ${currentManifest?.name ?? "tool"}`
-              : "new tool"}
-          </p>
+          <button
+            onClick={() => resetBuilder()}
+            className="px-2 py-0.5 nt-label text-n-disabled hover:text-white border border-n-line rounded-sm transition-colors cursor-pointer"
+          >
+            NEW
+          </button>
         </div>
 
-        {currentManifest && (
-          <button
-            onClick={handleSave}
-            disabled={isSaving || saveSuccess}
-            className={`px-4 py-1.5 text-[10px] uppercase tracking-widest font-bold
-                        border rounded-sm transition-all duration-150
-                        ${saveSuccess
-                          ? "border-white/30 text-white"
-                          : "bg-white text-n-bg border-white hover:opacity-80"
-                        }
-                        disabled:opacity-40`}
-          >
-            {saveSuccess ? "SAVED ✓" : isSaving ? "..." : editingAppId ? "UPDATE" : "SAVE"}
-          </button>
-        )}
+        <div className="flex-1 text-center px-2">
+          <span className="font-grotesk text-sm text-n-primary font-medium truncate block max-w-[200px] mx-auto">
+            {editingAppId
+              ? (currentManifest?.name ?? "Editing Tool")
+              : (currentManifest?.name ?? "New Tool")}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {currentManifest && (
+            <button
+              onClick={handleSave}
+              disabled={isSaving || saveSuccess}
+              className={`px-4 py-1.5 nt-label font-bold border rounded-sm transition-all duration-150 nt-press cursor-pointer
+                          ${saveSuccess
+                            ? "border-white/30 text-white"
+                            : "bg-white text-black border-white hover:bg-n-primary"
+                          }
+                          disabled:opacity-40`}
+            >
+              {saveSuccess ? "SAVED ✓" : isSaving ? "..." : editingAppId ? "UPDATE" : "SAVE"}
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Canvas / Preview tile container */}
       <div
-        className="overflow-y-auto border-b border-n-border p-4 flex items-center justify-center bg-n-bg/30"
+        className="overflow-y-auto border-b border-n-line p-4 flex items-center justify-center bg-n-s1/30"
         style={{ flex: "0 0 40dvh" }}
       >
         {currentManifest ? (
           <div
             className={`w-full ${PREVIEW_SIZE_CLASSES[("tool" in currentManifest ? currentManifest.tool?.size : undefined) ?? "2x1"] ?? "max-w-[360px]"} transition-all duration-200`}
           >
-            <div className="border border-n-border bg-n-surface rounded-sm overflow-hidden shadow-lg">
+            <div className="border border-n-line bg-n-s1 rounded-sm overflow-hidden shadow-lg">
               <ManifestRenderer manifest={currentManifest} isPreview={true} />
             </div>
           </div>
@@ -268,9 +273,9 @@ export function BuilderScreen() {
             {isGenerating ? (
               <div
                 data-testid="builder-skeleton"
-                className="w-full max-w-[340px] bg-n-surface border border-n-border rounded-sm p-4 space-y-3"
+                className="w-full max-w-[340px] bg-n-s1 border border-n-line rounded-sm p-4 space-y-3"
               >
-                <div className="flex items-center justify-between pb-2 border-b border-n-border">
+                <div className="flex items-center justify-between pb-2 border-b border-n-line">
                   <div className="skeleton w-20 h-3 rounded-sm" />
                   <div className="skeleton w-8 h-3 rounded-sm" />
                 </div>
@@ -281,34 +286,29 @@ export function BuilderScreen() {
                 </div>
                 <div className="text-center pt-2">
                   <span
-                    className="font-doto text-n-text3 text-[11px] tracking-widest uppercase animate-pulse-slow"
-                    style={{ fontVariationSettings: "'ROND' 0" }}
+                    className="nt-label animate-blink text-n-disabled tracking-[0.2em]"
                   >
                     GENERATING TOOL ···
                   </span>
                 </div>
               </div>
             ) : (
-              <>
-                <div className="w-12 h-12 border border-n-border flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" className="w-5 h-5 text-n-text3" fill="none" stroke="currentColor" strokeWidth={1}>
-                    <rect x="3" y="3" width="18" height="18" rx="1" />
-                    <path d="M3 9h18M9 21V9" />
-                  </svg>
-                </div>
-                <p className="text-n-text3 text-[10px] uppercase tracking-wider text-center">
-                  canvas · describe your tool below
+              <div className="flex flex-col items-center justify-center gap-2.5 opacity-25">
+                <Wrench size={28} strokeWidth={1.2} className="text-white" />
+                <p className="nt-label tracking-[0.3em] text-white">
+                  CANVAS · DESCRIBE YOUR TOOL BELOW
                 </p>
-              </>
+              </div>
             )}
           </div>
         )}
       </div>
 
       {/* Hairline status row */}
-      <div className="px-4 py-2 border-b border-n-border flex items-center justify-between text-[11px] font-mono text-n-text2 bg-n-surface/40">
-        <span className="text-n-text3 uppercase tracking-wider text-[10px]">Status</span>
-        <span className="text-white font-medium" data-testid="tool-status">
+      <div className="px-4 py-2 border-b border-n-line flex items-center justify-between text-[11px] font-mono text-n-secondary bg-n-s1/60">
+        <span className="nt-label text-[9px]">Status</span>
+        <span className="text-white font-medium flex items-center gap-1.5" data-testid="tool-status">
+          <span className={isGenerating ? "nt-dot-amber animate-pulse" : "nt-dot-green"} />
           {getToolStatus(currentManifest, { keysMissing: missingKeyIds })}
         </span>
       </div>
@@ -397,26 +397,27 @@ export function BuilderScreen() {
         )}
 
         {import.meta.env.DEV && (
-          <details className="mx-4 mb-2 border border-n-border bg-n-surface text-[10px] text-n-text3 rounded-sm">
-            <summary className="px-3 py-1.5 cursor-pointer font-mono select-none uppercase tracking-wider text-n-text2 hover:text-white">
-              LLM TRACE ({getGenerationLog().length})
+          <details className="mx-4 mb-2 border border-n-line bg-n-s1 text-[10px] text-n-disabled rounded-sm">
+            <summary className="px-3 py-1.5 cursor-pointer font-mono select-none uppercase tracking-wider text-n-secondary hover:text-white flex items-center gap-1.5">
+              <ChevronRight size={10} strokeWidth={2} />
+              <span>LLM TRACE ({getGenerationLog().length})</span>
             </summary>
             <div className="p-3 max-h-40 overflow-y-auto space-y-2 font-mono">
               {getGenerationLog().length === 0 ? (
-                <p className="text-n-text3">No generation logs recorded.</p>
+                <p className="text-n-disabled">No generation logs recorded.</p>
               ) : (
                 getGenerationLog().map((entry, idx) => (
-                  <div key={idx} className="border-b border-n-border/50 pb-1.5 last:border-none">
-                    <div className="flex justify-between text-n-text2">
+                  <div key={idx} className="border-b border-n-line/50 pb-1.5 last:border-none">
+                    <div className="flex justify-between text-n-secondary">
                       <span>[{entry.tier ?? "unknown"}] {entry.ok ? "✓ OK" : "✗ FAILED"}</span>
                       <span>{entry.latencyMs}ms · {new Date(entry.time).toLocaleTimeString()}</span>
                     </div>
                     <div className="truncate text-white/80">"{entry.userPrompt}"</div>
-                    <div className="text-n-text3">
+                    <div className="text-n-disabled">
                       manifest: {entry.existingManifestBytes} bytes
                       {entry.repairAttempts !== undefined && ` · repairs: ${entry.repairAttempts}`}
                     </div>
-                    {entry.error && <div className="text-red-400">Error: {entry.error}</div>}
+                    {entry.error && <div className="text-n-red">Error: {entry.error}</div>}
                     {entry.validationErrors && entry.validationErrors.length > 0 && (
                       <div className="text-amber-400">Validation: {entry.validationErrors.join(", ")}</div>
                     )}
@@ -428,7 +429,7 @@ export function BuilderScreen() {
         )}
 
         {/* Input bar */}
-        <div className="sticky bottom-0 bg-n-bg px-4 py-3 border-t border-n-border flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <div className="sticky bottom-0 bg-n-bg px-4 py-3 border-t border-n-line flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <input
             ref={inputRef}
             type="text"
@@ -438,9 +439,9 @@ export function BuilderScreen() {
             placeholder={isLocalGuest ? "Sign in with email to build tools" : "describe the tool"}
             disabled={isGenerating || isLocalGuest}
             aria-label="Tool prompt input"
-            className="flex-1 bg-n-surface border border-n-border px-5 py-3
-                       text-xs text-white placeholder:text-n-text3 outline-none
-                       focus:border-n-border2 transition-colors disabled:opacity-40
+            className="flex-1 bg-n-s1 border border-n-line px-5 py-3
+                       text-xs text-n-primary font-grotesk placeholder:text-n-disabled outline-none
+                       focus:border-n-line3 transition-colors disabled:opacity-40
                        rounded-full"
           />
           <button
@@ -449,16 +450,14 @@ export function BuilderScreen() {
             disabled={!inputText.trim() || isGenerating || isLocalGuest}
             id="builder-send-button"
             aria-label="Send message"
-            className="w-11 h-11 bg-white flex items-center justify-center
+            className="w-11 h-11 bg-white text-black flex items-center justify-center
                        transition-all duration-150 active:scale-90
-                       disabled:opacity-30 flex-shrink-0 rounded-full"
+                       disabled:opacity-30 flex-shrink-0 rounded-full nt-press cursor-pointer"
           >
             {isGenerating ? (
-              <div className="w-3 h-3 border border-n-bg border-t-transparent rounded-full animate-spin" />
+              <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
             ) : (
-              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="#0a0a0a" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-              </svg>
+              <Send size={15} strokeWidth={2} />
             )}
           </button>
         </div>

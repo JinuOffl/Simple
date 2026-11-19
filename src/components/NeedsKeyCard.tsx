@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Key } from "lucide-react";
 import { saveConnection } from "@/lib/connectionsApi";
 import { CATALOG_ADAPTERS } from "../../supabase/functions/_shared/catalog.ts";
 
@@ -64,14 +65,17 @@ export function NeedsKeyCard({
   return (
     <div
       data-testid="needs-key-card"
-      className="bg-n-surface border border-n-border hover:border-n-border2 rounded-sm p-3.5 space-y-2.5 transition-colors"
+      className="border-l-2 border-n-line3 bg-n-s1 p-4 space-y-3 transition-colors"
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="space-y-0.5">
-          <p className="text-[11px] font-mono uppercase tracking-wider text-white font-medium">
-            API Key Required: {label}
-          </p>
-          <p className="text-[10px] text-n-text3 font-mono">
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Key size={14} strokeWidth={1.5} className="text-n-secondary shrink-0" />
+            <p className="font-grotesk text-sm text-n-primary font-medium">
+              API Key Required: {label}
+            </p>
+          </div>
+          <p className="font-grotesk text-xs text-n-secondary leading-relaxed">
             Encrypted server-side in connection secrets. Never exposed to browser.
           </p>
         </div>
@@ -82,7 +86,7 @@ export function NeedsKeyCard({
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Get ${label} key`}
-            className="text-[10px] font-mono text-n-text3 hover:text-white underline shrink-0 transition-colors"
+            className="nt-label hover:text-white shrink-0 transition-colors"
           >
             Get Key ↗
           </a>
@@ -98,17 +102,17 @@ export function NeedsKeyCard({
           placeholder={`Enter ${label} key...`}
           disabled={isSaving || savedSuccess}
           aria-label={`${label} input`}
-          className="flex-1 bg-n-bg border border-n-border px-3 py-1.5 text-xs text-white placeholder:text-n-text3 outline-none focus:border-n-border2 rounded-sm font-mono disabled:opacity-50"
+          className="flex-1 bg-black/40 border border-n-line2 px-3 py-1.5 text-xs text-n-primary placeholder:text-n-disabled outline-none focus:border-n-line3 rounded-sm font-mono disabled:opacity-50 transition-colors"
         />
 
         <button
           type="button"
           onClick={handleSave}
           disabled={!keyInput.trim() || isSaving || savedSuccess}
-          className={`px-3 py-1.5 text-[10px] uppercase font-mono font-bold tracking-wider rounded-sm transition-all shrink-0 ${
+          className={`px-3 py-1.5 text-[10px] uppercase font-mono font-bold tracking-widest rounded-sm border transition-all shrink-0 nt-press cursor-pointer ${
             savedSuccess
-              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-              : "bg-white text-n-bg hover:opacity-90 disabled:opacity-40"
+              ? "bg-white/10 text-white border-white/40"
+              : "bg-white text-black border-white hover:bg-n-primary disabled:opacity-30 disabled:cursor-not-allowed"
           }`}
         >
           {savedSuccess ? "Saved ✓" : isSaving ? "..." : "Save Key"}
@@ -116,7 +120,7 @@ export function NeedsKeyCard({
       </div>
 
       {error && (
-        <p className="text-[10px] font-mono text-red-400">
+        <p className="font-grotesk text-xs text-n-red">
           {error}
         </p>
       )}

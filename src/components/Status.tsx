@@ -45,7 +45,7 @@ export function Status({
   return (
     <div
       data-testid="status-badge"
-      className="inline-flex items-center gap-2.5 px-3 py-2 bg-n-surface border border-n-border rounded-sm w-full animate-fade-in"
+      className="inline-flex items-center gap-2.5 px-3.5 py-2.5 bg-n-s1 border border-n-line rounded-sm w-full animate-fade-in"
     >
       {resolvedState === "warn" ? (
         <AlertTriangle
@@ -55,7 +55,7 @@ export function Status({
       ) : resolvedState === "off" ? (
         <Circle
           data-testid="status-icon-off"
-          className="w-4 h-4 text-n-text3 shrink-0"
+          className="w-4 h-4 text-n-disabled shrink-0"
         />
       ) : (
         <CheckCircle2
@@ -64,11 +64,11 @@ export function Status({
         />
       )}
 
-      <span className="text-white font-mono text-xs uppercase tracking-wider truncate flex-1">
+      <span className="text-n-primary font-grotesk text-xs truncate flex-1 font-medium">
         {displayLabel}
       </span>
 
-      <span className="text-[8px] uppercase tracking-wider text-n-text3 px-1 py-0.5 border border-n-border rounded-sm shrink-0">
+      <span className="nt-label px-1.5 py-0.5 border border-n-line rounded-sm shrink-0">
         {resolvedState}
       </span>
     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Check, Pencil, Trash2 } from "lucide-react";
 import type { RegistryRenderContext } from "@/registry/types";
 
 export interface ChecklistProps {
@@ -153,10 +154,10 @@ export function Checklist({
   const progressPercent = tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0;
 
   return (
-    <div className="bg-n-surface border border-n-border rounded-sm overflow-hidden animate-fade-in flex flex-col">
+    <div className="bg-n-s1 border border-n-line rounded-sm overflow-hidden animate-fade-in flex flex-col">
       {/* Create / Add Task Bar */}
       {allowAdd && (
-        <div className="p-2 border-b border-n-border bg-n-surface2/50 flex items-center gap-2">
+        <div className="p-2.5 border-b border-n-line bg-n-s2 flex items-center gap-2">
           <input
             type="text"
             value={newText}
@@ -168,14 +169,14 @@ export function Checklist({
               }
             }}
             placeholder={placeholder}
-            className="flex-1 bg-black/40 border border-n-border rounded-sm px-3 py-1.5 text-xs text-white placeholder-n-text3 focus:outline-none focus:border-white transition-colors font-sans"
+            className="flex-1 bg-black/40 border border-n-line2 rounded-sm px-3 py-1.5 text-xs text-n-primary font-grotesk placeholder-n-disabled focus:outline-none focus:border-n-line3 transition-colors"
             aria-label="New task input"
           />
           <button
             type="button"
             onClick={handleAddTask}
             disabled={!newText.trim()}
-            className="px-3 py-1.5 bg-white text-black text-[10px] font-mono font-bold uppercase tracking-wider rounded-sm hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 active:scale-95"
+            className="px-3 py-1.5 bg-white text-black text-[10px] font-mono font-bold uppercase tracking-wider rounded-sm hover:bg-n-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 active:scale-95 nt-press"
             aria-label="Add task"
           >
             + ADD
@@ -184,9 +185,9 @@ export function Checklist({
       )}
 
       {/* Task List */}
-      <div className="divide-y divide-n-border">
+      <div className="divide-y divide-n-line">
         {tasks.length === 0 ? (
-          <div className="px-4 py-6 text-center text-n-text3 text-xs font-mono">
+          <div className="px-4 py-6 text-center text-n-disabled text-xs font-mono">
             (No tasks yet. Add one above)
           </div>
         ) : (
@@ -197,7 +198,7 @@ export function Checklist({
               <div
                 key={task.id || i}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors group ${
-                  task.completed ? "bg-white/[0.01]" : "hover:bg-n-surface2/40"
+                  task.completed ? "bg-white/[0.01]" : "hover:bg-n-s2/50"
                 }`}
               >
                 {/* Nothing-style checkbox */}
@@ -205,14 +206,12 @@ export function Checklist({
                   type="button"
                   onClick={() => toggleTask(task.id)}
                   aria-label={task.completed ? `Mark ${task.text} incomplete` : `Mark ${task.text} complete`}
-                  className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-colors rounded-sm cursor-pointer ${
-                    task.completed ? "bg-white border-white" : "border-n-border2 hover:border-white"
+                  className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-colors rounded-sm cursor-pointer nt-press ${
+                    task.completed ? "bg-white border-white" : "border-n-line2 hover:border-n-line3"
                   }`}
                 >
                   {task.completed && (
-                    <svg viewBox="0 0 12 12" className="w-2.5 h-2.5" fill="none" stroke="#0a0a0a" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
-                    </svg>
+                    <Check size={10} strokeWidth={2.5} className="text-black" />
                   )}
                 </button>
 
@@ -228,13 +227,13 @@ export function Checklist({
                         if (e.key === "Enter") saveEdit();
                         if (e.key === "Escape") cancelEdit();
                       }}
-                      className="flex-1 bg-black/60 border border-white rounded-sm px-2 py-1 text-xs text-white focus:outline-none font-sans"
+                      className="flex-1 bg-black/60 border border-n-line3 rounded-sm px-2 py-1 text-xs text-white focus:outline-none font-grotesk"
                       aria-label="Edit task input"
                     />
                     <button
                       type="button"
                       onClick={saveEdit}
-                      className="text-[10px] font-mono text-emerald-400 hover:text-emerald-300 px-1.5 py-0.5 border border-emerald-500/40 rounded uppercase"
+                      className="text-[10px] font-mono text-white hover:text-n-primary px-1.5 py-0.5 border border-white/40 rounded uppercase nt-press"
                       title="Save"
                     >
                       ✓
@@ -242,7 +241,7 @@ export function Checklist({
                     <button
                       type="button"
                       onClick={cancelEdit}
-                      className="text-[10px] font-mono text-n-text3 hover:text-white px-1.5 py-0.5 border border-n-border rounded uppercase"
+                      className="text-[10px] font-mono text-n-disabled hover:text-white px-1.5 py-0.5 border border-n-line rounded uppercase nt-press"
                       title="Cancel"
                     >
                       ✕
@@ -253,16 +252,16 @@ export function Checklist({
                     <span
                       onClick={() => allowEdit && startEdit(task)}
                       title={allowEdit ? "Click to edit" : undefined}
-                      className={`text-xs transition-colors flex-1 select-none ${
+                      className={`text-xs font-grotesk transition-colors flex-1 select-none ${
                         allowEdit ? "cursor-pointer hover:text-white" : ""
-                      } ${task.completed ? "line-through text-n-text3" : "text-n-text"}`}
+                      } ${task.completed ? "line-through text-n-disabled" : "text-n-primary"}`}
                     >
                       {task.text}
                     </span>
 
                     {/* Done label */}
                     {task.completed && (
-                      <span className="text-n-text3 text-[9px] uppercase tracking-wider font-mono">
+                      <span className="nt-label">
                         done
                       </span>
                     )}
@@ -274,10 +273,10 @@ export function Checklist({
                           type="button"
                           onClick={() => startEdit(task)}
                           aria-label={`Edit ${task.text}`}
-                          className="text-[10px] text-n-text3 hover:text-white font-mono uppercase px-1 py-0.5 rounded border border-transparent hover:border-n-border transition-colors"
+                          className="p-1 text-n-disabled hover:text-white border border-transparent hover:border-n-line rounded transition-colors"
                           title="Edit"
                         >
-                          ✎
+                          <Pencil size={11} strokeWidth={1.5} />
                         </button>
                       )}
                       {allowDelete && (
@@ -285,10 +284,10 @@ export function Checklist({
                           type="button"
                           onClick={() => deleteTask(task.id)}
                           aria-label={`Delete ${task.text}`}
-                          className="text-xs text-n-text3 hover:text-red-400 font-mono px-1 py-0.5 rounded border border-transparent hover:border-red-500/30 transition-colors"
+                          className="p-1 text-n-disabled hover:text-n-red border border-transparent hover:border-n-red/30 rounded transition-colors"
                           title="Delete"
                         >
-                          ✕
+                          <Trash2 size={11} strokeWidth={1.5} />
                         </button>
                       )}
                     </div>
@@ -302,18 +301,18 @@ export function Checklist({
 
       {/* Progress bar & stats */}
       {tasks.length > 0 && (
-        <div className="px-4 py-2.5 flex items-center gap-3 border-t border-n-border bg-n-surface/40">
-          <div className="flex-1 h-1 bg-n-border rounded-full overflow-hidden">
+        <div className="px-4 py-2.5 flex items-center gap-3 border-t border-n-line bg-n-s2">
+          <div className="flex-1 h-1 bg-n-line rounded-full overflow-hidden">
             <div
               className="h-full bg-white transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <span className="text-n-text3 text-[10px] font-mono tracking-wider shrink-0">
+          <span className="nt-label shrink-0">
             {completedCount}/{tasks.length}
           </span>
           {completedCount === tasks.length && tasks.length > 0 && (
-            <span className="text-emerald-400 text-[10px] font-mono font-bold tracking-wider">
+            <span className="font-mono text-[10px] font-bold text-n-display tracking-wider">
               ALL DONE
             </span>
           )}

@@ -42,18 +42,18 @@ export function Clock({ timezone, format = "12h", label }: ClockProps) {
     ?? "LOCAL";
 
   return (
-    <div className="bg-n-surface border border-n-border rounded-sm p-5 animate-fade-in">
+    <div className="bg-n-s1 border border-n-line rounded-sm p-4 animate-fade-in">
       {/* Location label */}
-      <p className="text-n-text3 text-[9px] uppercase tracking-[0.2em] mb-4">
+      <p className="nt-label mb-3">
         {displayLabel.toUpperCase()}
       </p>
 
       {/* Time in Doto dot-matrix font */}
-      <div className="flex items-end gap-2 mb-3">
+      <div className="flex items-end gap-2 mb-2">
         <span
-          className="font-doto text-white leading-none tabular-nums"
+          className="font-doto text-n-display leading-none tabular-nums"
           style={{
-            fontSize: "clamp(40px, 14vw, 56px)",
+            fontSize: "clamp(28px, 10vw, 48px)",
             fontVariationSettings: "'ROND' 0",
           }}
         >
@@ -61,8 +61,8 @@ export function Clock({ timezone, format = "12h", label }: ClockProps) {
         </span>
         {tick.meridiem && (
           <span
-            className="font-doto text-n-text2 mb-1"
-            style={{ fontSize: "18px", fontVariationSettings: "'ROND' 0" }}
+            className="font-doto text-n-secondary mb-1"
+            style={{ fontSize: "14px", fontVariationSettings: "'ROND' 0" }}
           >
             {tick.meridiem}
           </span>
@@ -70,14 +70,14 @@ export function Clock({ timezone, format = "12h", label }: ClockProps) {
       </div>
 
       {/* Date */}
-      <p className="text-n-text3 text-[10px] uppercase tracking-[0.15em]">
+      <p className="nt-label text-[8px] text-n-disabled">
         {tick.date.toUpperCase()}
       </p>
 
       {/* Live indicator */}
-      <div className="flex items-center gap-1.5 mt-4">
-        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse-slow" />
-        <span className="text-n-text3 text-[8px] uppercase tracking-widest">live</span>
+      <div className="flex items-center gap-1.5 mt-3">
+        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+        <span className="nt-label text-[8px]">live</span>
       </div>
     </div>
   );

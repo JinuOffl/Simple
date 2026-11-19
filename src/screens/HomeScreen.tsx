@@ -12,6 +12,8 @@ import type { ManifestV2 } from "@/schema/manifest.v2";
 import { PLANS } from "@/config/plans";
 import { STARTER_TEMPLATES } from "../../supabase/functions/_shared/orchestrator/templates.ts";
 import type { StarterTemplate } from "../../supabase/functions/_shared/orchestrator/types.ts";
+import { TemplateIcon } from "@/lib/toolIcon";
+import { User, Plug, BarChart2, LogOut, Plus } from "lucide-react";
 
 const DEMO_TEMPLATE_SLUGS = [
   "habit-heatmap",
@@ -50,27 +52,27 @@ function TemplateCard({
       onClick={onClone}
       disabled={isCloning}
       aria-label={`Clone template: ${template.name}`}
-      className="group w-full text-left p-3.5 bg-n-surface border border-n-border hover:border-white rounded-sm
-                 transition-all duration-150 flex flex-col justify-between gap-3 active:scale-[0.99] cursor-pointer"
+      className="group w-full text-left p-3.5 bg-n-s1 border border-n-line hover:border-n-line3 rounded-sm
+                 transition-all duration-150 flex flex-col justify-between gap-3 nt-press cursor-pointer"
     >
       <div className="space-y-1.5 w-full">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-xl leading-none">{template.icon}</span>
-            <span className="font-mono text-xs uppercase tracking-wider text-white group-hover:text-white transition-colors font-semibold">
+            <TemplateIcon template={template} size={15} className="text-n-secondary group-hover:text-white transition-colors" />
+            <span className="font-grotesk text-xs uppercase tracking-wider text-n-primary group-hover:text-white transition-colors font-medium">
               {template.name}
             </span>
           </div>
-          <span className="nt-tag text-[8px] px-1.5 py-0.5 uppercase tracking-widest text-n-text3">
+          <span className="nt-label text-[8px] px-1.5 py-0.5 border border-n-line rounded-sm">
             {size}
           </span>
         </div>
-        <p className="text-n-text3 text-[10px] leading-relaxed line-clamp-2 font-mono">
+        <p className="text-n-secondary text-xs leading-relaxed line-clamp-2 font-grotesk">
           {template.description}
         </p>
       </div>
 
-      <div className="pt-2 border-t border-n-border/50 flex items-center justify-between text-[9px] font-mono text-n-text3 group-hover:text-white transition-colors">
+      <div className="pt-2 border-t border-n-line/60 flex items-center justify-between text-[9px] font-mono text-n-disabled group-hover:text-white transition-colors">
         <span className="uppercase tracking-widest">Instant Demo</span>
         <span>{isCloning ? "CLONING..." : "USE TEMPLATE →"}</span>
       </div>
@@ -383,7 +385,7 @@ export function HomeScreen() {
     <div className="min-h-[100dvh] flex flex-col bg-gradient-mesh">
 
       {/* Header */}
-      <header className="px-4 sm:px-5 pt-5 pb-3 flex items-end justify-between border-b border-n-border gap-2">
+      <header className="px-4 sm:px-5 pt-4 pb-3 flex items-center justify-between border-b border-n-line gap-2">
         <div className="shrink-0 min-w-0">
           {/* Simple. in Doto dot-matrix */}
           <h1
@@ -392,18 +394,18 @@ export function HomeScreen() {
           >
             Simple.
           </h1>
-          <p className="text-n-text3 text-[9px] uppercase tracking-[0.18em] mt-1 truncate">
-            {apps.length > 0 ? `${apps.length} tool${apps.length !== 1 ? "s" : ""}` : "your mini-tools"}
+          <p className="nt-label mt-1 truncate">
+            {apps.length > 0 ? `${apps.length} tool${apps.length !== 1 ? "s" : ""}` : "personal micro-tools"}
           </p>
         </div>
 
         {/* Plan & Account dropdown */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {apps.length > 0 && (
             <button
               type="button"
               onClick={() => setShowTemplatesModal(true)}
-              className="nt-tag hover:border-n-border2 hover:text-white transition-colors cursor-pointer text-[9px] uppercase tracking-wider"
+              className="font-mono text-[9px] uppercase tracking-widest text-n-secondary border border-n-line px-2.5 py-1 rounded-sm hover:border-n-line3 hover:text-white transition-colors cursor-pointer"
             >
               templates
             </button>
@@ -412,7 +414,7 @@ export function HomeScreen() {
           <button
             type="button"
             onClick={() => navigate("/plan")}
-            className="nt-tag hover:border-n-border2 hover:text-n-text2 transition-colors cursor-pointer text-[9px]"
+            className="font-mono text-[9px] uppercase tracking-wider text-n-disabled border border-n-line px-2 py-1 rounded-sm hover:border-n-line3 hover:text-white transition-colors cursor-pointer"
           >
             {activeCount}/{activeLimit} · {entitlement?.plan ?? "free"}
           </button>
@@ -423,17 +425,19 @@ export function HomeScreen() {
               onClick={() => setAccountMenuOpen((prev) => !prev)}
               aria-label="Account menu"
               aria-expanded={accountMenuOpen}
-              className="nt-tag hover:border-n-border2 hover:text-n-text2 transition-colors cursor-pointer text-[9px] flex items-center gap-1"
+              className="w-8 h-8 border border-n-line hover:border-n-line3 text-n-secondary hover:text-white rounded-sm flex items-center justify-center transition-colors cursor-pointer"
             >
-              <span>{accountLabel}</span>
-              <span className="text-[7px]">▾</span>
+              <User size={14} strokeWidth={1.5} />
             </button>
 
             {accountMenuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-full mt-1.5 w-40 bg-n-surface border border-n-border rounded-sm shadow-2xl z-30 py-1 text-xs animate-fade-in font-mono"
+                className="absolute right-0 top-full mt-1.5 w-44 bg-n-s2 border border-n-line2 rounded-sm shadow-2xl z-30 py-1 text-xs animate-fade-in font-grotesk"
               >
+                <div className="px-3 py-1.5 border-b border-n-line">
+                  <span className="nt-label text-[8px]">{accountLabel}</span>
+                </div>
                 <button
                   type="button"
                   role="menuitem"
@@ -441,8 +445,9 @@ export function HomeScreen() {
                     setAccountMenuOpen(false);
                     navigate("/connections");
                   }}
-                  className="w-full text-left px-3 py-2 text-n-text2 hover:text-white hover:bg-n-surface2 uppercase tracking-wider text-[10px]"
+                  className="w-full text-left px-3 py-2 text-n-secondary hover:text-white hover:bg-n-s3 flex items-center gap-2 text-xs transition-colors"
                 >
+                  <Plug size={12} strokeWidth={1.5} />
                   Connections
                 </button>
                 <button
@@ -452,11 +457,12 @@ export function HomeScreen() {
                     setAccountMenuOpen(false);
                     navigate("/plan");
                   }}
-                  className="w-full text-left px-3 py-2 text-n-text2 hover:text-white hover:bg-n-surface2 uppercase tracking-wider text-[10px]"
+                  className="w-full text-left px-3 py-2 text-n-secondary hover:text-white hover:bg-n-s3 flex items-center gap-2 text-xs transition-colors"
                 >
+                  <BarChart2 size={12} strokeWidth={1.5} />
                   Plan & usage
                 </button>
-                <div className="h-[1px] bg-n-border my-1" />
+                <div className="h-[1px] bg-n-line my-1" />
                 <button
                   type="button"
                   role="menuitem"
@@ -464,8 +470,9 @@ export function HomeScreen() {
                     setAccountMenuOpen(false);
                     void signOut();
                   }}
-                  className="w-full text-left px-3 py-2 text-red-400 hover:text-red-300 hover:bg-n-surface2 uppercase tracking-wider text-[10px]"
+                  className="w-full text-left px-3 py-2 text-n-red hover:text-red-300 hover:bg-n-s3 flex items-center gap-2 text-xs transition-colors"
                 >
+                  <LogOut size={12} strokeWidth={1.5} />
                   Sign out
                 </button>
               </div>
@@ -475,19 +482,19 @@ export function HomeScreen() {
       </header>
 
       {/* Content */}
-      <main className="flex-1 px-5 pb-28 overflow-y-auto mt-5">
+      <main className="flex-1 px-4 sm:px-5 pb-28 overflow-y-auto mt-4">
         {isLocalGuest && (
           <div
             data-testid="offline-guest-notice"
-            className="mb-4 bg-n-surface border border-white/40 rounded-sm px-4 py-3 flex items-center justify-between gap-3 text-xs animate-slide-up"
+            className="mb-4 bg-n-s1 border-l-2 border-n-red border-y border-r border-n-line rounded-sm px-4 py-3 flex items-center justify-between gap-3 text-xs animate-slide-up"
           >
-            <span className="text-white">
+            <span className="text-n-primary font-grotesk">
               Guest mode is offline. Sign in with email to build tools.
             </span>
             <button
               type="button"
               onClick={() => navigate("/auth")}
-              className="text-[10px] font-mono uppercase tracking-wider text-white border border-n-border px-2 py-1 rounded-sm hover:border-white transition-colors cursor-pointer shrink-0"
+              className="nt-label text-n-red hover:text-white border border-n-line px-2.5 py-1 rounded-sm hover:border-n-line3 transition-colors cursor-pointer shrink-0"
             >
               SIGN IN →
             </button>
@@ -604,59 +611,59 @@ export function HomeScreen() {
           </div>
         ) : (
           /* ── Tool grid ── */
-          <div className="grid grid-cols-4 gap-2 auto-rows-[120px] [grid-auto-flow:dense] animate-fade-in">
-            {apps.map((app) => {
-              const isSleeping = app.status === "sleeping";
-              const isOwned = !currentUserId || app.user_id === currentUserId;
+          <div className="space-y-3 animate-fade-in">
+            <p className="nt-label px-1">YOUR TOOLS — {apps.length} ACTIVE</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 auto-rows-[120px] [grid-auto-flow:dense]">
+              {apps.map((app) => {
+                const isSleeping = app.status === "sleeping";
+                const isOwned = !currentUserId || app.user_id === currentUserId;
 
-              if (isSleeping) {
+                if (isSleeping) {
+                  return (
+                    <AppCard
+                      key={app.id}
+                      app={app}
+                      isShared={!isOwned}
+                      onOpen={() => handleOpen(app)}
+                      onSleep={isOwned ? () => handleSleep(app) : undefined}
+                      onWake={isOwned ? () => handleWake(app) : undefined}
+                      onExport={isOwned ? () => handleExport(app) : undefined}
+                    />
+                  );
+                }
+
+                const v2Manifest = needsMigration(app.manifest)
+                  ? migrateV1toV2(app.manifest as Manifest)
+                  : (app.manifest as ManifestV2);
+
                 return (
-                  <AppCard
+                  <ToolTile
                     key={app.id}
-                    app={app}
+                    manifest={v2Manifest}
+                    appData={appsData[app.id] ?? {}}
+                    status={getToolStatus(v2Manifest)}
                     isShared={!isOwned}
                     onOpen={() => handleOpen(app)}
                     onSleep={isOwned ? () => handleSleep(app) : undefined}
-                    onWake={isOwned ? () => handleWake(app) : undefined}
                     onExport={isOwned ? () => handleExport(app) : undefined}
                   />
                 );
-              }
-
-              const v2Manifest = needsMigration(app.manifest)
-                ? migrateV1toV2(app.manifest as Manifest)
-                : (app.manifest as ManifestV2);
-
-              return (
-                <ToolTile
-                  key={app.id}
-                  manifest={v2Manifest}
-                  appData={appsData[app.id] ?? {}}
-                  status={getToolStatus(v2Manifest)}
-                  isShared={!isOwned}
-                  onOpen={() => handleOpen(app)}
-                  onSleep={isOwned ? () => handleSleep(app) : undefined}
-                  onExport={isOwned ? () => handleExport(app) : undefined}
-                />
-              );
-            })}
+              })}
+            </div>
           </div>
         )}
       </main>
 
-      {/* FAB — white circle with black + */}
-      <div className="fixed bottom-8 right-5 z-10 pb-[env(safe-area-inset-bottom)]">
+      {/* FAB — Nothing OS button */}
+      <div className="fixed bottom-6 right-5 z-10 pb-[env(safe-area-inset-bottom)]">
         <button
           onClick={() => handleStartBuilder()}
           id="create-app-fab"
           aria-label="Create tool"
-          className="w-14 h-14 bg-white rounded-full flex items-center justify-center
-                     transition-all duration-150 active:scale-90 hover:opacity-90"
-          style={{ boxShadow: "0 0 0 1px rgba(255,255,255,0.1)" }}
+          className="h-12 px-5 bg-white text-black font-grotesk font-medium text-xs tracking-wider rounded-full flex items-center gap-2 shadow-lg nt-press hover:bg-n-primary transition-all cursor-pointer"
         >
-          <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="#0a0a0a" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
+          <Plus size={14} strokeWidth={2} />
+          <span>NEW TOOL</span>
         </button>
       </div>
 

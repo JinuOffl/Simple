@@ -80,18 +80,18 @@ export function Timer({
   const isCompleted = remaining === 0;
 
   return (
-    <div className="w-full bg-n-surface border border-n-border rounded-sm p-4 animate-fade-in flex flex-col items-center gap-3">
+    <div className="w-full bg-n-s1 border border-n-line rounded-sm p-4 animate-fade-in flex flex-col items-center gap-3">
       <div className="w-full flex items-center justify-between">
-        <p className="text-n-text3 text-[9px] font-mono uppercase tracking-[0.18em]">
+        <p className="nt-label">
           {label}
         </p>
         <span
-          className={`nt-tag text-[8px] px-1.5 py-0.5 leading-none ${
+          className={`font-mono text-[9px] uppercase tracking-widest px-2 py-0.5 border rounded-sm leading-none ${
             isCompleted
-              ? "border-red-500/50 text-red-300"
+              ? "border-n-red text-n-red bg-n-red-dim"
               : isRunning
-                ? "border-white/50 text-white"
-                : ""
+                ? "border-white text-white"
+                : "border-n-line text-n-disabled"
           }`}
         >
           {isCompleted ? "done" : isRunning ? "running" : "paused"}
@@ -99,10 +99,10 @@ export function Timer({
       </div>
 
       {/* Dot-matrix time display */}
-      <div className="my-1 text-center">
+      <div className="my-2 text-center">
         <p
-          className={`font-doto text-4xl sm:text-5xl tracking-widest leading-none ${
-            isCompleted ? "text-red-400 animate-pulse" : "text-white"
+          className={`font-doto text-5xl sm:text-6xl tracking-wider leading-none ${
+            isCompleted ? "text-n-red animate-pulse" : "text-n-display"
           }`}
           style={{ fontVariationSettings: "'ROND' 0" }}
         >
@@ -111,14 +111,14 @@ export function Timer({
       </div>
 
       {/* Controls */}
-      <div className="w-full flex items-center justify-center gap-2 pt-1 border-t border-n-border">
+      <div className="w-full flex items-center justify-center gap-2 pt-2 border-t border-n-line">
         <button
           type="button"
           onClick={handleToggle}
-          className={`px-4 py-1.5 text-[10px] uppercase tracking-widest font-bold rounded-sm border transition-colors ${
+          className={`px-4 py-1.5 nt-label font-bold rounded-sm border transition-all nt-press cursor-pointer ${
             isRunning
-              ? "border-n-border bg-n-surface hover:border-n-border2 text-white"
-              : "bg-white text-n-bg border-white hover:opacity-90"
+              ? "border-n-line bg-n-s2 hover:border-n-line3 text-n-primary"
+              : "bg-white text-black border-white hover:bg-n-primary"
           }`}
         >
           {isCompleted ? "Restart" : isRunning ? "Pause" : "Start"}
@@ -126,7 +126,7 @@ export function Timer({
         <button
           type="button"
           onClick={handleReset}
-          className="px-3 py-1.5 text-[10px] uppercase tracking-widest text-n-text3 hover:text-white border border-n-border hover:border-n-border2 rounded-sm transition-colors"
+          className="px-3 py-1.5 nt-label text-n-secondary hover:text-n-display border border-n-line hover:border-n-line3 rounded-sm transition-all nt-press cursor-pointer"
         >
           Reset
         </button>

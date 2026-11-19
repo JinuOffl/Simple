@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { Mic, Square } from "lucide-react";
 
 interface MicRecorderProps {
   label: string;
@@ -82,7 +83,7 @@ export function MicRecorder({ label, save_to, onTranscript }: MicRecorderProps) 
   };
 
   return (
-    <div className="bg-n-surface border border-n-border rounded-sm p-4 space-y-3 animate-fade-in">
+    <div className="bg-n-s1 border border-n-line rounded-sm p-4 space-y-3 animate-fade-in">
       {/* Mic button */}
       <div className="flex flex-col items-center gap-3">
         <button
@@ -90,41 +91,36 @@ export function MicRecorder({ label, save_to, onTranscript }: MicRecorderProps) 
           onClick={isRecording ? stopRecording : startRecording}
           aria-label={isRecording ? "Stop recording" : `Start recording ${label}`}
           className={`
-            w-14 h-14 rounded-full flex items-center justify-center border
-            transition-all duration-200 active:scale-95
+            w-12 h-12 rounded-full flex items-center justify-center border-2
+            transition-all duration-150 nt-press cursor-pointer
             ${isRecording
-              ? "bg-white text-black border-white animate-pulse"
-              : "bg-n-surface2 border-n-border hover:border-white text-white"
+              ? "border-n-red bg-n-red-dim text-n-red animate-pulse"
+              : "bg-transparent border-n-line2 hover:border-n-line3 text-n-secondary hover:text-n-display"
             }
           `}
         >
           {isRecording ? (
-            // Stop icon
-            <div className="w-3.5 h-3.5 rounded-sm bg-black" />
+            <Square size={14} className="fill-current" />
           ) : (
-            // Mic icon
-            <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
-              <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
-              <path d="M19 10v2a7 7 0 01-14 0v-2H3v2a9 9 0 008 8.94V23h2v-2.06A9 9 0 0021 12v-2h-2z" />
-            </svg>
+            <Mic size={16} strokeWidth={1.5} />
           )}
         </button>
 
-        <p className="text-n-text2 text-xs font-mono uppercase tracking-wider">
+        <p className="nt-label text-center">
           {isRecording ? "Recording… tap to stop" : label}
         </p>
       </div>
 
       {/* Live transcript preview */}
       {transcript && (
-        <div className="bg-black/40 border border-n-border rounded-sm p-3 text-xs text-white/90 leading-relaxed font-mono animate-fade-in">
+        <div className="bg-n-s2 border border-n-line rounded-sm p-3 font-grotesk text-xs text-n-primary leading-relaxed animate-fade-in">
           {transcript}
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <p className="text-red-400 text-xs font-mono text-center">{error}</p>
+        <p className="text-n-red text-xs font-grotesk text-center">{error}</p>
       )}
     </div>
   );

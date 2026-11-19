@@ -10,20 +10,41 @@ export default {
       fontFamily: {
         doto: ["Doto", "monospace"],
         mono: ["Space Mono", "monospace"],
-        sans: ["Space Mono", "monospace"], // override default sans
+        grotesk: ["Space Grotesk", "sans-serif"],
+        sans: ["Space Grotesk", "sans-serif"], // override default sans
       },
       colors: {
-        // Nothing OS monochrome palette
-        "n-bg":       "#0a0a0a",
-        "n-surface":  "#111111",
-        "n-surface2": "#1a1a1a",
-        "n-surface3": "#222222",
-        "n-white":    "#ffffff",
-        "n-text":     "rgba(255,255,255,1)",
-        "n-text2":    "rgba(255,255,255,0.5)",
-        "n-text3":    "rgba(255,255,255,0.2)",
-        "n-border":   "rgba(255,255,255,0.08)",
-        "n-border2":  "rgba(255,255,255,0.2)",
+        // Nothing OS monochrome palette & 3-layer hierarchy
+        "n-display":   "#FFFFFF",
+        "n-primary":   "rgba(255,255,255,0.90)",
+        "n-secondary": "rgba(255,255,255,0.55)",
+        "n-disabled":  "rgba(255,255,255,0.28)",
+
+        // Surface layers (depth without blur)
+        "n-bg":        "#000000",
+        "n-s1":        "#0D0D0D",
+        "n-s2":        "#141414",
+        "n-s3":        "#1C1C1C",
+
+        // Borders (1px only, never shadows)
+        "n-line":      "rgba(255,255,255,0.07)",
+        "n-line2":     "rgba(255,255,255,0.14)",
+        "n-line3":     "rgba(255,255,255,0.28)",
+
+        // The ONE accent — Nothing Red
+        "n-red":       "#D71921",
+        "n-red-dim":   "rgba(215,25,33,0.15)",
+
+        // Backwards-compatible tokens
+        "n-surface":   "#111111",
+        "n-surface2":  "#1a1a1a",
+        "n-surface3":  "#222222",
+        "n-white":     "#ffffff",
+        "n-text":      "rgba(255,255,255,1)",
+        "n-text2":     "rgba(255,255,255,0.5)",
+        "n-text3":     "rgba(255,255,255,0.2)",
+        "n-border":    "rgba(255,255,255,0.08)",
+        "n-border2":   "rgba(255,255,255,0.2)",
         // shadcn/ui tokens
         border:     "hsl(var(--border))",
         input:      "hsl(var(--input))",
